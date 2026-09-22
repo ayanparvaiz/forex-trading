@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../data/session_controller.dart';
 import '../screens/community_screen.dart';
 import '../screens/journal_screen.dart';
 import '../screens/portfolio_screen.dart';
@@ -21,6 +22,8 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.s;
+
     return Scaffold(
       body: IndexedStack(
         index: _index,
@@ -34,26 +37,26 @@ class _AppShellState extends State<AppShell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: const [
+        destinations: [
           NavigationDestination(
-            icon: Icon(Icons.account_balance_wallet_outlined),
-            selectedIcon: Icon(Icons.account_balance_wallet),
-            label: 'পোর্টফোলিও',
+            icon: const Icon(Icons.account_balance_wallet_outlined),
+            selectedIcon: const Icon(Icons.account_balance_wallet),
+            label: s.navPortfolio,
           ),
           NavigationDestination(
-            icon: Icon(Icons.candlestick_chart_outlined),
-            selectedIcon: Icon(Icons.candlestick_chart),
-            label: 'ট্রেড',
+            icon: const Icon(Icons.candlestick_chart_outlined),
+            selectedIcon: const Icon(Icons.candlestick_chart),
+            label: s.navTrade,
           ),
           NavigationDestination(
-            icon: Icon(Icons.menu_book_outlined),
-            selectedIcon: Icon(Icons.menu_book),
-            label: 'জার্নাল',
+            icon: const Icon(Icons.menu_book_outlined),
+            selectedIcon: const Icon(Icons.menu_book),
+            label: s.navJournal,
           ),
           NavigationDestination(
-            icon: Icon(Icons.groups_outlined),
-            selectedIcon: Icon(Icons.groups),
-            label: 'কমিউনিটি',
+            icon: const Icon(Icons.groups_outlined),
+            selectedIcon: const Icon(Icons.groups),
+            label: s.navCommunity,
           ),
         ],
       ),
