@@ -16,59 +16,87 @@ enum TradeDirection {
 enum TradeStatus { open, closed }
 
 enum ExitReason {
-  stopLoss('স্টপ লস'),
-  takeProfit('টার্গেট'),
-  manual('নিজে বন্ধ');
+  stopLoss('স্টপ লস', 'Stopped out'),
+  takeProfit('টার্গেট', 'Target hit'),
+  manual('নিজে বন্ধ', 'Closed manually');
 
-  const ExitReason(this.bn);
+  const ExitReason(this.bn, this.en);
   final String bn;
+  final String en;
+
+  String label(bool bangla) => bangla ? bn : en;
 }
 
 /// A rule the trader broke. These — not profit — drive the discipline score.
 enum RuleViolation {
   riskTooHigh(
-    'রিস্ক বেশি',
-    'পরিকল্পনার চেয়ে বেশি টাকা ঝুঁকিতে ফেলেছেন',
+    bn: 'রিস্ক বেশি',
+    en: 'Risk too high',
+    bnWhy: 'পরিকল্পনার চেয়ে বেশি টাকা ঝুঁকিতে ফেলেছেন',
+    enWhy: 'You put more money at risk than your own plan allows',
     weight: 30,
   ),
   noReason(
-    'কারণ লেখেননি',
-    'কেন ট্রেডটা নিয়েছেন সেটা লেখা নেই — পরে শেখার কিছু থাকবে না',
+    bn: 'কারণ লেখেননি',
+    en: 'No reason given',
+    bnWhy: 'কেন ট্রেডটা নিয়েছেন সেটা লেখা নেই — পরে শেখার কিছু থাকবে না',
+    enWhy: 'Nothing written down, so there is nothing to learn from later',
     weight: 15,
   ),
   poorRiskReward(
-    'দুর্বল R:R',
-    'রিস্কের তুলনায় টার্গেট ছোট — লম্বা দৌড়ে এই অঙ্ক হারে',
+    bn: 'দুর্বল R:R',
+    en: 'Poor R:R',
+    bnWhy: 'রিস্কের তুলনায় টার্গেট ছোট — লম্বা দৌড়ে এই অঙ্ক হারে',
+    enWhy: 'The target is small next to the risk — that maths loses long-term',
     weight: 15,
   ),
   movedStop(
-    'স্টপ সরিয়েছেন',
-    'লস বাড়ার দিকে স্টপ সরানো — অ্যাকাউন্ট শেষ হওয়ার এক নম্বর কারণ',
+    bn: 'স্টপ সরিয়েছেন',
+    en: 'Moved the stop',
+    bnWhy: 'লস বাড়ার দিকে স্টপ সরানো — অ্যাকাউন্ট শেষ হওয়ার এক নম্বর কারণ',
+    enWhy: 'Widening a stop is the number one way accounts die',
     weight: 35,
   ),
   revengeTrade(
-    'রিভেঞ্জ ট্রেড',
-    'হারার সাথে সাথেই আবার ঢুকেছেন — এটা রাগ, প্ল্যান না',
+    bn: 'রিভেঞ্জ ট্রেড',
+    en: 'Revenge trade',
+    bnWhy: 'হারার সাথে সাথেই আবার ঢুকেছেন — এটা রাগ, প্ল্যান না',
+    enWhy: 'You re-entered right after a loss — that is anger, not a plan',
     weight: 25,
   ),
   overtrading(
-    'অতিরিক্ত ট্রেড',
-    'একদিনে অনেক বেশি ট্রেড — সেটআপের জন্য অপেক্ষা করেননি',
+    bn: 'অতিরিক্ত ট্রেড',
+    en: 'Overtrading',
+    bnWhy: 'একদিনে অনেক বেশি ট্রেড — সেটআপের জন্য অপেক্ষা করেননি',
+    enWhy: 'Too many trades in one day — you did not wait for the setup',
     weight: 20,
   ),
   noJournal(
-    'জার্নাল লেখেননি',
-    'ট্রেড বন্ধ করে কী শিখলেন লেখেননি',
+    bn: 'জার্নাল লেখেননি',
+    en: 'No journal entry',
+    bnWhy: 'ট্রেড বন্ধ করে কী শিখলেন লেখেননি',
+    enWhy: 'You closed the trade without writing what you learned',
     weight: 10,
   );
 
-  const RuleViolation(this.bn, this.explanation, {required this.weight});
+  const RuleViolation({
+    required this.bn,
+    required this.en,
+    required this.bnWhy,
+    required this.enWhy,
+    required this.weight,
+  });
 
   final String bn;
-  final String explanation;
+  final String en;
+  final String bnWhy;
+  final String enWhy;
 
   /// Penalty applied to the discipline score, before normalisation.
   final int weight;
+
+  String label(bool bangla) => bangla ? bn : en;
+  String why(bool bangla) => bangla ? bnWhy : enWhy;
 }
 
 /// A single demo trade, open or closed.

@@ -503,7 +503,7 @@ class _TradeScreenState extends State<TradeScreen> {
                           ),
                         ),
                         Text(
-                          v.explanation,
+                          v.why(true),
                           style: const TextStyle(
                             fontSize: 12,
                             height: 1.4,
