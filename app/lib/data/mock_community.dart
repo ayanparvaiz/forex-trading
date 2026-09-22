@@ -1,98 +1,53 @@
+import '../i18n/strings.dart';
 import '../models/trader.dart';
+import '../models/user_profile.dart';
+import 'seed_accounts.dart';
 
-/// Seed community data for the prototype.
+/// Builds the leaderboard and feed out of the seeded accounts.
 ///
-/// Read the leaderboard order carefully: Rifat sits top with **negative** total
-/// R, and the trader with the biggest profit is fourth. That is not an accident
-/// in the sample data — it is the product decision, made visible.
+/// Read the leaderboard order carefully. Rifat sits near the top on a losing
+/// record, and Imran — who has won more trades than anyone — sits well below
+/// him. That is not an accident in the sample data; it is the product decision,
+/// made visible the moment anyone opens the tab.
 class MockCommunity {
   const MockCommunity._();
 
-  static const you = Trader(
-    id: 'you',
-    name: 'আপনি',
-    avatarEmoji: '🫵',
-    disciplineScore: 78,
-    totalR: 1.9,
-    tradeCount: 6,
-    winRate: 0.67,
-    journalStreak: 4,
-    cohort: 'সেপ্টেম্বর ব্যাচ',
-    isYou: true,
-  );
+  /// Alternating batches, so the cohort filter has something to filter.
+  static String _cohortFor(int index, AppLanguage language) {
+    final month = index.isEven ? DateTime(2026, 9) : DateTime(2026, 8);
+    return UserProfile.cohortFor(month, language);
+  }
 
-  static const traders = <Trader>[
-    Trader(
-      id: 't1',
-      name: 'রিফাত হাসান',
-      avatarEmoji: '🦉',
-      disciplineScore: 96,
-      totalR: -0.4,
-      tradeCount: 41,
-      winRate: 0.41,
-      journalStreak: 38,
-      cohort: 'সেপ্টেম্বর ব্যাচ',
-    ),
-    Trader(
-      id: 't2',
-      name: 'নুসরাত জাহান',
-      avatarEmoji: '🌙',
-      disciplineScore: 93,
-      totalR: 8.2,
-      tradeCount: 36,
-      winRate: 0.5,
-      journalStreak: 31,
-      cohort: 'সেপ্টেম্বর ব্যাচ',
-    ),
-    Trader(
-      id: 't3',
-      name: 'তানভীর আহমেদ',
-      avatarEmoji: '🐅',
-      disciplineScore: 88,
-      totalR: 3.1,
-      tradeCount: 52,
-      winRate: 0.44,
-      journalStreak: 19,
-      cohort: 'আগস্ট ব্যাচ',
-    ),
-    you,
-    Trader(
-      id: 't4',
-      name: 'সাদিয়া ইসলাম',
-      avatarEmoji: '🐿️',
-      disciplineScore: 71,
-      totalR: 12.6,
-      tradeCount: 28,
-      winRate: 0.57,
-      journalStreak: 6,
-      cohort: 'সেপ্টেম্বর ব্যাচ',
-    ),
-    Trader(
-      id: 't5',
-      name: 'ইমরান খান',
-      avatarEmoji: '🐘',
-      disciplineScore: 54,
-      totalR: 21.4,
-      tradeCount: 96,
-      winRate: 0.49,
-      journalStreak: 0,
-      cohort: 'আগস্ট ব্যাচ',
-    ),
-    Trader(
-      id: 't6',
-      name: 'মেহেদী হাসান',
-      avatarEmoji: '🦊',
-      disciplineScore: 31,
-      totalR: -18.7,
-      tradeCount: 134,
-      winRate: 0.38,
-      journalStreak: 0,
-      cohort: 'সেপ্টেম্বর ব্যাচ',
-    ),
-  ];
+  static List<Trader> traders(AppLanguage language) {
+    final list = <Trader>[];
+    for (var i = 0; i < SeedAccounts.all.length; i++) {
+      list.add(
+        SeedAccounts.all[i].toTrader(cohort: _cohortFor(i, language)),
+      );
+    }
+    return list;
+  }
 
-  /// Leaderboard order: discipline first, trade count as the tiebreak.
-  static List<Trader> get leaderboard {
+  /// The seeded list with [you] swapped in for the matching username.
+  ///
+  /// A signed-in trader has to see their own live numbers, not the frozen seed
+  /// row — otherwise the leaderboard quietly lies about the one entry they can
+  /// actually check.
+  static List<Trader> withYou(AppLanguage language, Trader? you) {
+    final list = traders(language);
+    if (you == null) return list;
+
+    final index = list.indexWhere((t) => t.id == you.id);
+    if (index >= 0) {
+      list[index] = you;
+    } else {
+      list.add(you);
+    }
+    return list;
+  }
+
+  /// Ranked by discipline, with trade count as the tiebreak.
+  static List<Trader> rank(List<Trader> traders) {
     final sorted = [...traders]..sort((a, b) {
         final byScore = b.disciplineScore.compareTo(a.disciplineScore);
         return byScore != 0 ? byScore : b.tradeCount.compareTo(a.tradeCount);
@@ -100,14 +55,21 @@ class MockCommunity {
     return sorted;
   }
 
-  static Trader _byId(String id) => traders.firstWhere((t) => t.id == id);
+  static Trader _author(String username, AppLanguage language) {
+    final all = traders(language);
+    return all.firstWhere((t) => t.id == username, orElse: () => all.first);
+  }
 
-  static List<FeedPost> get feed {
+  /// Shared journal entries.
+  ///
+  /// Posts expire after seven days, so the feed is always what people are doing
+  /// now rather than an archive nobody scrolls.
+  static List<FeedPost> feed(AppLanguage language) {
     final now = DateTime.now();
     return [
       FeedPost(
         id: 'p1',
-        author: _byId('t1'),
+        author: _author('rifat', language),
         symbol: 'EUR/USD',
         rMultiple: -1.0,
         postedAt: now.subtract(const Duration(hours: 2)),
@@ -121,7 +83,7 @@ class MockCommunity {
       ),
       FeedPost(
         id: 'p2',
-        author: _byId('t5'),
+        author: _author('imran', language),
         symbol: 'GBP/USD',
         rMultiple: 4.8,
         postedAt: now.subtract(const Duration(hours: 6)),
@@ -135,7 +97,7 @@ class MockCommunity {
       ),
       FeedPost(
         id: 'p3',
-        author: _byId('t2'),
+        author: _author('nusrat', language),
         symbol: 'USD/JPY',
         rMultiple: 2.1,
         postedAt: now.subtract(const Duration(hours: 11)),
@@ -149,7 +111,7 @@ class MockCommunity {
       ),
       FeedPost(
         id: 'p4',
-        author: _byId('t3'),
+        author: _author('jarin', language),
         symbol: 'EUR/USD',
         rMultiple: -1.0,
         postedAt: now.subtract(const Duration(days: 1)),
@@ -161,6 +123,46 @@ class MockCommunity {
         claps: 38,
         commentCount: 5,
       ),
+      FeedPost(
+        id: 'p5',
+        author: _author('raihan', language),
+        symbol: 'GBP/USD',
+        rMultiple: 1.8,
+        postedAt: now.subtract(const Duration(days: 2)),
+        reason: 'এশিয়ান রেঞ্জ ব্রেক, লন্ডন ওপেনে কনফার্মেশন।',
+        lesson:
+            'টার্গেটের ৮০% এ বেরিয়ে এসেছি কারণ ভয় পেয়েছিলাম। পুরো টার্গেট '
+            'হিট করেছিল। ভয় আমার ০.৪R খেয়েছে।',
+        followedRules: true,
+        claps: 52,
+        commentCount: 17,
+      ),
+      FeedPost(
+        id: 'p6',
+        author: _author('mehedi', language),
+        symbol: 'USD/JPY',
+        rMultiple: -3.2,
+        postedAt: now.subtract(const Duration(days: 4)),
+        reason: 'নিচে যাচ্ছিল, ভাবলাম ফিরবে। স্টপ সরিয়ে দিয়েছিলাম।',
+        lesson:
+            'স্টপ সরানোটাই ভুল। −১R হতো, হয়েছে −৩.২R। একটা সিদ্ধান্ত '
+            'একটা লসকে তিন গুণ করে দিয়েছে।',
+        followedRules: false,
+        claps: 91,
+        commentCount: 44,
+      ),
     ];
+  }
+
+  /// How long a post stays in the feed before it disappears.
+  static const postLifetime = Duration(days: 7);
+
+  /// Posts that have not expired yet.
+  static List<FeedPost> liveFeed(AppLanguage language) {
+    final cutoff = DateTime.now().subtract(postLifetime);
+    return feed(language)
+        .where((p) => p.postedAt.isAfter(cutoff))
+        .toList()
+      ..sort((a, b) => b.postedAt.compareTo(a.postedAt));
   }
 }

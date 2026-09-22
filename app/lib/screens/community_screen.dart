@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../data/account_scope.dart';
+import '../data/avatars.dart';
 import '../data/mock_community.dart';
 import '../data/session_controller.dart';
 import '../i18n/strings.dart';
@@ -17,9 +19,37 @@ import '../widgets/common.dart';
 class CommunityScreen extends StatelessWidget {
   const CommunityScreen({super.key});
 
+  /// The signed-in trader as a leaderboard row, built from their live numbers.
+  Trader? _you(BuildContext context) {
+    final profile = context.session.profile;
+    if (profile == null) return null;
+
+    final store = AccountScope.of(context);
+    final stats = store.stats;
+
+    return Trader(
+      id: profile.username,
+      name: profile.displayName,
+      avatarEmoji: Avatars.byId(profile.avatarId).emoji,
+      disciplineScore: store.discipline.score,
+      badgePoints: store.badgePoints,
+      totalR: stats.totalR,
+      tradeCount: stats.total,
+      winRate: stats.winRate,
+      journalStreak: 0,
+      cohort: profile.cohort,
+      isYou: true,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = context.s;
+    final language = context.session.language;
+
+    final traders =
+        MockCommunity.rank(MockCommunity.withYou(language, _you(context)));
+    final posts = MockCommunity.liveFeed(language);
 
     return DefaultTabController(
       length: 2,
@@ -41,7 +71,10 @@ class CommunityScreen extends StatelessWidget {
           ),
         ),
         body: TabBarView(
-          children: [_Leaderboard(s: s), _Feed(s: s)],
+          children: [
+            _Leaderboard(s: s, traders: traders),
+            _Feed(s: s, posts: posts),
+          ],
         ),
       ),
     );
@@ -49,14 +82,13 @@ class CommunityScreen extends StatelessWidget {
 }
 
 class _Leaderboard extends StatelessWidget {
-  const _Leaderboard({required this.s});
+  const _Leaderboard({required this.s, required this.traders});
 
   final Strings s;
+  final List<Trader> traders;
 
   @override
   Widget build(BuildContext context) {
-    final traders = MockCommunity.leaderboard;
-
     return ListView(
       padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.xxl),
       children: [
@@ -150,12 +182,25 @@ class _LeaderboardRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  trader.isYou ? s.you : trader.name,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        trader.isYou ? s.you : trader.name,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Gap.w4,
+                    Text(
+                      '${trader.badge.tier.emoji}'
+                      '${trader.badge.tier.isTop ? trader.badge.level : ''}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ],
                 ),
                 Gap.h4,
                 Row(
@@ -224,14 +269,13 @@ class _LeaderboardRow extends StatelessWidget {
 }
 
 class _Feed extends StatelessWidget {
-  const _Feed({required this.s});
+  const _Feed({required this.s, required this.posts});
 
   final Strings s;
+  final List<FeedPost> posts;
 
   @override
   Widget build(BuildContext context) {
-    final posts = MockCommunity.feed;
-
     return ListView(
       padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.xxl),
       children: [

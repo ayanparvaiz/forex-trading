@@ -1,3 +1,5 @@
+import 'badge.dart';
+
 /// Another learner, as they appear on the leaderboard and in the feed.
 class Trader {
   const Trader({
@@ -5,6 +7,7 @@ class Trader {
     required this.name,
     required this.avatarEmoji,
     required this.disciplineScore,
+    required this.badgePoints,
     required this.totalR,
     required this.tradeCount,
     required this.winRate,
@@ -13,9 +16,15 @@ class Trader {
     this.isYou = false,
   });
 
+  /// Username — unique, and the account they log in with.
   final String id;
   final String name;
   final String avatarEmoji;
+
+  /// Net winning trades. Drives the badge.
+  final int badgePoints;
+
+  BadgeRank get badge => BadgeRank.of(badgePoints);
 
   /// 0–100. This is what the leaderboard sorts by.
   final double disciplineScore;

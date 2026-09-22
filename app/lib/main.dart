@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'data/account_scope.dart';
 import 'data/account_store.dart';
 import 'data/auth_repository.dart';
+import 'data/seed_accounts.dart';
 import 'data/session_controller.dart';
 import 'firebase/firebase_bootstrap.dart';
 import 'screens/auth/auth_gate.dart';
@@ -26,14 +27,22 @@ class ForexTradingApp extends StatefulWidget {
 }
 
 class _ForexTradingAppState extends State<ForexTradingApp> {
-  late final SessionController _session =
-      SessionController(LocalAuthRepository());
+  final LocalAuthRepository _auth = LocalAuthRepository();
+  late final SessionController _session = SessionController(_auth);
   late final AccountStore _store = AccountStore();
 
   @override
   void initState() {
     super.initState();
-    _session.restore();
+    _start();
+  }
+
+  Future<void> _start() async {
+    // Populate the twenty demo accounts before restoring the session, so the
+    // leaderboard and feed are never empty on a fresh install. Idempotent, and
+    // it leaves an existing session alone.
+    await SeedAccounts.ensureSeeded(_auth);
+    await _session.restore();
   }
 
   @override

@@ -46,6 +46,11 @@ abstract class AuthRepository {
   /// Free usernames near [base], for when the one they wanted is taken.
   Future<List<String>> suggestUsernames(String base, {int count = 4});
 
+  /// Creates an account.
+  ///
+  /// [startSession] signs the new account in, which is what a person
+  /// completing sign-up wants. Seeding passes false: creating twenty demo
+  /// accounts must not throw whoever is already signed in out of the app.
   Future<AuthResult> signUp({
     required String username,
     required String password,
@@ -53,6 +58,7 @@ abstract class AuthRepository {
     required Gender gender,
     required AppLanguage language,
     required String avatarId,
+    bool startSession = true,
   });
 
   Future<AuthResult> logIn({
@@ -179,6 +185,7 @@ class LocalAuthRepository implements AuthRepository {
     required Gender gender,
     required AppLanguage language,
     required String avatarId,
+    bool startSession = true,
   }) async {
     final invalid = AuthRepository.validate(
       username: username,
@@ -212,7 +219,9 @@ class LocalAuthRepository implements AuthRepository {
     };
 
     await _saveAccounts(accounts);
-    await (await _prefs).setString(_sessionKey, normalised);
+    if (startSession) {
+      await (await _prefs).setString(_sessionKey, normalised);
+    }
     return AuthSuccess(profile);
   }
 
