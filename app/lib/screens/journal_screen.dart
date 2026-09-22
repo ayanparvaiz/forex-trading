@@ -11,8 +11,8 @@ import '../widgets/common.dart';
 
 /// Trade history and the numbers derived from it.
 ///
-/// Results are stated in R first and dollars second, everywhere. A beginner who
-/// learns to think "that was a −1R day" instead of "I lost twelve dollars" has
+/// Results are stated in R first and points second, everywhere. A beginner who
+/// learns to think "that was a −1R day" instead of "I lost twelve points" has
 /// learned most of what this app exists to teach.
 class JournalScreen extends StatelessWidget {
   const JournalScreen({super.key});
@@ -115,7 +115,7 @@ class _PerformanceCard extends StatelessWidget {
               Expanded(
                 child: StatTile(
                   label: s.total,
-                  value: money(stats.netPnl),
+                  value: pointsDelta(stats.netPnl),
                   hint: rMultiple(stats.totalR),
                   valueColor: AppColors.forValue(stats.netPnl),
                 ),
@@ -308,7 +308,7 @@ class _TradeCard extends StatelessWidget {
                       ],
                     ),
                     Text(
-                      '${money(pnl)} · '
+                      '${pointsDelta(pnl)} · '
                       '${trade.exitReason?.label(s.isBangla) ?? ''} · '
                       '${s.timeAgo(trade.closedAt!)}',
                       style: const TextStyle(
@@ -337,8 +337,8 @@ class _TradeCard extends StatelessWidget {
           ),
           _detailRow(
             s.cost,
-            '${s.spread} ${money(-trade.spreadCost)}'
-            '${trade.swapCost != 0 ? ' · ${s.swap} ${money(trade.swapCost)}' : ''}',
+            '${s.spread} ${pointsDelta(-trade.spreadCost)}'
+            '${trade.swapCost != 0 ? ' · ${s.swap} ${pointsDelta(trade.swapCost)}' : ''}',
           ),
           Gap.h12,
           _note(s.whyITookIt, trade.reason, AppColors.textSecondary),

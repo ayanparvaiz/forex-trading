@@ -95,7 +95,7 @@ class _TradeScreenState extends State<TradeScreen> {
             padding: const EdgeInsets.only(right: Gap.lg),
             child: Center(
               child: Text(
-                '\$${store.balance.toStringAsFixed(2)}',
+                pointsValue(store.balance),
                 style: const TextStyle(
                   fontWeight: FontWeight.w700,
                   fontFeatures: tabularFigures,
@@ -319,7 +319,7 @@ class _TradeScreenState extends State<TradeScreen> {
           _slider(
             label: s.risk,
             value: '${_riskPercent.toStringAsFixed(2)}%',
-            secondary: money(-size.plannedRisk),
+            secondary: pointsDelta(-size.plannedRisk),
             secondaryColor: AppColors.loss,
             slider: Slider(
               value: _riskPercent,
@@ -416,7 +416,7 @@ class _TradeScreenState extends State<TradeScreen> {
               Expanded(
                 child: StatTile(
                   label: s.ifYouLose,
-                  value: money(-size.actualRisk),
+                  value: pointsDelta(-size.actualRisk),
                   hint: '${size.actualRiskPercent.toStringAsFixed(2)}%',
                   valueColor: AppColors.loss,
                 ),
@@ -424,7 +424,7 @@ class _TradeScreenState extends State<TradeScreen> {
               Expanded(
                 child: StatTile(
                   label: s.ifYouWin,
-                  value: money(size.actualRisk * _rewardRatio),
+                  value: pointsDelta(size.actualRisk * _rewardRatio),
                   hint: '${(size.actualRiskPercent * _rewardRatio)
                       .toStringAsFixed(2)}%',
                   valueColor: AppColors.profit,
@@ -569,7 +569,7 @@ class _TradeScreenState extends State<TradeScreen> {
             child: Text(
               '${_directionLabel(_direction, s)} · '
               '${size.lots.toStringAsFixed(2)} ${s.lots} · '
-              '${s.risk} ${money(-size.actualRisk)}',
+              '${s.risk} ${pointsDelta(-size.actualRisk)}',
             ),
           ),
         ],

@@ -3,66 +3,16 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../core/calculations.dart';
+import '../models/badge.dart';
 import '../models/instrument.dart';
 import '../models/trade.dart';
 import 'mock_market.dart';
 
-/// Demo balance tiers.
+/// Everything about the learner's demo account: points, positions, history.
 ///
-/// Everyone starts on $100 — the amount a real beginner actually has, and the
-/// amount that makes position sizing bite. Bigger balances are earned by
-/// trading well, not by tapping "reset balance". Note that every threshold is
-/// about discipline and volume; none of them is about profit.
-class AccountTier {
-  const AccountTier({
-    required this.balance,
-    required this.bn,
-    required this.en,
-    required this.tradesRequired,
-    required this.disciplineRequired,
-  });
-
-  final double balance;
-  final String bn;
-  final String en;
-  final int tradesRequired;
-  final double disciplineRequired;
-
-  String label(bool bangla) => bangla ? bn : en;
-
-  static const tiers = [
-    AccountTier(
-      balance: 100,
-      bn: 'শুরু',
-      en: 'Start',
-      tradesRequired: 0,
-      disciplineRequired: 0,
-    ),
-    AccountTier(
-      balance: 500,
-      bn: 'ধাপ ২',
-      en: 'Tier 2',
-      tradesRequired: 20,
-      disciplineRequired: 75,
-    ),
-    AccountTier(
-      balance: 2000,
-      bn: 'ধাপ ৩',
-      en: 'Tier 3',
-      tradesRequired: 50,
-      disciplineRequired: 80,
-    ),
-    AccountTier(
-      balance: 10000,
-      bn: 'ধাপ ৪',
-      en: 'Tier 4',
-      tradesRequired: 100,
-      disciplineRequired: 85,
-    ),
-  ];
-}
-
-/// Everything about the learner's demo account: balance, positions, history.
+/// The account is a daily contest. Everyone is handed the same 10,000 points at
+/// midnight and everyone starts level, so nobody can buy an advantage by
+/// grinding yesterday — the only thing that carries over is the badge ladder.
 ///
 /// Held in memory for now. The Firestore-backed version keeps the same API, so
 /// the screens will not change when it lands.
@@ -79,12 +29,13 @@ class AccountStore extends ChangeNotifier {
   final MockMarket market;
   Timer? _ticker;
 
+  /// Points every trader is given at midnight. Not earned, not saved up.
+  static const double dailyAllowance = 10000;
+
   /// The trader's own risk rule. Everything else is measured against it.
   double maxRiskPercent = 1.0;
   double minRiskReward = 1.5;
   int maxTradesPerDay = 3;
-
-  double get startingBalance => AccountTier.tiers.first.balance;
 
   final List<Trade> _trades = [];
   List<Trade> get trades => List.unmodifiable(_trades);
@@ -97,13 +48,26 @@ class AccountStore extends ChangeNotifier {
     return closed;
   }
 
-  /// Cash balance — realised results only.
-  double get balance =>
-      startingBalance +
-      closedTrades.fold<double>(0, (sum, t) => sum + (t.realisedPnl ?? 0));
+  /// Midnight that started the current trading day.
+  ///
+  /// Deriving the reset from the date rather than running a timer means the
+  /// balance is correct even if the app was closed when midnight passed.
+  DateTime get dayStart {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
+  }
 
-  /// Balance plus the floating result of anything still open. This is the
-  /// number that moves while a position is live.
+  /// Trades closed since the last reset. Only these move today's balance.
+  List<Trade> get todaysClosedTrades => closedTrades
+      .where((t) => !t.closedAt!.isBefore(dayStart))
+      .toList();
+
+  /// Today's points: the allowance plus whatever today's closed trades did.
+  double get balance =>
+      dailyAllowance +
+      todaysClosedTrades.fold<double>(0, (sum, t) => sum + (t.realisedPnl ?? 0));
+
+  /// Balance plus the floating result of anything still open.
   double get equity =>
       balance +
       openTrades.fold<double>(
@@ -113,37 +77,32 @@ class AccountStore extends ChangeNotifier {
 
   double get openPnl => equity - balance;
 
+  /// Result for the day so far, in points.
+  double get todaysPnl => equity - dailyAllowance;
+
+  /// Time left before the allowance resets.
+  Duration get untilReset =>
+      dayStart.add(const Duration(days: 1)).difference(DateTime.now());
+
   TradeStats get stats =>
-      TradeStats.from(_trades, startingBalance: startingBalance);
+      TradeStats.from(_trades, startingBalance: dailyAllowance);
 
   DisciplineBreakdown get discipline => calculateDiscipline(_trades);
 
-  AccountTier get tier {
-    final d = discipline;
-    final completed = closedTrades.length;
-    var current = AccountTier.tiers.first;
-    for (final t in AccountTier.tiers) {
-      if (completed >= t.tradesRequired && d.score >= t.disciplineRequired) {
-        current = t;
-      }
+  /// Net winning trades across every day played.
+  ///
+  /// This is the one number that survives the midnight reset, which is what
+  /// makes the ladder worth climbing.
+  int get badgePoints {
+    var points = 0;
+    for (final trade in _trades) {
+      if (trade.isOpen) continue;
+      points += (trade.realisedPnl ?? 0) > 0 ? 1 : -1;
     }
-    return current;
+    return points;
   }
 
-  /// The tier being worked towards, or null once the top one is reached.
-  AccountTier? get nextTier {
-    final index = AccountTier.tiers.indexOf(tier);
-    if (index < 0 || index + 1 >= AccountTier.tiers.length) return null;
-    return AccountTier.tiers[index + 1];
-  }
-
-  /// How far along the next unlock is, 0..1.
-  double get tierProgress {
-    final next = nextTier;
-    if (next == null) return 1;
-    if (next.tradesRequired == 0) return 1;
-    return (closedTrades.length / next.tradesRequired).clamp(0.0, 1.0);
-  }
+  BadgeRank get badge => BadgeRank.of(badgePoints);
 
   /// Rules this order would break, checked before it is allowed through.
   Set<RuleViolation> previewViolations({
@@ -199,6 +158,10 @@ class AccountStore extends ChangeNotifier {
 
     final recorded = trade.copyWith(violations: violations);
     _trades.add(recorded);
+
+    // The crowd sees the order flow: one more buyer nudges the price up.
+    market.applyPressure(instrument, direction == TradeDirection.buy ? 1 : -1);
+
     notifyListeners();
     return recorded;
   }
@@ -219,6 +182,13 @@ class AccountStore extends ChangeNotifier {
       reason: ExitReason.manual,
       lesson: lesson,
     );
+
+    // Closing a long is a sell, and pushes the other way.
+    market.applyPressure(
+      trade.instrument,
+      trade.direction == TradeDirection.buy ? -1 : 1,
+    );
+
     notifyListeners();
   }
 
@@ -307,7 +277,7 @@ class AccountStore extends ChangeNotifier {
     );
   }
 
-  /// A short history so the journal and stats screens have something to show.
+  /// A short history so the journal, stats and badge have something to show.
   void _seedHistory() {
     final now = DateTime.now();
     final seeds = <Map<String, dynamic>>[
@@ -392,7 +362,6 @@ class AccountStore extends ChangeNotifier {
       },
     ];
 
-    var runningBalance = startingBalance;
     for (var i = 0; i < seeds.length; i++) {
       final s = seeds[i];
       final instrument = Instrument.bySymbol(s['sym'] as String);
@@ -402,7 +371,7 @@ class AccountStore extends ChangeNotifier {
       // Size each historical trade at the risk rule, so the seeded numbers are
       // internally consistent with the calculator the app ships.
       final sized = sizePosition(
-        balance: runningBalance,
+        balance: dailyAllowance,
         riskPercent: maxRiskPercent,
         entryPrice: entry,
         stopPrice: stop,
@@ -412,29 +381,28 @@ class AccountStore extends ChangeNotifier {
           sized.lots >= Instrument.minLot ? sized.lots : Instrument.minLot;
 
       final opened = now.subtract(Duration(days: s['daysAgo'] as int));
-      final trade = Trade(
-        id: 'seed-$i',
-        symbol: instrument.symbol,
-        direction: s['dir'] as TradeDirection,
-        lots: lots,
-        entryPrice: entry,
-        stopPrice: stop,
-        targetPrice: s['target'] as double,
-        openedAt: opened,
-        closedAt: opened.add(const Duration(hours: 5)),
-        exitPrice: s['exit'] as double,
-        exitReason: (s['exit'] as double) == stop
-            ? ExitReason.stopLoss
-            : ExitReason.takeProfit,
-        balanceAtEntry: runningBalance,
-        reason: s['reason'] as String,
-        lesson: s['lesson'] as String?,
-        violations: s['v'] as Set<RuleViolation>,
-        isShared: i.isEven,
+      _trades.add(
+        Trade(
+          id: 'seed-$i',
+          symbol: instrument.symbol,
+          direction: s['dir'] as TradeDirection,
+          lots: lots,
+          entryPrice: entry,
+          stopPrice: stop,
+          targetPrice: s['target'] as double,
+          openedAt: opened,
+          closedAt: opened.add(const Duration(hours: 5)),
+          exitPrice: s['exit'] as double,
+          exitReason: (s['exit'] as double) == stop
+              ? ExitReason.stopLoss
+              : ExitReason.takeProfit,
+          balanceAtEntry: dailyAllowance,
+          reason: s['reason'] as String,
+          lesson: s['lesson'] as String?,
+          violations: s['v'] as Set<RuleViolation>,
+          isShared: i.isEven,
+        ),
       );
-
-      _trades.add(trade);
-      runningBalance += trade.realisedPnl ?? 0;
     }
   }
 

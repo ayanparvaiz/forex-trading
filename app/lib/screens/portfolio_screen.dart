@@ -12,7 +12,7 @@ import '../widgets/common.dart';
 
 /// Home screen: what the account is worth, and how well it is being run.
 ///
-/// The discipline ring is the largest element on the page and the money sits
+/// The discipline ring is the largest element on the page and the points sit
 /// under it. That ordering is the product argument — rank the habit, not the
 /// outcome — expressed as layout.
 class PortfolioScreen extends StatelessWidget {
@@ -32,9 +32,8 @@ class PortfolioScreen extends StatelessWidget {
         title: Text(s.navPortfolio),
         actions: [
           Pill(
-            text: store.tier.label(s.isBangla),
-            color: AppColors.brand,
-            icon: Icons.workspace_premium_outlined,
+            text: '${store.badge.tier.emoji} ${store.badge.label(s.isBangla)}',
+            color: AppColors.warning,
           ),
           Gap.w8,
           if (profile != null)
@@ -49,7 +48,7 @@ class PortfolioScreen extends StatelessWidget {
           Gap.h12,
           _DisciplineCard(discipline: discipline, s: s),
           Gap.h12,
-          _TierCard(store: store, s: s),
+          _BadgeCard(store: store, s: s),
           Gap.h12,
           _StatsCard(stats: stats, s: s),
           Gap.h12,
@@ -204,24 +203,48 @@ class _EquityCard extends StatelessWidget {
   final TradeStats stats;
   final Strings s;
 
+  /// `3ঘ 12মি` — how long is left before the allowance resets.
+  String _formatCountdown(Duration d, bool bangla) {
+    final hours = d.inHours;
+    final minutes = d.inMinutes % 60;
+    return bangla ? '$hoursঘ $minutesমি' : '${hours}h ${minutes}m';
+  }
+
   @override
   Widget build(BuildContext context) {
     final equity = store.equity;
     final openPnl = store.openPnl;
-    final growth = equity - store.startingBalance;
+    final growth = store.todaysPnl;
 
     return SectionCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(s.equityDemo, style: Theme.of(context).textTheme.labelSmall),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  s.todaysPoints,
+                  style: Theme.of(context).textTheme.labelSmall,
+                ),
+              ),
+              Pill(
+                text: s.resetsIn(
+                  _formatCountdown(store.untilReset, s.isBangla),
+                ),
+                color: AppColors.textMuted,
+                icon: Icons.schedule,
+                dense: true,
+              ),
+            ],
+          ),
           Gap.h4,
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
             children: [
               Text(
-                '\$${equity.toStringAsFixed(2)}',
+                pointsValue(equity),
                 style: const TextStyle(
                   fontSize: 34,
                   fontWeight: FontWeight.w800,
@@ -234,7 +257,7 @@ class _EquityCard extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Pill(
-                  text: money(growth),
+                  text: pointsDelta(growth),
                   color: AppColors.forValue(growth),
                 ),
               ),
@@ -246,13 +269,13 @@ class _EquityCard extends StatelessWidget {
               Expanded(
                 child: StatTile(
                   label: s.balance,
-                  value: '\$${store.balance.toStringAsFixed(2)}',
+                  value: pointsValue(store.balance),
                 ),
               ),
               Expanded(
                 child: StatTile(
                   label: s.openPnl,
-                  value: money(openPnl),
+                  value: pointsDelta(openPnl),
                   valueColor: AppColors.forValue(openPnl),
                 ),
               ),
@@ -343,102 +366,94 @@ class _DisciplineCard extends StatelessWidget {
   }
 }
 
-class _TierCard extends StatelessWidget {
-  const _TierCard({required this.store, required this.s});
+/// The badge ladder: where they sit, and how far to the next rung.
+class _BadgeCard extends StatelessWidget {
+  const _BadgeCard({required this.store, required this.s});
 
   final AccountStore store;
   final Strings s;
 
   @override
   Widget build(BuildContext context) {
-    final next = store.nextTier;
-    if (next == null) return const SizedBox.shrink();
-
-    final done = store.closedTrades.length;
-    final score = store.discipline.score;
+    final rank = store.badge;
+    final stats = store.stats;
+    final next = rank.nextTier;
 
     return SectionCard(
-      title: s.nextTier,
+      title: s.badge,
+      trailing: Pill(
+        text: '${rank.points} ${s.points}',
+        color: AppColors.warning,
+        dense: true,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            s.tierUnlockNote('\$${next.balance.toStringAsFixed(0)}'),
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          Gap.h12,
-          ClipRRect(
-            borderRadius: Radii.pill,
-            child: LinearProgressIndicator(
-              value: store.tierProgress,
-              minHeight: 8,
-              backgroundColor: AppColors.elevated,
-              valueColor: const AlwaysStoppedAnimation(AppColors.brand),
-            ),
-          ),
-          Gap.h12,
           Row(
             children: [
+              Text(rank.tier.emoji, style: const TextStyle(fontSize: 38)),
+              Gap.w12,
               Expanded(
-                child: _Requirement(
-                  label: s.trades,
-                  value: '$done / ${next.tradesRequired}',
-                  met: done >= next.tradesRequired,
-                ),
-              ),
-              Expanded(
-                child: _Requirement(
-                  label: s.discipline,
-                  value: '${score.toStringAsFixed(0)} / '
-                      '${next.disciplineRequired.toStringAsFixed(0)}',
-                  met: score >= next.disciplineRequired,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      rank.label(s.isBangla),
+                      style: const TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                    Text(
+                      s.winsLosses(stats.wins, stats.losses),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
+          Gap.h16,
+          ClipRRect(
+            borderRadius: Radii.pill,
+            child: LinearProgressIndicator(
+              value: rank.progress.clamp(0.0, 1.0),
+              minHeight: 8,
+              backgroundColor: AppColors.elevated,
+              valueColor: const AlwaysStoppedAnimation(AppColors.warning),
+            ),
+          ),
+          Gap.h8,
+          Text(
+            // Golden never stops counting, so it gets the level instead of a
+            // "next tier" that does not exist.
+            next == null
+                ? s.pointsToNext(
+                    rank.pointsToNext,
+                    '${rank.tier.label(s.isBangla)} ${rank.level + 1}',
+                  )
+                : s.pointsToNext(rank.pointsToNext, next.label(s.isBangla)),
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          Gap.h12,
+          Text(
+            s.badgeRule,
+            style: const TextStyle(
+              fontSize: 11.5,
+              height: 1.5,
+              color: AppColors.textMuted,
+            ),
+          ),
         ],
       ),
-    );
-  }
-}
-
-class _Requirement extends StatelessWidget {
-  const _Requirement({
-    required this.label,
-    required this.value,
-    required this.met,
-  });
-
-  final String label;
-  final String value;
-  final bool met;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(
-          met ? Icons.check_circle : Icons.radio_button_unchecked,
-          size: 16,
-          color: met ? AppColors.profit : AppColors.textMuted,
-        ),
-        Gap.w8,
-        Flexible(
-          child: Text(
-            '$label  ',
-            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w700,
-            fontFeatures: tabularFigures,
-          ),
-        ),
-      ],
     );
   }
 }
@@ -657,7 +672,7 @@ class _OpenPositionRow extends StatelessWidget {
                 ),
               ),
               Text(
-                money(pnl),
+                pointsDelta(pnl),
                 style: TextStyle(
                   fontSize: 11.5,
                   fontFeatures: tabularFigures,

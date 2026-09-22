@@ -35,6 +35,17 @@ class MockMarket {
   final Map<String, List<Candle>> _cache = {};
   final Map<String, double> _livePrices = {};
 
+  /// Net order flow per pair: positive when the crowd is buying.
+  final Map<String, double> _pressure = {};
+
+  /// How far one net order moves the price, in pips per tick. Small on purpose
+  /// — the crowd should tilt the market, not teleport it.
+  static const _pressurePipsPerOrder = 0.18;
+
+  /// Fraction of the pressure that survives each tick. Order flow should fade
+  /// within a minute or so, otherwise one busy morning pins the price forever.
+  static const _pressureDecay = 0.93;
+
   /// Historical candles ending at the most recent close.
   List<Candle> candles(
     Instrument instrument, {
@@ -126,12 +137,34 @@ class MockMarket {
         -instrument.spreadPips / 2,
       );
 
-  /// Nudges every price by a small random step. Called on a timer so open
-  /// positions show P&L moving the way they do on a real terminal.
+  /// Records one order against a pair: `+1` for a buy, `-1` for a sell.
+  ///
+  /// This is what makes the market feel populated. Prices are not a private
+  /// random walk per phone — when the crowd leans one way, the price leans with
+  /// it, and everyone trading that pair feels the same move.
+  void applyPressure(Instrument instrument, double direction) {
+    _pressure[instrument.symbol] =
+        (_pressure[instrument.symbol] ?? 0) + direction;
+  }
+
+  /// Net order flow currently pushing a pair. Positive means net buying.
+  double pressureOn(Instrument instrument) =>
+      _pressure[instrument.symbol] ?? 0;
+
+  /// Nudges every price by a small random step, plus whatever the crowd is
+  /// doing. Called on a timer so open positions show P&L moving the way they
+  /// do on a real terminal.
   void tick() {
     for (final instrument in Instrument.all) {
       final current = price(instrument);
-      final step = instrument.pipSize * (_random.nextDouble() - 0.5) * 1.6;
+
+      final noise = instrument.pipSize * (_random.nextDouble() - 0.5) * 1.6;
+      final crowd = instrument.pipSize *
+          pressureOn(instrument) *
+          _pressurePipsPerOrder;
+      final step = noise + crowd;
+
+      _pressure[instrument.symbol] = pressureOn(instrument) * _pressureDecay;
       _livePrices[instrument.symbol] = current + step;
 
       // Keep the last candle of every cached series in sync with the tick, so

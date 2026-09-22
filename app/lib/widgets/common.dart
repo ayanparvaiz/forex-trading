@@ -346,10 +346,38 @@ class _SparklinePainter extends CustomPainter {
   bool shouldRepaint(_SparklinePainter old) => old.values != values;
 }
 
-/// Formats a signed money amount, always with its sign.
-String money(double value, {int decimals = 2}) {
+/// Groups thousands: `10000` becomes `10,000`.
+String _group(String digits) {
+  final buffer = StringBuffer();
+  for (var i = 0; i < digits.length; i++) {
+    if (i > 0 && (digits.length - i) % 3 == 0) buffer.write(',');
+    buffer.write(digits[i]);
+  }
+  return buffer.toString();
+}
+
+/// A point balance, unsigned: `10,000`.
+///
+/// No currency symbol anywhere in the app. These are contest points handed out
+/// every midnight, not money, and showing them as dollars would blur the one
+/// line this app cannot afford to blur.
+String pointsValue(double value, {int decimals = 0}) {
+  final fixed = value.abs().toStringAsFixed(decimals);
+  final parts = fixed.split('.');
+  final grouped = _group(parts[0]);
+  final body = parts.length > 1 ? '$grouped.${parts[1]}' : grouped;
+  return value < 0 ? '−$body' : body;
+}
+
+/// A signed change in points: `+250`, `−1.04`.
+///
+/// Small amounts keep their decimals — a 0.40 spread charge must not round away
+/// to zero, because noticing it is the point.
+String pointsDelta(double value) {
   final sign = value > 0 ? '+' : (value < 0 ? '−' : '');
-  return '$sign\$${value.abs().toStringAsFixed(decimals)}';
+  final magnitude = value.abs();
+  final decimals = magnitude < 100 ? 2 : 0;
+  return '$sign${pointsValue(magnitude, decimals: decimals)}';
 }
 
 /// Formats an R-multiple, e.g. `+2.3R`.

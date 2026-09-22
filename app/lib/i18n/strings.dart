@@ -150,13 +150,42 @@ class Strings {
   String get rulesYouBreak => _t('যে নিয়মগুলো ভাঙছেন:', 'Rules you are breaking:');
   String timesCount(int n) => _t('$n বার', '$n×');
 
-  String get nextTier => _t('পরের ধাপ আনলক', 'Next tier');
-  String tierUnlockNote(String amount) => _t(
-        '$amount ব্যালেন্স — লাভ দিয়ে না, নিয়ম মেনে ট্রেড করে আনলক হয়।',
-        '$amount balance — unlocked by following rules, never by profit.',
-      );
   String get trades => _t('ট্রেড', 'Trades');
   String get discipline => _t('ডিসিপ্লিন', 'Discipline');
+
+  // --- Daily points and badges --------------------------------------------
+
+  String get todaysPoints => _t('আজকের পয়েন্ট', "Today's points");
+  String get todaysResult => _t('আজকের ফল', "Today's result");
+  String get points => _t('পয়েন্ট', 'points');
+
+  String resetsIn(String time) =>
+      _t('$time পরে রিসেট', 'resets in $time');
+
+  String get dailyResetNote => _t(
+        'প্রতিদিন রাত ১২টায় সবাই আবার ১০,০০০ পয়েন্ট পায়। আগের দিনের লাভ বা '
+        'লস জমা থাকে না — সবাই সমান জায়গা থেকে শুরু করে। শুধু ব্যাজ থেকে যায়।',
+        'Everyone is handed 10,000 points again at midnight. Yesterday does not '
+        'carry over, so nobody starts ahead. Only the badge survives.',
+      );
+
+  String get badge => _t('ব্যাজ', 'Badge');
+  String get badgePoints => _t('ব্যাজ পয়েন্ট', 'Badge points');
+
+  String pointsToNext(int n, String tier) =>
+      _t('$tier-এ যেতে আরও $n', '$n more to reach $tier');
+
+  String get atTopTier => _t('সর্বোচ্চ ধাপ', 'Top tier');
+
+  String get badgeRule => _t(
+        'জেতা প্রতি ট্রেডে +১, হারা প্রতি ট্রেডে −১। ব্যাজ নামতেও পারে — '
+        'না নামলে ওটার কোনো মানে থাকত না।',
+        'Every winning trade is +1, every loser −1. The badge can fall — if it '
+        'could not, it would mean nothing.',
+      );
+
+  String winsLosses(int wins, int losses) =>
+      _t('$wins জয় · $losses পরাজয়', '$wins won · $losses lost');
 
   String get stats => _t('পরিসংখ্যান', 'Stats');
   String get expectancy => _t('এক্সপেক্টেন্সি', 'Expectancy');
