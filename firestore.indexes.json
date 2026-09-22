@@ -1,0 +1,57 @@
+{
+  "indexes": [
+    {
+      "comment": "Leaderboard: ranked by discipline, never by profit.",
+      "collectionGroup": "leaderboard",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "disciplineScore", "order": "DESCENDING" },
+        { "fieldPath": "tradeCount", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "comment": "Leaderboard filtered to a single learning cohort.",
+      "collectionGroup": "leaderboard",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "cohort", "order": "ASCENDING" },
+        { "fieldPath": "disciplineScore", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "comment": "Community feed, newest first.",
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "postedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "comment": "Feed filtered to one pair.",
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "symbol", "order": "ASCENDING" },
+        { "fieldPath": "postedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "comment": "A trader's own history, newest close first.",
+      "collectionGroup": "trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "closedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "comment": "Open positions for a trader.",
+      "collectionGroup": "trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "openedAt", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

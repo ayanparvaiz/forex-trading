@@ -1,0 +1,154 @@
+rules_version = '2';
+
+// Security model in one line: a client may write what it *did*, never what it
+// *scored*. Trades are owner-only; discipline scores and leaderboard rows are
+// derived server-side by Cloud Functions and are read-only to every client.
+//
+// This is the whole point of the app. If a client could write its own
+// disciplineScore, the leaderboard would rank whoever edits a number best.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function unchanged(field) {
+      return !(field in request.resource.data)
+        || (field in resource.data && request.resource.data[field] == resource.data[field]);
+    }
+
+    // Fields only Cloud Functions may set. A client that tries to write any of
+    // them is rejected outright.
+    function serverOwnedUnchanged() {
+      return unchanged('disciplineScore')
+        && unchanged('totalR')
+        && unchanged('tradeCount')
+        && unchanged('winRate')
+        && unchanged('journalStreak')
+        && unchanged('tierIndex')
+        && unchanged('balance');
+    }
+
+    // --- Profiles -----------------------------------------------------------
+
+    match /users/{uid} {
+      // Profiles are public so the feed can show who wrote a post.
+      allow read: if isSignedIn();
+
+      allow create: if isOwner(uid)
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() <= 40
+        // A new account starts on the first tier with a clean slate. It cannot
+        // be born with a score.
+        && request.resource.data.disciplineScore == 100
+        && request.resource.data.tradeCount == 0
+        && request.resource.data.tierIndex == 0;
+
+      // Settings are the trader's own; stats are not.
+      allow update: if isOwner(uid) && serverOwnedUnchanged();
+
+      allow delete: if isOwner(uid);
+
+      // --- Trades -----------------------------------------------------------
+      //
+      // Private by default. Sharing copies a redacted version into /posts
+      // rather than opening the whole trade log.
+      match /trades/{tradeId} {
+        allow read: if isOwner(uid);
+
+        allow create: if isOwner(uid)
+          && request.resource.data.symbol is string
+          && request.resource.data.lots is number
+          && request.resource.data.lots > 0
+          // A trade without a stop is the one thing this app will not store.
+          && request.resource.data.stopPrice is number
+          && request.resource.data.entryPrice is number
+          && request.resource.data.targetPrice is number
+          && request.resource.data.stopPrice != request.resource.data.entryPrice
+          && request.resource.data.reason is string
+          && request.resource.data.reason.size() >= 10;
+
+        // Entry facts are immutable once written — otherwise a trader could
+        // rewrite a loss into a win after the fact, and the journal would be
+        // worth nothing.
+        allow update: if isOwner(uid)
+          && unchanged('entryPrice')
+          && unchanged('openedAt')
+          && unchanged('direction')
+          && unchanged('lots')
+          && unchanged('balanceAtEntry')
+          && unchanged('violations');
+
+        allow delete: if false;
+      }
+    }
+
+    // --- Public feed --------------------------------------------------------
+
+    match /posts/{postId} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.lesson is string
+        && request.resource.data.lesson.size() >= 10
+        && request.resource.data.claps == 0
+        && request.resource.data.commentCount == 0;
+
+      // Authors may fix their own wording. Clap and comment counters are
+      // aggregated by Cloud Functions so they cannot be inflated from a client.
+      allow update: if isSignedIn()
+        && resource.data.authorId == request.auth.uid
+        && unchanged('claps')
+        && unchanged('commentCount')
+        && unchanged('rMultiple')
+        && unchanged('authorId')
+        && unchanged('postedAt');
+
+      allow delete: if isSignedIn() && resource.data.authorId == request.auth.uid;
+
+      match /comments/{commentId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn()
+          && request.resource.data.authorId == request.auth.uid
+          && request.resource.data.body is string
+          && request.resource.data.body.size() > 0
+          && request.resource.data.body.size() <= 1000;
+        allow update: if isSignedIn() && resource.data.authorId == request.auth.uid;
+        allow delete: if isSignedIn() && resource.data.authorId == request.auth.uid;
+      }
+
+      // One clap document per user per post, so claps cannot be spammed.
+      match /claps/{uid} {
+        allow read: if isSignedIn();
+        allow create, delete: if isOwner(uid);
+        allow update: if false;
+      }
+    }
+
+    // --- Leaderboard --------------------------------------------------------
+    //
+    // Written exclusively by Cloud Functions. No client write path exists.
+    match /leaderboard/{uid} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // --- Lessons ------------------------------------------------------------
+    //
+    // Course content, published from the repo. Read-only to everyone.
+    match /lessons/{lessonId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

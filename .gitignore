@@ -22,10 +22,21 @@ app/ios/Flutter/flutter_export_environment.sh
 app/ios/Runner/GoogleService-Info.plist
 
 # Firebase
+#
+# Every generated config file stays out of the repo. Google documents these keys
+# as non-secret — they ship inside each APK — but GitHub's secret scanner flags
+# them and a public repo should not advertise a project's quota anyway.
+#
+# Regenerate them with:  flutterfire configure --project=<your-project-id>
+#
+# Committed code never imports firebase_options.dart: on Android and iOS the
+# native config files below supply the same values at runtime.
 .firebase/
 firebase-debug.log
 firestore-debug.log
-**/firebase_options.dart
+app/lib/firebase_options.dart
+app/android/app/google-services.json
+app/ios/Runner/GoogleService-Info.plist
 .firebaserc
 
 # Env / secrets

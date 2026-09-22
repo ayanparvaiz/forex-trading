@@ -9,6 +9,15 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  exclude:
+    # Firebase's iOS SwiftPM checkout lands here and drags its own Dart tests
+    # into the analysis, which reports hundreds of issues in code we do not own.
+    - build/**
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - lib/firebase_options.dart
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`
