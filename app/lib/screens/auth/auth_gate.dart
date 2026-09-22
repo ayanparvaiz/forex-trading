@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../data/community_repository.dart';
 import '../../data/session_controller.dart';
-import '../../theme/app_theme.dart';
 import '../app_shell.dart';
+import '../splash_screen.dart';
 import 'login_screen.dart';
 
 /// Chooses between the app and the login screen.
@@ -35,7 +35,7 @@ class _AuthGateState extends State<AuthGate> {
     final session = SessionScope.of(context);
 
     if (session.isRestoring) {
-      return const _Splash();
+      return const SplashScreen();
     }
 
     _seedGraphOnce(session);
@@ -47,32 +47,5 @@ class _AuthGateState extends State<AuthGate> {
     return session.isSignedIn
         ? AppShell(key: ValueKey(session.profile!.username))
         : const LoginScreen();
-  }
-}
-
-class _Splash extends StatelessWidget {
-  const _Splash();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('📈', style: TextStyle(fontSize: 46)),
-            Gap.h16,
-            SizedBox(
-              width: 22,
-              height: 22,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.2,
-                color: AppColors.brand,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }

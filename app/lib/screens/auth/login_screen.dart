@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../data/auth_repository.dart';
 import '../../data/session_controller.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_logo.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -59,7 +60,7 @@ class _LoginScreenState extends State<LoginScreen> {
           padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.xxl, Gap.xl, Gap.xl),
           children: [
             Gap.h32,
-            const Text('📈', style: TextStyle(fontSize: 52)),
+            const AppLogo(size: 66),
             Gap.h16,
             Text(
               s.loginTitle,
