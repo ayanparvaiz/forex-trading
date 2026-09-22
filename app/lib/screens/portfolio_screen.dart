@@ -4,11 +4,13 @@ import '../core/calculations.dart';
 import '../data/account_scope.dart';
 import '../data/account_store.dart';
 import '../data/avatars.dart';
+import '../data/community_repository.dart';
 import '../data/session_controller.dart';
 import '../i18n/strings.dart';
 import '../models/trade.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
+import 'profile_screen.dart';
 
 /// Home screen: what the account is worth, and how well it is being run.
 ///
@@ -176,6 +178,21 @@ class _ProfileButton extends StatelessWidget {
                 ],
               ),
               Gap.h16,
+              FilledButton.icon(
+                onPressed: () {
+                  final username = session.profile?.username;
+                  Navigator.of(sheetContext).pop();
+                  if (username == null) return;
+                  openProfile(
+                    context,
+                    username,
+                    LocalCommunityRepository(language: session.language),
+                  );
+                },
+                icon: const Icon(Icons.person_outline, size: 18),
+                label: Text(s.profile),
+              ),
+              Gap.h8,
               TextButton.icon(
                 onPressed: () {
                   session.logOut();

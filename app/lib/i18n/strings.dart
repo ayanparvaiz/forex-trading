@@ -344,6 +344,47 @@ class Strings {
   String get brokeRules => _t('নিয়ম ভেঙেছে', 'Broke the rules');
   String get you => _t('আপনি', 'You');
 
+  // --- Profile and connections --------------------------------------------
+
+  String get profile => _t('প্রোফাইল', 'Profile');
+  String get journalStreakLabel => _t('জার্নাল স্ট্রিক', 'Journal streak');
+  String get rank => _t('র‍্যাংক', 'Rank');
+  String get cohort => _t('ব্যাচ', 'Batch');
+
+  String get connections => _t('কানেকশন', 'Connections');
+  String get connect => _t('কানেক্ট', 'Connect');
+  String get requestSent => _t('রিকোয়েস্ট পাঠানো', 'Request sent');
+  String get connected => _t('কানেক্টেড', 'Connected');
+  String get accept => _t('অ্যাকসেপ্ট', 'Accept');
+  String get decline => _t('বাতিল', 'Decline');
+  String get withdraw => _t('ফিরিয়ে নিন', 'Withdraw');
+  String get disconnect => _t('সরিয়ে দিন', 'Remove');
+  String get wantsToConnect =>
+      _t('আপনার সাথে কানেক্ট হতে চায়', 'wants to connect with you');
+
+  String get pendingRequests =>
+      _t('অপেক্ষমাণ রিকোয়েস্ট', 'Pending requests');
+  String get noPendingRequests =>
+      _t('নতুন কোনো রিকোয়েস্ট নেই।', 'No new requests.');
+  String get noConnectionsYet => _t(
+        'এখনো কেউ কানেক্টেড না।\nলিডারবোর্ড থেকে কারো প্রোফাইলে গিয়ে রিকোয়েস্ট পাঠান।',
+        'No connections yet.\nOpen someone from the leaderboard and send a request.',
+      );
+
+  String get profileViewers => _t('কে দেখেছে', 'Who viewed you');
+  String get viewedYourProfile =>
+      _t('আপনার প্রোফাইল দেখেছে', 'viewed your profile');
+  String get noViewersYet => _t(
+        'এখনো কেউ আপনার প্রোফাইল দেখেনি।',
+        'Nobody has opened your profile yet.',
+      );
+
+  /// Only the owner sees their visitor list.
+  String get viewersArePrivate => _t(
+        'শুধু আপনি এই তালিকা দেখতে পান।',
+        'Only you can see this list.',
+      );
+
   // --- Grades -------------------------------------------------------------
 
   String get gradeExcellent => _t('চমৎকার', 'Excellent');

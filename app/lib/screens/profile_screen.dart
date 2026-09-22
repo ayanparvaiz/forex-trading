@@ -1,0 +1,831 @@
+import 'package:flutter/material.dart';
+
+import '../data/community_repository.dart';
+import '../data/page.dart';
+import '../data/session_controller.dart';
+import '../i18n/strings.dart';
+import '../models/connection.dart';
+import '../models/trader.dart';
+import '../theme/app_theme.dart';
+import '../widgets/common.dart';
+
+/// Opens [username]'s profile.
+///
+/// Every route into a profile goes through here, so recording the visit can
+/// never be forgotten at one call site and remembered at another.
+void openProfile(
+  BuildContext context,
+  String username,
+  CommunityRepository repository,
+) {
+  Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => ProfileScreen(username: username, repository: repository),
+    ),
+  );
+}
+
+/// A trader's public page.
+///
+/// Opening someone's profile records a visit, which is why the visitor list
+/// exists at all. Your own page shows who looked and what is waiting on you;
+/// everyone else's shows the connect button instead. Visitors are private to
+/// the person being visited — a list of who is watching whom, shown to
+/// everyone, is a different and much worse product.
+class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({
+    super.key,
+    required this.username,
+    required this.repository,
+  });
+
+  final String username;
+  final CommunityRepository repository;
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  Trader? _trader;
+  ConnectionStatus _status = ConnectionStatus.none;
+  int _connectionCount = 0;
+  bool _loading = true;
+  bool _busy = false;
+
+  /// Rebuilt to force the paged lists to refetch after a connection changes.
+  int _listVersion = 0;
+
+  String? get _me => context.session.profile?.username;
+
+  bool get _isSelf => _me == widget.username;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final trader = await widget.repository.trader(widget.username);
+    final count = await widget.repository.connectionCount(widget.username);
+
+    final me = _me;
+    var status = ConnectionStatus.none;
+    if (me != null && me != widget.username) {
+      status = await widget.repository.statusBetween(me, widget.username);
+      // Opening the page is the visit. Recorded after the read so it never
+      // shows the viewer their own arrival.
+      await widget.repository.recordView(
+        viewer: me,
+        profileId: widget.username,
+      );
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _trader = trader;
+      _status = status;
+      _connectionCount = count;
+      _loading = false;
+    });
+  }
+
+  Future<void> _act(Future<void> Function() action) async {
+    setState(() => _busy = true);
+    await action();
+    if (!mounted) return;
+
+    final me = _me;
+    final status = me == null
+        ? ConnectionStatus.none
+        : await widget.repository.statusBetween(me, widget.username);
+    final count = await widget.repository.connectionCount(widget.username);
+
+    if (!mounted) return;
+    setState(() {
+      _status = status;
+      _connectionCount = count;
+      _busy = false;
+      _listVersion++;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.s;
+    final trader = _trader;
+
+    return Scaffold(
+      appBar: AppBar(title: Text(s.profile)),
+      body: _loading
+          ? const Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 2.4,
+                color: AppColors.brand,
+              ),
+            )
+          : trader == null
+          ? Center(
+              child: Text(
+                '@${widget.username}',
+                style: const TextStyle(color: AppColors.textMuted),
+              ),
+            )
+          : ListView(
+              padding: const EdgeInsets.fromLTRB(
+                Gap.lg,
+                Gap.md,
+                Gap.lg,
+                Gap.xxl,
+              ),
+              children: [
+                _Header(trader: trader, s: s),
+                Gap.h12,
+                if (!_isSelf) ...[
+                  _ConnectButton(
+                    status: _status,
+                    busy: _busy,
+                    s: s,
+                    onConnect: () => _act(
+                      () => widget.repository.sendRequest(
+                        from: _me!,
+                        to: widget.username,
+                      ),
+                    ),
+                    onAccept: () => _act(
+                      () => widget.repository.acceptRequest(
+                        me: _me!,
+                        from: widget.username,
+                      ),
+                    ),
+                    onRemove: () => _act(
+                      () => widget.repository.removeConnection(
+                        me: _me!,
+                        other: widget.username,
+                      ),
+                    ),
+                  ),
+                  Gap.h12,
+                ],
+                _StatsCard(
+                  trader: trader,
+                  connectionCount: _connectionCount,
+                  s: s,
+                ),
+                Gap.h12,
+                _BadgeCard(trader: trader, s: s),
+                if (_isSelf) ...[
+                  Gap.h12,
+                  _PendingRequests(
+                    key: ValueKey('pending-$_listVersion'),
+                    username: widget.username,
+                    repository: widget.repository,
+                    s: s,
+                    onChanged: () => _act(() async {}),
+                  ),
+                  Gap.h12,
+                  _Viewers(
+                    key: ValueKey('viewers-$_listVersion'),
+                    username: widget.username,
+                    repository: widget.repository,
+                    s: s,
+                  ),
+                ],
+                Gap.h12,
+                _Connections(
+                  key: ValueKey('connections-$_listVersion'),
+                  username: widget.username,
+                  repository: widget.repository,
+                  s: s,
+                  isSelf: _isSelf,
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+class _Header extends StatelessWidget {
+  const _Header({required this.trader, required this.s});
+
+  final Trader trader;
+  final Strings s;
+
+  @override
+  Widget build(BuildContext context) {
+    return SectionCard(
+      child: Row(
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: const BoxDecoration(
+              color: AppColors.elevated,
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              trader.avatarEmoji,
+              style: const TextStyle(fontSize: 34),
+            ),
+          ),
+          Gap.w16,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  trader.name,
+                  style: const TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.4,
+                  ),
+                ),
+                Text(
+                  '@${trader.id}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+                Gap.h8,
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    Pill(
+                      text:
+                          '${trader.badge.tier.emoji} '
+                          '${trader.badge.label(s.isBangla)}',
+                      color: AppColors.warning,
+                      dense: true,
+                    ),
+                    Pill(
+                      text: trader.cohort,
+                      color: AppColors.brand,
+                      dense: true,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ConnectButton extends StatelessWidget {
+  const _ConnectButton({
+    required this.status,
+    required this.busy,
+    required this.s,
+    required this.onConnect,
+    required this.onAccept,
+    required this.onRemove,
+  });
+
+  final ConnectionStatus status;
+  final bool busy;
+  final Strings s;
+  final VoidCallback onConnect;
+  final VoidCallback onAccept;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    if (busy) {
+      return const SizedBox(
+        height: 52,
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.2,
+              color: AppColors.brand,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return switch (status) {
+      ConnectionStatus.none => FilledButton.icon(
+        onPressed: onConnect,
+        icon: const Icon(Icons.person_add_alt_1, size: 18),
+        label: Text(s.connect),
+      ),
+      // An outgoing request is not a state to celebrate, so it reads as a
+      // pending action you can take back rather than a success message.
+      ConnectionStatus.pendingOutgoing => OutlinedButton.icon(
+        onPressed: onRemove,
+        icon: const Icon(Icons.schedule, size: 18),
+        label: Text('${s.requestSent} · ${s.withdraw}'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.textSecondary,
+          side: const BorderSide(color: AppColors.border),
+          minimumSize: const Size.fromHeight(52),
+          shape: const RoundedRectangleBorder(borderRadius: Radii.tile),
+        ),
+      ),
+      ConnectionStatus.pendingIncoming => Row(
+        children: [
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: onAccept,
+              icon: const Icon(Icons.check, size: 18),
+              label: Text(s.accept),
+            ),
+          ),
+          Gap.w12,
+          Expanded(
+            child: OutlinedButton(
+              onPressed: onRemove,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.textSecondary,
+                side: const BorderSide(color: AppColors.border),
+                minimumSize: const Size.fromHeight(52),
+                shape: const RoundedRectangleBorder(borderRadius: Radii.tile),
+              ),
+              child: Text(s.decline),
+            ),
+          ),
+        ],
+      ),
+      ConnectionStatus.connected => OutlinedButton.icon(
+        onPressed: onRemove,
+        icon: const Icon(Icons.how_to_reg, size: 18),
+        label: Text('${s.connected} · ${s.disconnect}'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.brand,
+          side: const BorderSide(color: AppColors.brand),
+          minimumSize: const Size.fromHeight(52),
+          shape: const RoundedRectangleBorder(borderRadius: Radii.tile),
+        ),
+      ),
+    };
+  }
+}
+
+class _StatsCard extends StatelessWidget {
+  const _StatsCard({
+    required this.trader,
+    required this.connectionCount,
+    required this.s,
+  });
+
+  final Trader trader;
+  final int connectionCount;
+  final Strings s;
+
+  @override
+  Widget build(BuildContext context) {
+    return SectionCard(
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: StatTile(
+                  label: s.discipline,
+                  value: trader.disciplineScore.toStringAsFixed(0),
+                  hint: s.gradeFor(trader.disciplineScore),
+                  valueColor: trader.disciplineScore >= 75
+                      ? AppColors.discipline
+                      : AppColors.warning,
+                ),
+              ),
+              Expanded(
+                child: StatTile(
+                  label: s.trades,
+                  value: '${trader.tradeCount}',
+                  hint:
+                      '${(trader.winRate * 100).toStringAsFixed(0)}% '
+                      '${s.winRate.toLowerCase()}',
+                ),
+              ),
+              Expanded(
+                child: StatTile(
+                  label: s.totalR,
+                  value: rMultiple(trader.totalR),
+                  valueColor: AppColors.forValue(trader.totalR),
+                ),
+              ),
+            ],
+          ),
+          Gap.h16,
+          const Divider(),
+          Gap.h16,
+          Row(
+            children: [
+              Expanded(
+                child: StatTile(
+                  label: s.connections,
+                  value: '$connectionCount',
+                ),
+              ),
+              Expanded(
+                child: StatTile(
+                  label: s.badgePoints,
+                  value: '${trader.badgePoints}',
+                  valueColor: AppColors.warning,
+                ),
+              ),
+              Expanded(
+                child: StatTile(
+                  label: s.journalStreakLabel,
+                  value: '🔥 ${trader.journalStreak}',
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BadgeCard extends StatelessWidget {
+  const _BadgeCard({required this.trader, required this.s});
+
+  final Trader trader;
+  final Strings s;
+
+  @override
+  Widget build(BuildContext context) {
+    final rank = trader.badge;
+    final next = rank.nextTier;
+
+    return SectionCard(
+      title: s.badge,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(rank.tier.emoji, style: const TextStyle(fontSize: 32)),
+              Gap.w12,
+              Expanded(
+                child: Text(
+                  rank.label(s.isBangla),
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              Pill(
+                text: '${rank.points} ${s.points}',
+                color: AppColors.warning,
+                dense: true,
+              ),
+            ],
+          ),
+          Gap.h12,
+          ClipRRect(
+            borderRadius: Radii.pill,
+            child: LinearProgressIndicator(
+              value: rank.progress.clamp(0.0, 1.0),
+              minHeight: 7,
+              backgroundColor: AppColors.elevated,
+              valueColor: const AlwaysStoppedAnimation(AppColors.warning),
+            ),
+          ),
+          Gap.h8,
+          Text(
+            next == null
+                ? s.pointsToNext(
+                    rank.pointsToNext,
+                    '${rank.tier.label(s.isBangla)} ${rank.level + 1}',
+                  )
+                : s.pointsToNext(rank.pointsToNext, next.label(s.isBangla)),
+            style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A short paged list inside a card, for viewers / connections / requests.
+class _PeopleCard extends StatelessWidget {
+  const _PeopleCard({
+    required this.title,
+    this.subtitle,
+    required this.emptyLabel,
+    required this.child,
+  });
+
+  final String title;
+  final String? subtitle;
+  final String emptyLabel;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return SectionCard(
+      title: title,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (subtitle != null) ...[
+            Text(
+              subtitle!,
+              style: const TextStyle(
+                fontSize: 11.5,
+                color: AppColors.textMuted,
+              ),
+            ),
+            Gap.h12,
+          ],
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+/// Lists a bounded number of people, with a "show more" that pages.
+class _PeopleList<T> extends StatefulWidget {
+  const _PeopleList({
+    super.key,
+    required this.fetch,
+    required this.rowBuilder,
+    required this.emptyLabel,
+    this.pageSize = 5,
+  });
+
+  final PageFetcher<T> fetch;
+  final Widget Function(BuildContext, T) rowBuilder;
+  final String emptyLabel;
+  final int pageSize;
+
+  @override
+  State<_PeopleList<T>> createState() => _PeopleListState<T>();
+}
+
+class _PeopleListState<T> extends State<_PeopleList<T>> {
+  final _items = <T>[];
+  Object? _cursor;
+  bool _hasMore = true;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _more();
+  }
+
+  Future<void> _more() async {
+    setState(() => _loading = true);
+    final page = await widget.fetch(cursor: _cursor, limit: widget.pageSize);
+    if (!mounted) return;
+    setState(() {
+      _items.addAll(page.items);
+      _cursor = page.cursor;
+      _hasMore = page.hasMore;
+      _loading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading && _items.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: Gap.lg),
+        child: Center(
+          child: SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppColors.textMuted,
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (_items.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: Gap.md),
+        child: Text(
+          widget.emptyLabel,
+          style: const TextStyle(
+            fontSize: 12.5,
+            height: 1.5,
+            color: AppColors.textMuted,
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        for (final item in _items) widget.rowBuilder(context, item),
+        if (_hasMore)
+          TextButton(
+            onPressed: _loading ? null : _more,
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.brand,
+              minimumSize: const Size.fromHeight(38),
+            ),
+            child: Text(context.s.isBangla ? 'আরও দেখুন' : 'Show more'),
+          ),
+      ],
+    );
+  }
+}
+
+/// One person, tappable through to their profile.
+class _PersonRow extends StatelessWidget {
+  const _PersonRow({
+    required this.trader,
+    required this.repository,
+    this.subtitle,
+    this.trailing,
+  });
+
+  final Trader trader;
+  final CommunityRepository repository;
+  final String? subtitle;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.s;
+
+    return InkWell(
+      onTap: () => openProfile(context, trader.id, repository),
+      borderRadius: Radii.tile,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: Gap.sm),
+        child: Row(
+          children: [
+            Text(trader.avatarEmoji, style: const TextStyle(fontSize: 22)),
+            Gap.w12,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    trader.name,
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    subtitle ??
+                        '${trader.badge.tier.emoji} '
+                            '${trader.badge.label(s.isBangla)}',
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            ?trailing,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PendingRequests extends StatelessWidget {
+  const _PendingRequests({
+    super.key,
+    required this.username,
+    required this.repository,
+    required this.s,
+    required this.onChanged,
+  });
+
+  final String username;
+  final CommunityRepository repository;
+  final Strings s;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return _PeopleCard(
+      title: s.pendingRequests,
+      emptyLabel: s.noPendingRequests,
+      child: _PeopleList<Trader>(
+        fetch: ({Object? cursor, int limit = 5}) => repository
+            .pendingRequestsFor(username, cursor: cursor, limit: limit),
+        emptyLabel: s.noPendingRequests,
+        rowBuilder: (context, trader) => _PersonRow(
+          trader: trader,
+          repository: repository,
+          subtitle: s.wantsToConnect,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                onPressed: () async {
+                  await repository.acceptRequest(me: username, from: trader.id);
+                  onChanged();
+                },
+                icon: const Icon(Icons.check_circle, size: 22),
+                color: AppColors.profit,
+                tooltip: s.accept,
+                visualDensity: VisualDensity.compact,
+              ),
+              IconButton(
+                onPressed: () async {
+                  await repository.removeConnection(
+                    me: username,
+                    other: trader.id,
+                  );
+                  onChanged();
+                },
+                icon: const Icon(Icons.cancel, size: 22),
+                color: AppColors.textMuted,
+                tooltip: s.decline,
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Viewers extends StatelessWidget {
+  const _Viewers({
+    super.key,
+    required this.username,
+    required this.repository,
+    required this.s,
+  });
+
+  final String username;
+  final CommunityRepository repository;
+  final Strings s;
+
+  @override
+  Widget build(BuildContext context) {
+    return _PeopleCard(
+      title: s.profileViewers,
+      subtitle: s.viewersArePrivate,
+      emptyLabel: s.noViewersYet,
+      child: _PeopleList<ProfileView>(
+        fetch: ({Object? cursor, int limit = 5}) =>
+            repository.viewersOf(username, cursor: cursor, limit: limit),
+        emptyLabel: s.noViewersYet,
+        rowBuilder: (context, view) => FutureBuilder<Trader?>(
+          future: repository.trader(view.viewer),
+          builder: (context, snapshot) {
+            final trader = snapshot.data;
+            if (trader == null) return const SizedBox(height: 44);
+            return _PersonRow(
+              trader: trader,
+              repository: repository,
+              subtitle: s.timeAgo(view.viewedAt),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _Connections extends StatelessWidget {
+  const _Connections({
+    super.key,
+    required this.username,
+    required this.repository,
+    required this.s,
+    required this.isSelf,
+  });
+
+  final String username;
+  final CommunityRepository repository;
+  final Strings s;
+  final bool isSelf;
+
+  @override
+  Widget build(BuildContext context) {
+    return _PeopleCard(
+      title: s.connections,
+      emptyLabel: s.noConnectionsYet,
+      child: _PeopleList<Trader>(
+        fetch: ({Object? cursor, int limit = 5}) =>
+            repository.connectionsOf(username, cursor: cursor, limit: limit),
+        emptyLabel: isSelf ? s.noConnectionsYet : '—',
+        rowBuilder: (context, trader) =>
+            _PersonRow(trader: trader, repository: repository),
+      ),
+    );
+  }
+}
