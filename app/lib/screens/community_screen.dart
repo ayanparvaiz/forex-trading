@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../data/account_scope.dart';
 import '../data/avatars.dart';
+import '../data/community_repository.dart';
 import '../data/mock_community.dart';
+import '../data/page.dart';
 import '../data/session_controller.dart';
 import '../i18n/strings.dart';
 import '../models/trader.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
+import '../widgets/paged_list.dart';
 
 /// Leaderboard and shared journal feed.
 ///
@@ -47,9 +50,8 @@ class CommunityScreen extends StatelessWidget {
     final s = context.s;
     final language = context.session.language;
 
-    final traders =
-        MockCommunity.rank(MockCommunity.withYou(language, _you(context)));
-    final posts = MockCommunity.liveFeed(language);
+    final repository = LocalCommunityRepository(language: language);
+    final you = _you(context);
 
     return DefaultTabController(
       length: 2,
@@ -72,8 +74,8 @@ class CommunityScreen extends StatelessWidget {
         ),
         body: TabBarView(
           children: [
-            _Leaderboard(s: s, traders: traders),
-            _Feed(s: s, posts: posts),
+            _Leaderboard(s: s, repository: repository, you: you),
+            _Feed(s: s, repository: repository),
           ],
         ),
       ),
@@ -82,51 +84,80 @@ class CommunityScreen extends StatelessWidget {
 }
 
 class _Leaderboard extends StatelessWidget {
-  const _Leaderboard({required this.s, required this.traders});
+  const _Leaderboard({
+    required this.s,
+    required this.repository,
+    required this.you,
+  });
 
   final Strings s;
-  final List<Trader> traders;
+  final CommunityRepository repository;
+  final Trader? you;
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
+    return PagedListView<Trader>(
+      // Rebuild from scratch when the language changes, since the rows and the
+      // cohort labels come back translated.
+      key: ValueKey(s.lang),
       padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.xxl),
-      children: [
-        Container(
-          padding: const EdgeInsets.all(Gap.md),
-          decoration: BoxDecoration(
-            color: AppColors.disciplineDim,
-            borderRadius: Radii.tile,
-            border: Border.all(
-              color: AppColors.discipline.withValues(alpha: 0.4),
+      pageSize: 10,
+      fetch: ({Object? cursor, int limit = 10}) async {
+        final page = await repository.leaderboard(cursor: cursor, limit: limit);
+        final me = you;
+        if (me == null) return page;
+
+        // Swap the signed-in trader's live numbers in wherever their row lands.
+        return ResultPage(
+          items: [
+            for (final t in page.items) if (t.id == me.id) me else t,
+          ],
+          cursor: page.cursor,
+          hasMore: page.hasMore,
+        );
+      },
+      header: _RankingExplainer(s: s),
+      itemBuilder: (context, trader, index) =>
+          _LeaderboardRow(rank: index + 1, trader: trader, s: s),
+    );
+  }
+}
+
+/// Why the list is ordered the way it is, stated rather than left to infer.
+class _RankingExplainer extends StatelessWidget {
+  const _RankingExplainer({required this.s});
+
+  final Strings s;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(Gap.md),
+      decoration: BoxDecoration(
+        color: AppColors.disciplineDim,
+        borderRadius: Radii.tile,
+        border: Border.all(
+          color: AppColors.discipline.withValues(alpha: 0.4),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.shield_outlined,
+              size: 18, color: AppColors.discipline),
+          Gap.w12,
+          Expanded(
+            child: Text(
+              s.leaderboardExplainer,
+              style: const TextStyle(
+                fontSize: 12.5,
+                height: 1.5,
+                color: AppColors.textPrimary,
+              ),
             ),
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.shield_outlined,
-                  size: 18, color: AppColors.discipline),
-              Gap.w12,
-              Expanded(
-                child: Text(
-                  s.leaderboardExplainer,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    height: 1.5,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Gap.h16,
-        for (var i = 0; i < traders.length; i++)
-          Padding(
-            padding: const EdgeInsets.only(bottom: Gap.sm),
-            child: _LeaderboardRow(rank: i + 1, trader: traders[i], s: s),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -269,22 +300,22 @@ class _LeaderboardRow extends StatelessWidget {
 }
 
 class _Feed extends StatelessWidget {
-  const _Feed({required this.s, required this.posts});
+  const _Feed({required this.s, required this.repository});
 
   final Strings s;
-  final List<FeedPost> posts;
+  final CommunityRepository repository;
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
+    return PagedListView<FeedPost>(
+      key: ValueKey(s.lang),
       padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.xxl),
-      children: [
-        for (final post in posts)
-          Padding(
-            padding: const EdgeInsets.only(bottom: Gap.md),
-            child: _FeedCard(post: post, s: s),
-          ),
-      ],
+      pageSize: 6,
+      fetch: repository.feed,
+      itemBuilder: (context, post, _) => Padding(
+        padding: const EdgeInsets.only(bottom: Gap.xs),
+        child: _FeedCard(post: post, s: s),
+      ),
     );
   }
 }

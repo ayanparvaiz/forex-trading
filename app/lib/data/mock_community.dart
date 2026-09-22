@@ -151,6 +151,90 @@ class MockCommunity {
         claps: 91,
         commentCount: 44,
       ),
+      FeedPost(
+        id: 'p7',
+        author: _author('tasnim', language),
+        symbol: 'EUR/USD',
+        rMultiple: 2.4,
+        postedAt: now.subtract(const Duration(hours: 4)),
+        reason: 'সাপ্তাহিক সাপোর্টে ডাবল বটম, নিচের উইক লম্বা ছিল।',
+        lesson:
+            'আজ মাত্র একটা ট্রেড নিয়েছি। বাকি সময় চার্ট দেখেছি কিন্তু হাত '
+            'দিইনি। না-ট্রেড করাটাও একটা সিদ্ধান্ত, এটা বুঝতে ছয় মাস লেগেছে।',
+        followedRules: true,
+        claps: 74,
+        commentCount: 19,
+      ),
+      FeedPost(
+        id: 'p8',
+        author: _author('ishrat', language),
+        symbol: 'GBP/USD',
+        rMultiple: -1.0,
+        postedAt: now.subtract(const Duration(hours: 9)),
+        reason: 'লন্ডন সেশনে রেঞ্জ ব্রেক, রিটেস্টে এন্ট্রি।',
+        lesson:
+            'টানা তিনটা হারলাম। রিস্ক বাড়াইনি, সাইজ বাড়াইনি, প্ল্যান বদলাইনি। '
+            'হারার সিরিজে সবচেয়ে কঠিন কাজ হলো কিছু না বদলানো।',
+        followedRules: true,
+        claps: 118,
+        commentCount: 23,
+      ),
+      FeedPost(
+        id: 'p9',
+        author: _author('arif', language),
+        symbol: 'USD/JPY',
+        rMultiple: 1.5,
+        postedAt: now.subtract(const Duration(days: 2, hours: 5)),
+        reason: 'H1 তে হায়ার লো, ট্রেন্ডলাইন টাচ।',
+        lesson:
+            'স্প্রেড হিসাবে ধরিনি বলে ১.৫R ভেবেছিলাম, আসলে ১.৪১R। ছোট মনে '
+            'হচ্ছে, কিন্তু ১০০ ট্রেডে এটাই ৯R খেয়ে ফেলবে।',
+        followedRules: true,
+        claps: 56,
+        commentCount: 14,
+      ),
+      FeedPost(
+        id: 'p10',
+        author: _author('sohan', language),
+        symbol: 'EUR/USD',
+        rMultiple: -2.6,
+        postedAt: now.subtract(const Duration(days: 3, hours: 2)),
+        reason: 'ইউটিউবে একজন বলল আজ বড় মুভ হবে।',
+        lesson:
+            'অন্যের কথায় ট্রেড নিয়েছি। জিতলে জানতাম না কেন জিতলাম, হেরে '
+            'জানি না কেন হারলাম। শেখার কিছুই নেই এখানে।',
+        followedRules: false,
+        claps: 64,
+        commentCount: 38,
+      ),
+      FeedPost(
+        id: 'p11',
+        author: _author('farhana', language),
+        symbol: 'GBP/USD',
+        rMultiple: 3.0,
+        postedAt: now.subtract(const Duration(days: 5)),
+        reason: 'ডেইলি সাপ্লাই জোন থেকে রিজেকশন, ৪ ঘণ্টা অপেক্ষা করেছি।',
+        lesson:
+            'প্রথমবার পুরো টার্গেট পর্যন্ত ধরে রাখতে পেরেছি। হাত কাঁপছিল, '
+            'তবু অর্ডার ছুঁইনি। এই একটা ট্রেড অনেক কিছু বদলে দিল।',
+        followedRules: true,
+        claps: 143,
+        commentCount: 27,
+      ),
+      FeedPost(
+        id: 'p12',
+        author: _author('niloy', language),
+        symbol: 'USD/JPY',
+        rMultiple: 0.3,
+        postedAt: now.subtract(const Duration(days: 6, hours: 3)),
+        reason: 'ব্রেকআউট ধরেছি, কনফার্মেশনের অপেক্ষা করিনি।',
+        lesson:
+            'লাভে বের হয়েছি কিন্তু ভয়ে বের হয়েছি, প্ল্যান অনুযায়ী না। '
+            '০.৩R মানে কার্যত ব্রেক-ইভেন — আর একটা নষ্ট সেটআপ।',
+        followedRules: false,
+        claps: 21,
+        commentCount: 9,
+      ),
     ];
   }
 

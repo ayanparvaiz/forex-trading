@@ -1,4 +1,9 @@
 {
+  "comment": [
+    "Composite indexes only. Firestore creates single-field indexes on its own",
+    "and rejects any attempt to declare one, so a query ordered by a single",
+    "field needs no entry here."
+  ],
   "indexes": [
     {
       "comment": "Leaderboard: ranked by discipline, never by profit.",
@@ -19,15 +24,7 @@
       ]
     },
     {
-      "comment": "Community feed, newest first.",
-      "collectionGroup": "posts",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "postedAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "comment": "Feed filtered to one pair.",
+      "comment": "Feed filtered to one pair, newest first.",
       "collectionGroup": "posts",
       "queryScope": "COLLECTION",
       "fields": [
@@ -36,20 +33,39 @@
       ]
     },
     {
-      "comment": "A trader's own history, newest close first.",
-      "collectionGroup": "trades",
+      "comment": "Feed paged by expiry, so expired posts never reach a client.",
+      "collectionGroup": "posts",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "closedAt", "order": "DESCENDING" }
+        { "fieldPath": "expiresAt", "order": "ASCENDING" },
+        { "fieldPath": "postedAt", "order": "DESCENDING" }
       ]
     },
     {
-      "comment": "Open positions for a trader.",
+      "comment": "A trader's open positions.",
       "collectionGroup": "trades",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "openedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "comment": "Incoming connection requests awaiting a decision.",
+      "collectionGroup": "connections",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "requestedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "comment": "Who viewed a profile, most recent first.",
+      "collectionGroup": "profileViews",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "profileId", "order": "ASCENDING" },
+        { "fieldPath": "viewedAt", "order": "DESCENDING" }
       ]
     }
   ],
