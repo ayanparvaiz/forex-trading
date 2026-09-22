@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../core/calculations.dart';
 import '../data/account_scope.dart';
 import '../data/account_store.dart';
+import '../data/avatars.dart';
+import '../data/session_controller.dart';
+import '../i18n/strings.dart';
 import '../models/trade.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
@@ -18,48 +21,188 @@ class PortfolioScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = AccountScope.of(context);
+    final session = context.session;
+    final s = context.s;
     final stats = store.stats;
     final discipline = store.discipline;
+    final profile = session.profile;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('পোর্টফোলিও'),
+        title: Text(s.navPortfolio),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: Gap.lg),
-            child: Center(
-              child: Pill(
-                text: store.tier.label,
-                color: AppColors.brand,
-                icon: Icons.workspace_premium_outlined,
-              ),
-            ),
+          Pill(
+            text: store.tier.label(s.isBangla),
+            color: AppColors.brand,
+            icon: Icons.workspace_premium_outlined,
           ),
+          Gap.w8,
+          if (profile != null)
+            _ProfileButton(avatarId: profile.avatarId, name: profile.displayName),
+          Gap.w8,
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.xxl),
         children: [
-          _EquityCard(store: store, stats: stats),
+          _EquityCard(store: store, stats: stats, s: s),
           Gap.h12,
-          _DisciplineCard(discipline: discipline),
+          _DisciplineCard(discipline: discipline, s: s),
           Gap.h12,
-          _TierCard(store: store),
+          _TierCard(store: store, s: s),
           Gap.h12,
-          _StatsCard(stats: stats),
+          _StatsCard(stats: stats, s: s),
           Gap.h12,
-          _OpenPositions(store: store),
+          _OpenPositions(store: store, s: s),
         ],
       ),
     );
   }
 }
 
+/// Avatar in the app bar. Tapping it opens language and sign-out.
+class _ProfileButton extends StatelessWidget {
+  const _ProfileButton({required this.avatarId, required this.name});
+
+  final String avatarId;
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _openSheet(context),
+      child: Container(
+        width: 34,
+        height: 34,
+        decoration: const BoxDecoration(
+          color: AppColors.elevated,
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          Avatars.byId(avatarId).emoji,
+          style: const TextStyle(fontSize: 18),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openSheet(BuildContext context) {
+    final session = context.session;
+    final s = context.s;
+
+    return showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(Gap.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    Avatars.byId(avatarId).emoji,
+                    style: const TextStyle(fontSize: 34),
+                  ),
+                  Gap.w12,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          '@${session.profile?.username ?? ''}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              Gap.h24,
+              Text(s.chooseLanguage,
+                  style: Theme.of(sheetContext).textTheme.labelSmall),
+              Gap.h8,
+              Row(
+                children: [
+                  for (final language in AppLanguage.values) ...[
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          session.setLanguage(language);
+                          Navigator.of(sheetContext).pop();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: Gap.md),
+                          decoration: BoxDecoration(
+                            color: session.language == language
+                                ? AppColors.brandDim
+                                : AppColors.elevated,
+                            borderRadius: Radii.tile,
+                            border: Border.all(
+                              color: session.language == language
+                                  ? AppColors.brand
+                                  : AppColors.border,
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              '${language.flag}  ${language.nativeName}',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (language != AppLanguage.values.last) Gap.w12,
+                  ],
+                ],
+              ),
+              Gap.h16,
+              TextButton.icon(
+                onPressed: () {
+                  session.logOut();
+                  Navigator.of(sheetContext).pop();
+                },
+                icon: const Icon(Icons.logout, size: 18),
+                label: Text(s.logOut),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.loss,
+                  minimumSize: const Size.fromHeight(44),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _EquityCard extends StatelessWidget {
-  const _EquityCard({required this.store, required this.stats});
+  const _EquityCard({required this.store, required this.stats, required this.s});
 
   final AccountStore store;
   final TradeStats stats;
+  final Strings s;
 
   @override
   Widget build(BuildContext context) {
@@ -71,8 +214,7 @@ class _EquityCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('ইকুইটি (ডেমো)',
-              style: Theme.of(context).textTheme.labelSmall),
+          Text(s.equityDemo, style: Theme.of(context).textTheme.labelSmall),
           Gap.h4,
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -103,20 +245,20 @@ class _EquityCard extends StatelessWidget {
             children: [
               Expanded(
                 child: StatTile(
-                  label: 'ব্যালেন্স',
+                  label: s.balance,
                   value: '\$${store.balance.toStringAsFixed(2)}',
                 ),
               ),
               Expanded(
                 child: StatTile(
-                  label: 'চলমান লাভ/লস',
+                  label: s.openPnl,
                   value: money(openPnl),
                   valueColor: AppColors.forValue(openPnl),
                 ),
               ),
               Expanded(
                 child: StatTile(
-                  label: 'মোট R',
+                  label: s.totalR,
                   value: rMultiple(stats.totalR),
                   valueColor: AppColors.forValue(stats.totalR),
                 ),
@@ -134,35 +276,36 @@ class _EquityCard extends StatelessWidget {
 }
 
 class _DisciplineCard extends StatelessWidget {
-  const _DisciplineCard({required this.discipline});
+  const _DisciplineCard({required this.discipline, required this.s});
 
   final DisciplineBreakdown discipline;
+  final Strings s;
 
   @override
   Widget build(BuildContext context) {
     final worst = discipline.worstFirst;
 
     return SectionCard(
-      title: 'ডিসিপ্লিন স্কোর',
-      trailing: const Pill(
-        text: 'লিডারবোর্ড এটা দিয়েই',
+      title: s.disciplineScore,
+      trailing: Pill(
+        text: s.rankedOnThis,
         color: AppColors.discipline,
         dense: true,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ScoreRing(score: discipline.score, grade: discipline.grade),
+          ScoreRing(
+            score: discipline.score,
+            grade: s.gradeFor(discipline.score),
+          ),
           Gap.w16,
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  worst.isEmpty
-                      ? 'এখন পর্যন্ত কোনো নিয়ম ভাঙেননি। লাভ-লস যাই হোক, '
-                          'এভাবে চললে আপনি টিকে থাকবেন।'
-                      : 'যে নিয়মগুলো ভাঙছেন:',
+                  worst.isEmpty ? s.noRulesBroken : s.rulesYouBreak,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 if (worst.isNotEmpty) ...[
@@ -174,7 +317,7 @@ class _DisciplineCard extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              entry.key.bn,
+                              entry.key.label(s.isBangla),
                               style: const TextStyle(
                                 fontSize: 12.5,
                                 fontWeight: FontWeight.w600,
@@ -183,7 +326,7 @@ class _DisciplineCard extends StatelessWidget {
                             ),
                           ),
                           Pill(
-                            text: '${entry.value} বার',
+                            text: s.timesCount(entry.value),
                             color: AppColors.loss,
                             dense: true,
                           ),
@@ -201,29 +344,26 @@ class _DisciplineCard extends StatelessWidget {
 }
 
 class _TierCard extends StatelessWidget {
-  const _TierCard({required this.store});
+  const _TierCard({required this.store, required this.s});
 
   final AccountStore store;
+  final Strings s;
 
   @override
   Widget build(BuildContext context) {
     final next = store.nextTier;
-    if (next == null) {
-      return const SizedBox.shrink();
-    }
+    if (next == null) return const SizedBox.shrink();
 
     final done = store.closedTrades.length;
     final score = store.discipline.score;
-    final scoreReady = score >= next.disciplineRequired;
 
     return SectionCard(
-      title: 'পরের ধাপ আনলক',
+      title: s.nextTier,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '\$${next.balance.toStringAsFixed(0)} ব্যালেন্স — লাভ দিয়ে না, '
-            'নিয়ম মেনে ট্রেড করে আনলক হয়।',
+            s.tierUnlockNote('\$${next.balance.toStringAsFixed(0)}'),
             style: Theme.of(context).textTheme.bodySmall,
           ),
           Gap.h12,
@@ -241,17 +381,17 @@ class _TierCard extends StatelessWidget {
             children: [
               Expanded(
                 child: _Requirement(
-                  label: 'ট্রেড',
+                  label: s.trades,
                   value: '$done / ${next.tradesRequired}',
                   met: done >= next.tradesRequired,
                 ),
               ),
               Expanded(
                 child: _Requirement(
-                  label: 'ডিসিপ্লিন',
+                  label: s.discipline,
                   value: '${score.toStringAsFixed(0)} / '
                       '${next.disciplineRequired.toStringAsFixed(0)}',
-                  met: scoreReady,
+                  met: score >= next.disciplineRequired,
                 ),
               ),
             ],
@@ -283,9 +423,12 @@ class _Requirement extends StatelessWidget {
           color: met ? AppColors.profit : AppColors.textMuted,
         ),
         Gap.w8,
-        Text(
-          '$label  ',
-          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        Flexible(
+          child: Text(
+            '$label  ',
+            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
         Text(
           value,
@@ -301,43 +444,45 @@ class _Requirement extends StatelessWidget {
 }
 
 class _StatsCard extends StatelessWidget {
-  const _StatsCard({required this.stats});
+  const _StatsCard({required this.stats, required this.s});
 
   final TradeStats stats;
+  final Strings s;
 
   @override
   Widget build(BuildContext context) {
-    if (stats.total == 0) {
-      return const SizedBox.shrink();
-    }
+    if (stats.total == 0) return const SizedBox.shrink();
+
+    final winPct = '${(stats.winRate * 100).toStringAsFixed(0)}%';
 
     return SectionCard(
-      title: 'পরিসংখ্যান',
+      title: s.stats,
       child: Column(
         children: [
           Row(
             children: [
               Expanded(
                 child: StatTile(
-                  label: 'এক্সপেক্টেন্সি',
+                  label: s.expectancy,
                   value: rMultiple(stats.expectancyR),
-                  hint: 'প্রতি ট্রেডে গড়',
+                  hint: s.perTradeAvg,
                   valueColor: AppColors.forValue(stats.expectancyR),
                 ),
               ),
               Expanded(
                 child: StatTile(
-                  label: 'উইন রেট',
-                  value: '${(stats.winRate * 100).toStringAsFixed(0)}%',
-                  hint: '${stats.wins}/${stats.total} ট্রেড',
+                  label: s.winRate,
+                  value: winPct,
+                  hint: s.tradesOf(stats.wins, stats.total),
                 ),
               ),
               Expanded(
                 child: StatTile(
-                  label: 'ম্যাক্স ড্রডাউন',
+                  label: s.maxDrawdown,
                   value: '${stats.maxDrawdownPercent.toStringAsFixed(1)}%',
-                  hint: 'ফিরতে '
-                      '${stats.recoveryNeededPercent.toStringAsFixed(1)}%',
+                  hint: s.recoverNeeds(
+                    '${stats.recoveryNeededPercent.toStringAsFixed(1)}%',
+                  ),
                   valueColor: stats.maxDrawdownPercent > 20
                       ? AppColors.loss
                       : AppColors.textPrimary,
@@ -350,9 +495,7 @@ class _StatsCard extends StatelessWidget {
             _Insight(
               icon: Icons.lightbulb_outline,
               color: AppColors.brand,
-              text: '${(stats.winRate * 100).toStringAsFixed(0)}% ট্রেডে '
-                  'জিতেও আপনি লাভে আছেন — কারণ জেতার সময় বড় জিতছেন। '
-                  'উইন রেট না, এক্সপেক্টেন্সিই আসল।',
+              text: s.winRateInsight(winPct),
             ),
           ],
         ],
@@ -403,32 +546,38 @@ class _Insight extends StatelessWidget {
 }
 
 class _OpenPositions extends StatelessWidget {
-  const _OpenPositions({required this.store});
+  const _OpenPositions({required this.store, required this.s});
 
   final AccountStore store;
+  final Strings s;
 
   @override
   Widget build(BuildContext context) {
     final open = store.openTrades;
 
     return SectionCard(
-      title: 'খোলা পজিশন',
+      title: s.openPositions,
       trailing: Text(
-        '${open.length}টি',
+        s.countItems(open.length),
         style: Theme.of(context).textTheme.labelSmall,
       ),
       child: open.isEmpty
-          ? const Padding(
-              padding: EdgeInsets.symmetric(vertical: Gap.lg),
+          ? Padding(
+              padding: const EdgeInsets.symmetric(vertical: Gap.lg),
               child: Text(
-                'এখন কোনো ট্রেড খোলা নেই।\nসেটআপের জন্য অপেক্ষা করাও একটা সিদ্ধান্ত।',
+                s.noOpenPositions,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 13,
+                  height: 1.5,
+                ),
               ),
             )
           : Column(
               children: [
-                for (final trade in open) _OpenPositionRow(trade: trade, store: store),
+                for (final trade in open)
+                  _OpenPositionRow(trade: trade, store: store, s: s),
               ],
             ),
     );
@@ -436,10 +585,15 @@ class _OpenPositions extends StatelessWidget {
 }
 
 class _OpenPositionRow extends StatelessWidget {
-  const _OpenPositionRow({required this.trade, required this.store});
+  const _OpenPositionRow({
+    required this.trade,
+    required this.store,
+    required this.s,
+  });
 
   final Trade trade;
   final AccountStore store;
+  final Strings s;
 
   @override
   Widget build(BuildContext context) {
@@ -450,78 +604,75 @@ class _OpenPositionRow extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: Gap.md),
-      child: Column(
+      child: Row(
         children: [
-          Row(
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: isLong ? AppColors.profitDim : AppColors.lossDim,
+              borderRadius: Radii.tile,
+            ),
+            child: Icon(
+              isLong ? Icons.trending_up : Icons.trending_down,
+              size: 18,
+              color: isLong ? AppColors.profit : AppColors.loss,
+            ),
+          ),
+          Gap.w12,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  trade.symbol,
+                  style: const TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  '${isLong ? s.buy : s.sell} · '
+                  '${trade.lots.toStringAsFixed(2)} ${s.lots} · '
+                  '${trade.instrument.formatPrice(trade.entryPrice)}',
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    color: AppColors.textMuted,
+                    fontFeatures: tabularFigures,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: isLong ? AppColors.profitDim : AppColors.lossDim,
-                  borderRadius: Radii.tile,
-                ),
-                child: Icon(
-                  isLong ? Icons.trending_up : Icons.trending_down,
-                  size: 18,
-                  color: isLong ? AppColors.profit : AppColors.loss,
+              Text(
+                rMultiple(r),
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  fontFeatures: tabularFigures,
+                  color: AppColors.forValue(r),
                 ),
               ),
-              Gap.w12,
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      trade.symbol,
-                      style: const TextStyle(
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Text(
-                      '${trade.direction.bn} · ${trade.lots.toStringAsFixed(2)} লট · '
-                      '${trade.instrument.formatPrice(trade.entryPrice)}',
-                      style: const TextStyle(
-                        fontSize: 11.5,
-                        color: AppColors.textMuted,
-                        fontFeatures: tabularFigures,
-                      ),
-                    ),
-                  ],
+              Text(
+                money(pnl),
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontFeatures: tabularFigures,
+                  color: AppColors.forValue(pnl),
                 ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    rMultiple(r),
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      fontFeatures: tabularFigures,
-                      color: AppColors.forValue(r),
-                    ),
-                  ),
-                  Text(
-                    money(pnl),
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontFeatures: tabularFigures,
-                      color: AppColors.forValue(pnl),
-                    ),
-                  ),
-                ],
-              ),
-              Gap.w8,
-              IconButton(
-                onPressed: () => store.closeTrade(trade.id),
-                icon: const Icon(Icons.close, size: 18),
-                color: AppColors.textMuted,
-                tooltip: 'বন্ধ করুন',
-                visualDensity: VisualDensity.compact,
               ),
             ],
+          ),
+          Gap.w8,
+          IconButton(
+            onPressed: () => store.closeTrade(trade.id),
+            icon: const Icon(Icons.close, size: 18),
+            color: AppColors.textMuted,
+            tooltip: s.closePosition,
+            visualDensity: VisualDensity.compact,
           ),
         ],
       ),

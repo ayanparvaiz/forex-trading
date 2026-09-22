@@ -353,17 +353,10 @@ String money(double value, {int decimals = 2}) {
 }
 
 /// Formats an R-multiple, e.g. `+2.3R`.
+///
+/// R needs no translation — it means the same thing in both languages, which
+/// is most of the reason the app leads with it.
 String rMultiple(double value) {
   final sign = value > 0 ? '+' : (value < 0 ? '−' : '');
   return '$sign${value.abs().toStringAsFixed(2)}R';
-}
-
-/// Relative time in Bengali, e.g. "৩ ঘণ্টা আগে".
-String timeAgo(DateTime time) {
-  final diff = DateTime.now().difference(time);
-  if (diff.inMinutes < 1) return 'এইমাত্র';
-  if (diff.inMinutes < 60) return '${diff.inMinutes} মিনিট আগে';
-  if (diff.inHours < 24) return '${diff.inHours} ঘণ্টা আগে';
-  if (diff.inDays < 30) return '${diff.inDays} দিন আগে';
-  return '${(diff.inDays / 30).floor()} মাস আগে';
 }

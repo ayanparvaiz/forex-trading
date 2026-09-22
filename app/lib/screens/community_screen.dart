@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../data/mock_community.dart';
+import '../data/session_controller.dart';
+import '../i18n/strings.dart';
 import '../models/trader.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
@@ -17,26 +19,29 @@ class CommunityScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.s;
+
     return DefaultTabController(
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('কমিউনিটি'),
-          bottom: const TabBar(
+          title: Text(s.navCommunity),
+          bottom: TabBar(
             labelColor: AppColors.textPrimary,
             unselectedLabelColor: AppColors.textMuted,
             indicatorColor: AppColors.brand,
             indicatorSize: TabBarIndicatorSize.tab,
             dividerColor: AppColors.border,
-            labelStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+            labelStyle:
+                const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
             tabs: [
-              Tab(text: 'লিডারবোর্ড'),
-              Tab(text: 'ফিড'),
+              Tab(text: s.leaderboard),
+              Tab(text: s.feed),
             ],
           ),
         ),
-        body: const TabBarView(
-          children: [_Leaderboard(), _Feed()],
+        body: TabBarView(
+          children: [_Leaderboard(s: s), _Feed(s: s)],
         ),
       ),
     );
@@ -44,7 +49,9 @@ class CommunityScreen extends StatelessWidget {
 }
 
 class _Leaderboard extends StatelessWidget {
-  const _Leaderboard();
+  const _Leaderboard({required this.s});
+
+  final Strings s;
 
   @override
   Widget build(BuildContext context) {
@@ -62,18 +69,16 @@ class _Leaderboard extends StatelessWidget {
               color: AppColors.discipline.withValues(alpha: 0.4),
             ),
           ),
-          child: const Row(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.shield_outlined,
+              const Icon(Icons.shield_outlined,
                   size: 18, color: AppColors.discipline),
               Gap.w12,
               Expanded(
                 child: Text(
-                  'এই তালিকা লাভ দিয়ে সাজানো না — ডিসিপ্লিন দিয়ে সাজানো।\n'
-                  'কে নিয়ম মেনেছে সেটাই র‍্যাংক ঠিক করে। লাভ দিয়ে র‍্যাংক করলে '
-                  'এই অ্যাপটা ক্যাসিনো হয়ে যেত।',
-                  style: TextStyle(
+                  s.leaderboardExplainer,
+                  style: const TextStyle(
                     fontSize: 12.5,
                     height: 1.5,
                     color: AppColors.textPrimary,
@@ -87,7 +92,7 @@ class _Leaderboard extends StatelessWidget {
         for (var i = 0; i < traders.length; i++)
           Padding(
             padding: const EdgeInsets.only(bottom: Gap.sm),
-            child: _LeaderboardRow(rank: i + 1, trader: traders[i]),
+            child: _LeaderboardRow(rank: i + 1, trader: traders[i], s: s),
           ),
       ],
     );
@@ -95,10 +100,15 @@ class _Leaderboard extends StatelessWidget {
 }
 
 class _LeaderboardRow extends StatelessWidget {
-  const _LeaderboardRow({required this.rank, required this.trader});
+  const _LeaderboardRow({
+    required this.rank,
+    required this.trader,
+    required this.s,
+  });
 
   final int rank;
   final Trader trader;
+  final Strings s;
 
   Color get _scoreColor {
     if (trader.disciplineScore >= 75) return AppColors.discipline;
@@ -141,7 +151,7 @@ class _LeaderboardRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  trader.name,
+                  trader.isYou ? s.you : trader.name,
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
@@ -151,7 +161,7 @@ class _LeaderboardRow extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      '${trader.tradeCount} ট্রেড',
+                      s.tradeCount(trader.tradeCount),
                       style: const TextStyle(
                         fontSize: 11,
                         color: AppColors.textMuted,
@@ -199,7 +209,7 @@ class _LeaderboardRow extends StatelessWidget {
                 ),
               ),
               Text(
-                trader.disciplineGrade,
+                s.gradeFor(trader.disciplineScore),
                 style: const TextStyle(
                   fontSize: 10,
                   color: AppColors.textMuted,
@@ -214,7 +224,9 @@ class _LeaderboardRow extends StatelessWidget {
 }
 
 class _Feed extends StatelessWidget {
-  const _Feed();
+  const _Feed({required this.s});
+
+  final Strings s;
 
   @override
   Widget build(BuildContext context) {
@@ -226,7 +238,7 @@ class _Feed extends StatelessWidget {
         for (final post in posts)
           Padding(
             padding: const EdgeInsets.only(bottom: Gap.md),
-            child: _FeedCard(post: post),
+            child: _FeedCard(post: post, s: s),
           ),
       ],
     );
@@ -234,9 +246,10 @@ class _Feed extends StatelessWidget {
 }
 
 class _FeedCard extends StatelessWidget {
-  const _FeedCard({required this.post});
+  const _FeedCard({required this.post, required this.s});
 
   final FeedPost post;
+  final Strings s;
 
   @override
   Widget build(BuildContext context) {
@@ -260,7 +273,7 @@ class _FeedCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '${post.symbol} · ${timeAgo(post.postedAt)}',
+                      '${post.symbol} · ${s.timeAgo(post.postedAt)}',
                       style: const TextStyle(
                         fontSize: 11.5,
                         color: AppColors.textMuted,
@@ -291,9 +304,9 @@ class _FeedCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'কেন নিয়েছিলাম',
-                  style: TextStyle(
+                Text(
+                  s.whyITookIt,
+                  style: const TextStyle(
                     fontSize: 10.5,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.3,
@@ -307,7 +320,7 @@ class _FeedCard extends StatelessWidget {
                 ),
                 Gap.h12,
                 Text(
-                  'কী শিখলাম',
+                  s.whatILearned,
                   style: TextStyle(
                     fontSize: 10.5,
                     fontWeight: FontWeight.w700,
@@ -329,7 +342,7 @@ class _FeedCard extends StatelessWidget {
           Row(
             children: [
               Pill(
-                text: post.followedRules ? 'নিয়ম মেনেছে' : 'নিয়ম ভেঙেছে',
+                text: post.followedRules ? s.followedRules : s.brokeRules,
                 color: post.followedRules ? AppColors.profit : AppColors.loss,
                 icon: post.followedRules
                     ? Icons.verified_outlined

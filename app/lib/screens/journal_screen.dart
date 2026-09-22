@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../core/calculations.dart';
 import '../data/account_scope.dart';
 import '../data/account_store.dart';
+import '../data/session_controller.dart';
+import '../i18n/strings.dart';
 import '../models/trade.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
@@ -18,32 +20,33 @@ class JournalScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = AccountScope.of(context);
+    final s = context.s;
     final stats = store.stats;
     final closed = store.closedTrades;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('জার্নাল')),
+      appBar: AppBar(title: Text(s.navJournal)),
       body: closed.isEmpty
-          ? const _EmptyJournal()
+          ? _EmptyJournal(s: s)
           : ListView(
               padding:
                   const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.xxl),
               children: [
-                _PerformanceCard(stats: stats),
+                _PerformanceCard(stats: stats, s: s),
                 Gap.h12,
-                _DrawdownCard(stats: stats),
+                _DrawdownCard(stats: stats, s: s),
                 Gap.h12,
                 Padding(
                   padding: const EdgeInsets.only(left: 4, bottom: Gap.sm),
                   child: Text(
-                    'বন্ধ হওয়া ট্রেড',
+                    s.closedTrades,
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                 ),
                 for (final trade in closed)
                   Padding(
                     padding: const EdgeInsets.only(bottom: Gap.md),
-                    child: _TradeCard(trade: trade, store: store),
+                    child: _TradeCard(trade: trade, store: store, s: s),
                   ),
               ],
             ),
@@ -52,19 +55,23 @@ class JournalScreen extends StatelessWidget {
 }
 
 class _EmptyJournal extends StatelessWidget {
-  const _EmptyJournal();
+  const _EmptyJournal({required this.s});
+
+  final Strings s;
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Padding(
-        padding: EdgeInsets.all(Gap.xl),
+        padding: const EdgeInsets.all(Gap.xl),
         child: Text(
-          'এখনো কোনো ট্রেড বন্ধ হয়নি।\n\n'
-          'জার্নাল ছাড়া ট্রেডিং হলো অন্ধকারে গুলি ছোড়া —\n'
-          'কোনটা লাগল আর কোনটা লাগল না, কিছুই জানবেন না।',
+          s.emptyJournal,
           textAlign: TextAlign.center,
-          style: TextStyle(color: AppColors.textMuted, fontSize: 13, height: 1.6),
+          style: const TextStyle(
+            color: AppColors.textMuted,
+            fontSize: 13,
+            height: 1.6,
+          ),
         ),
       ),
     );
@@ -72,14 +79,15 @@ class _EmptyJournal extends StatelessWidget {
 }
 
 class _PerformanceCard extends StatelessWidget {
-  const _PerformanceCard({required this.stats});
+  const _PerformanceCard({required this.stats, required this.s});
 
   final TradeStats stats;
+  final Strings s;
 
   @override
   Widget build(BuildContext context) {
     return SectionCard(
-      title: 'পারফরম্যান্স',
+      title: s.performance,
       child: Column(
         children: [
           Sparkline(values: stats.equityCurve, height: 64),
@@ -88,25 +96,25 @@ class _PerformanceCard extends StatelessWidget {
             children: [
               Expanded(
                 child: StatTile(
-                  label: 'এক্সপেক্টেন্সি',
+                  label: s.expectancy,
                   value: rMultiple(stats.expectancyR),
-                  hint: 'প্রতি ট্রেডে',
+                  hint: s.perTradeAvg,
                   valueColor: AppColors.forValue(stats.expectancyR),
                 ),
               ),
               Expanded(
                 child: StatTile(
-                  label: 'প্রফিট ফ্যাক্টর',
+                  label: s.profitFactor,
                   value: stats.profitFactor.isFinite
                       ? stats.profitFactor.toStringAsFixed(2)
                       : '∞',
-                  hint: '১.০ এর উপরে ভালো',
+                  hint: s.aboveOneGood,
                   valueColor: AppColors.forValue(stats.profitFactor - 1),
                 ),
               ),
               Expanded(
                 child: StatTile(
-                  label: 'মোট',
+                  label: s.total,
                   value: money(stats.netPnl),
                   hint: rMultiple(stats.totalR),
                   valueColor: AppColors.forValue(stats.netPnl),
@@ -121,25 +129,25 @@ class _PerformanceCard extends StatelessWidget {
             children: [
               Expanded(
                 child: StatTile(
-                  label: 'গড় জয়',
+                  label: s.avgWin,
                   value: rMultiple(stats.avgWinR),
-                  hint: '${stats.wins}টি ট্রেড',
+                  hint: s.tradeCount(stats.wins),
                   valueColor: AppColors.profit,
                 ),
               ),
               Expanded(
                 child: StatTile(
-                  label: 'গড় পরাজয়',
+                  label: s.avgLoss,
                   value: rMultiple(-stats.avgLossR),
-                  hint: '${stats.losses}টি ট্রেড',
+                  hint: s.tradeCount(stats.losses),
                   valueColor: AppColors.loss,
                 ),
               ),
               Expanded(
                 child: StatTile(
-                  label: 'উইন রেট',
+                  label: s.winRate,
                   value: '${(stats.winRate * 100).toStringAsFixed(0)}%',
-                  hint: 'কম হলেও চলে',
+                  hint: s.lowIsFine,
                 ),
               ),
             ],
@@ -151,9 +159,10 @@ class _PerformanceCard extends StatelessWidget {
 }
 
 class _DrawdownCard extends StatelessWidget {
-  const _DrawdownCard({required this.stats});
+  const _DrawdownCard({required this.stats, required this.s});
 
   final TradeStats stats;
+  final Strings s;
 
   @override
   Widget build(BuildContext context) {
@@ -161,7 +170,7 @@ class _DrawdownCard extends StatelessWidget {
     final recovery = stats.recoveryNeededPercent;
 
     return SectionCard(
-      title: 'ড্রডাউন ও ফেরার অঙ্ক',
+      title: s.drawdownAndRecovery,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -169,26 +178,28 @@ class _DrawdownCard extends StatelessWidget {
             children: [
               Expanded(
                 child: StatTile(
-                  label: 'সর্বোচ্চ ড্রডাউন',
+                  label: s.maxDrawdownLong,
                   value: '${dd.toStringAsFixed(1)}%',
                   valueColor: dd > 20 ? AppColors.loss : AppColors.textPrimary,
                 ),
               ),
               Expanded(
                 child: StatTile(
-                  label: 'ফিরতে লাগবে',
-                  value: recovery.isFinite
-                      ? '${recovery.toStringAsFixed(1)}%'
-                      : '∞',
+                  label: s.recoveryNeeded,
+                  value:
+                      recovery.isFinite ? '${recovery.toStringAsFixed(1)}%' : '∞',
                   valueColor: AppColors.warning,
                 ),
               ),
             ],
           ),
           Gap.h16,
-          const Text(
-            'লস আর লাভের অঙ্ক সমান না:',
-            style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+          Text(
+            s.lossAndGainAsymmetry,
+            style: const TextStyle(
+              fontSize: 12.5,
+              color: AppColors.textSecondary,
+            ),
           ),
           Gap.h8,
           for (final loss in [10.0, 25.0, 50.0, 90.0])
@@ -197,9 +208,9 @@ class _DrawdownCard extends StatelessWidget {
               child: Row(
                 children: [
                   SizedBox(
-                    width: 92,
+                    width: 100,
                     child: Text(
-                      '${loss.toStringAsFixed(0)}% হারালে',
+                      s.ifYouLosePct('${loss.toStringAsFixed(0)}%'),
                       style: const TextStyle(
                         fontSize: 12,
                         color: AppColors.textSecondary,
@@ -210,13 +221,17 @@ class _DrawdownCard extends StatelessWidget {
                   const Icon(Icons.arrow_right_alt,
                       size: 15, color: AppColors.textMuted),
                   Gap.w8,
-                  Text(
-                    'ফিরতে লাগবে ${recoveryGainFor(loss).toStringAsFixed(0)}%',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                      fontFeatures: tabularFigures,
-                      color: loss >= 50 ? AppColors.loss : AppColors.warning,
+                  Expanded(
+                    child: Text(
+                      s.needsGainPct(
+                        '${recoveryGainFor(loss).toStringAsFixed(0)}%',
+                      ),
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        fontFeatures: tabularFigures,
+                        color: loss >= 50 ? AppColors.loss : AppColors.warning,
+                      ),
                     ),
                   ),
                 ],
@@ -229,15 +244,21 @@ class _DrawdownCard extends StatelessWidget {
 }
 
 class _TradeCard extends StatelessWidget {
-  const _TradeCard({required this.trade, required this.store});
+  const _TradeCard({
+    required this.trade,
+    required this.store,
+    required this.s,
+  });
 
   final Trade trade;
   final AccountStore store;
+  final Strings s;
 
   @override
   Widget build(BuildContext context) {
     final r = trade.rMultiple ?? 0;
     final pnl = trade.realisedPnl ?? 0;
+    final isLong = trade.direction == TradeDirection.buy;
 
     return SectionCard(
       child: Column(
@@ -277,20 +298,19 @@ class _TradeCard extends StatelessWidget {
                         ),
                         Gap.w8,
                         Text(
-                          trade.direction.bn,
+                          isLong ? s.buy : s.sell,
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: trade.direction == TradeDirection.buy
-                                ? AppColors.profit
-                                : AppColors.loss,
+                            color: isLong ? AppColors.profit : AppColors.loss,
                           ),
                         ),
                       ],
                     ),
                     Text(
-                      '${money(pnl)} · ${trade.exitReason?.bn ?? ''} · '
-                      '${timeAgo(trade.closedAt!)}',
+                      '${money(pnl)} · '
+                      '${trade.exitReason?.label(s.isBangla) ?? ''} · '
+                      '${s.timeAgo(trade.closedAt!)}',
                       style: const TextStyle(
                         fontSize: 11.5,
                         color: AppColors.textMuted,
@@ -305,20 +325,26 @@ class _TradeCard extends StatelessWidget {
             ],
           ),
           Gap.h12,
-          _detailRow('রিস্ক',
-              '${trade.riskPips.toStringAsFixed(0)} পিপ · '
-              '${trade.riskPercent.toStringAsFixed(2)}%'),
-          _detailRow('সাইজ',
-              '${trade.lots.toStringAsFixed(2)} লট · R:R ১:'
-              '${trade.riskReward.toStringAsFixed(1)}'),
-          _detailRow('খরচ',
-              'স্প্রেড ${money(-trade.spreadCost)}'
-              '${trade.swapCost != 0 ? ' · সোয়াপ ${money(trade.swapCost)}' : ''}'),
+          _detailRow(
+            s.risk,
+            '${trade.riskPips.toStringAsFixed(0)} ${s.pips} · '
+            '${trade.riskPercent.toStringAsFixed(2)}%',
+          ),
+          _detailRow(
+            s.size,
+            '${trade.lots.toStringAsFixed(2)} ${s.lots} · R:R 1:'
+            '${trade.riskReward.toStringAsFixed(1)}',
+          ),
+          _detailRow(
+            s.cost,
+            '${s.spread} ${money(-trade.spreadCost)}'
+            '${trade.swapCost != 0 ? ' · ${s.swap} ${money(trade.swapCost)}' : ''}',
+          ),
           Gap.h12,
-          _note('কেন নিয়েছিলাম', trade.reason, AppColors.textSecondary),
+          _note(s.whyITookIt, trade.reason, AppColors.textSecondary),
           if (trade.lesson != null) ...[
             Gap.h8,
-            _note('কী শিখলাম', trade.lesson!, AppColors.brand),
+            _note(s.whatILearned, trade.lesson!, AppColors.brand),
           ],
           if (trade.violations.isNotEmpty) ...[
             Gap.h12,
@@ -327,7 +353,11 @@ class _TradeCard extends StatelessWidget {
               runSpacing: 6,
               children: [
                 for (final v in trade.violations)
-                  Pill(text: v.bn, color: AppColors.loss, dense: true),
+                  Pill(
+                    text: v.label(s.isBangla),
+                    color: AppColors.loss,
+                    dense: true,
+                  ),
               ],
             ),
           ],
@@ -336,7 +366,7 @@ class _TradeCard extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: () => _writeLesson(context),
               icon: const Icon(Icons.edit_note, size: 17),
-              label: const Text('কী শিখলেন লিখুন'),
+              label: Text(s.writeLesson),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.brand,
                 side: const BorderSide(color: AppColors.border),
@@ -354,9 +384,10 @@ class _TradeCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 52,
+            width: 62,
             child: Text(
               label,
               style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
@@ -399,10 +430,7 @@ class _TradeCard extends StatelessWidget {
             ),
           ),
           Gap.h4,
-          Text(
-            body,
-            style: const TextStyle(fontSize: 12.5, height: 1.5),
-          ),
+          Text(body, style: const TextStyle(fontSize: 12.5, height: 1.5)),
         ],
       ),
     );
@@ -429,13 +457,16 @@ class _TradeCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'কী শিখলেন?',
+              s.whatDidYouLearn,
               style: Theme.of(sheetContext).textTheme.titleMedium,
             ),
             Gap.h4,
-            const Text(
-              'জিতেছেন না হেরেছেন সেটা না — কোন সিদ্ধান্তটা ঠিক ছিল, কোনটা ভুল।',
-              style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+            Text(
+              s.lessonPrompt,
+              style: const TextStyle(
+                fontSize: 12.5,
+                color: AppColors.textSecondary,
+              ),
             ),
             Gap.h16,
             TextField(
@@ -443,15 +474,13 @@ class _TradeCard extends StatelessWidget {
               maxLines: 4,
               autofocus: true,
               style: const TextStyle(fontSize: 14, height: 1.4),
-              decoration: const InputDecoration(
-                hintText: 'যেমন: সেটআপ ঠিক ছিল, কিন্তু স্টপ খুব কাছে দিয়েছিলাম।',
-              ),
+              decoration: InputDecoration(hintText: s.lessonHint),
             ),
             Gap.h16,
             FilledButton(
               onPressed: () =>
                   Navigator.of(sheetContext).pop(controller.text.trim()),
-              child: const Text('সেভ করুন'),
+              child: Text(s.save),
             ),
           ],
         ),

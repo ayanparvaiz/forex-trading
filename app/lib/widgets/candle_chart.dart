@@ -22,6 +22,10 @@ class CandleChart extends StatelessWidget {
     this.targetPrice,
     this.livePrice,
     this.height = 280,
+    required this.entryLabel,
+    required this.stopLabel,
+    required this.targetLabel,
+    required this.loadingLabel,
   });
 
   final List<Candle> candles;
@@ -35,15 +39,22 @@ class CandleChart extends StatelessWidget {
 
   final double height;
 
+  /// Level names, passed in rather than looked up, so the painter stays free of
+  /// any dependency on the widget tree.
+  final String entryLabel;
+  final String stopLabel;
+  final String targetLabel;
+  final String loadingLabel;
+
   @override
   Widget build(BuildContext context) {
     if (candles.isEmpty) {
       return SizedBox(
         height: height,
-        child: const Center(
+        child: Center(
           child: Text(
-            'চার্ট লোড হচ্ছে…',
-            style: TextStyle(color: AppColors.textMuted),
+            loadingLabel,
+            style: const TextStyle(color: AppColors.textMuted),
           ),
         ),
       );
@@ -60,6 +71,9 @@ class CandleChart extends StatelessWidget {
           stopPrice: stopPrice,
           targetPrice: targetPrice,
           livePrice: livePrice,
+          entryLabel: entryLabel,
+          stopLabel: stopLabel,
+          targetLabel: targetLabel,
         ),
       ),
     );
@@ -74,6 +88,9 @@ class _CandlePainter extends CustomPainter {
     this.stopPrice,
     this.targetPrice,
     this.livePrice,
+    required this.entryLabel,
+    required this.stopLabel,
+    required this.targetLabel,
   });
 
   final List<Candle> candles;
@@ -82,6 +99,9 @@ class _CandlePainter extends CustomPainter {
   final double? stopPrice;
   final double? targetPrice;
   final double? livePrice;
+  final String entryLabel;
+  final String stopLabel;
+  final String targetLabel;
 
   /// Width reserved on the right for price labels.
   static const _axisWidth = 62.0;
@@ -122,15 +142,15 @@ class _CandlePainter extends CustomPainter {
     // Levels last, so they sit on top of the candles.
     if (targetPrice != null) {
       _paintLevel(canvas, size, plotWidth, y(targetPrice!), targetPrice!,
-          AppColors.profit, 'টার্গেট');
+          AppColors.profit, targetLabel);
     }
     if (stopPrice != null) {
       _paintLevel(canvas, size, plotWidth, y(stopPrice!), stopPrice!,
-          AppColors.loss, 'স্টপ');
+          AppColors.loss, stopLabel);
     }
     if (entryPrice != null) {
       _paintLevel(canvas, size, plotWidth, y(entryPrice!), entryPrice!,
-          AppColors.textSecondary, 'এন্ট্রি');
+          AppColors.textSecondary, entryLabel);
     }
     if (livePrice != null) {
       _paintLevel(canvas, size, plotWidth, y(livePrice!), livePrice!,

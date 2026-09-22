@@ -16,38 +16,46 @@ import 'mock_market.dart';
 class AccountTier {
   const AccountTier({
     required this.balance,
-    required this.label,
+    required this.bn,
+    required this.en,
     required this.tradesRequired,
     required this.disciplineRequired,
   });
 
   final double balance;
-  final String label;
+  final String bn;
+  final String en;
   final int tradesRequired;
   final double disciplineRequired;
+
+  String label(bool bangla) => bangla ? bn : en;
 
   static const tiers = [
     AccountTier(
       balance: 100,
-      label: 'শুরু',
+      bn: 'শুরু',
+      en: 'Start',
       tradesRequired: 0,
       disciplineRequired: 0,
     ),
     AccountTier(
       balance: 500,
-      label: 'ধাপ ২',
+      bn: 'ধাপ ২',
+      en: 'Tier 2',
       tradesRequired: 20,
       disciplineRequired: 75,
     ),
     AccountTier(
       balance: 2000,
-      label: 'ধাপ ৩',
+      bn: 'ধাপ ৩',
+      en: 'Tier 3',
       tradesRequired: 50,
       disciplineRequired: 80,
     ),
     AccountTier(
       balance: 10000,
-      label: 'ধাপ ৪',
+      bn: 'ধাপ ৪',
+      en: 'Tier 4',
       tradesRequired: 100,
       disciplineRequired: 85,
     ),

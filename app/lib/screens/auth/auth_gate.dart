@@ -22,6 +22,8 @@ class AuthGate extends StatelessWidget {
 
     // Keyed so switching accounts tears down the old screens rather than
     // reusing their state.
+    // Keyed so switching accounts tears down the old screens rather than
+    // reusing their state.
     return session.isSignedIn
         ? AppShell(key: ValueKey(session.profile!.username))
         : const LoginScreen();

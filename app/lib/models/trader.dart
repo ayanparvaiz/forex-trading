@@ -33,14 +33,6 @@ class Trader {
   final String cohort;
 
   final bool isYou;
-
-  String get disciplineGrade {
-    if (disciplineScore >= 90) return 'চমৎকার';
-    if (disciplineScore >= 75) return 'ভালো';
-    if (disciplineScore >= 60) return 'মোটামুটি';
-    if (disciplineScore >= 40) return 'দুর্বল';
-    return 'বিপজ্জনক';
-  }
 }
 
 /// A shared journal entry in the community feed.

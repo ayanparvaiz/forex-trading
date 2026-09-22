@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../core/calculations.dart';
 import '../data/account_scope.dart';
+import '../data/session_controller.dart';
+import '../i18n/strings.dart';
 import '../models/candle.dart';
 import '../models/instrument.dart';
 import '../models/trade.dart';
@@ -60,9 +62,13 @@ class _TradeScreenState extends State<TradeScreen> {
         _stopPips * _rewardRatio * _direction.sign,
       );
 
+  String _directionLabel(TradeDirection d, Strings s) =>
+      d == TradeDirection.buy ? s.buy : s.sell;
+
   @override
   Widget build(BuildContext context) {
     final store = AccountScope.of(context);
+    final s = context.s;
 
     final size = sizePosition(
       balance: store.balance,
@@ -79,11 +85,11 @@ class _TradeScreenState extends State<TradeScreen> {
       reason: reason,
     );
 
-    final blocker = _blockingReason(size, reason);
+    final blocker = _blockingReason(size, reason, s);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ট্রেড'),
+        title: Text(s.navTrade),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: Gap.lg),
@@ -104,22 +110,22 @@ class _TradeScreenState extends State<TradeScreen> {
         children: [
           _pairSelector(),
           Gap.h12,
-          _chartCard(store.market.price(_instrument)),
+          _chartCard(store.market.price(_instrument), s),
           Gap.h12,
-          _directionToggle(),
+          _directionToggle(s),
           Gap.h12,
-          _planCard(size),
+          _planCard(size, s),
           Gap.h12,
-          _sizeCard(size),
+          _sizeCard(size, s),
           Gap.h12,
-          _reasonCard(),
+          _reasonCard(s),
           if (violations.isNotEmpty) ...[
             Gap.h12,
-            _violationsCard(violations),
+            _violationsCard(violations, s),
           ],
         ],
       ),
-      bottomNavigationBar: _placeBar(size, blocker),
+      bottomNavigationBar: _placeBar(size, blocker, s),
     );
   }
 
@@ -127,16 +133,10 @@ class _TradeScreenState extends State<TradeScreen> {
   ///
   /// Kept separate from rule *violations*: a violation is allowed through and
   /// costs discipline points, but these are hard stops.
-  String? _blockingReason(PositionSize size, String reason) {
-    if (size.isBelowMinimum) {
-      return 'এই রিস্কে সাইজ সর্বনিম্ন লটের চেয়ে ছোট';
-    }
-    if (!size.isTradable) {
-      return 'পজিশন সাইজ শূন্য';
-    }
-    if (reason.trim().length < 10) {
-      return 'কেন ট্রেডটা নিচ্ছেন লিখুন (অন্তত ১০ অক্ষর)';
-    }
+  String? _blockingReason(PositionSize size, String reason, Strings s) {
+    if (size.isBelowMinimum) return s.blockedBelowMinLot;
+    if (!size.isTradable) return s.blockedZeroSize;
+    if (reason.trim().length < 10) return s.blockedNoReason;
     return null;
   }
 
@@ -171,7 +171,7 @@ class _TradeScreenState extends State<TradeScreen> {
     );
   }
 
-  Widget _chartCard(double livePrice) {
+  Widget _chartCard(double livePrice, Strings s) {
     final store = AccountScope.of(context);
     final candles = store.market.candles(_instrument, timeframe: _timeframe);
 
@@ -195,7 +195,7 @@ class _TradeScreenState extends State<TradeScreen> {
                 ),
                 Gap.w8,
                 Pill(
-                  text: 'স্প্রেড ${_instrument.spreadPips} পিপ',
+                  text: '${s.spread} ${_instrument.spreadPips}',
                   color: AppColors.warning,
                   dense: true,
                 ),
@@ -228,13 +228,17 @@ class _TradeScreenState extends State<TradeScreen> {
             stopPrice: _stopPrice,
             targetPrice: _targetPrice,
             height: 250,
+            entryLabel: s.entry,
+            stopLabel: s.stopLoss,
+            targetLabel: s.target,
+            loadingLabel: s.chartLoading,
           ),
         ],
       ),
     );
   }
 
-  Widget _directionToggle() {
+  Widget _directionToggle(Strings s) {
     return Row(
       children: [
         for (final d in TradeDirection.values) ...[
@@ -260,7 +264,7 @@ class _TradeScreenState extends State<TradeScreen> {
                 ),
                 child: Center(
                   child: Text(
-                    d.bn,
+                    _directionLabel(d, s),
                     style: TextStyle(
                       fontSize: 14.5,
                       fontWeight: FontWeight.w700,
@@ -281,14 +285,14 @@ class _TradeScreenState extends State<TradeScreen> {
     );
   }
 
-  Widget _planCard(PositionSize size) {
+  Widget _planCard(PositionSize size, Strings s) {
     return SectionCard(
-      title: 'প্ল্যান',
+      title: s.plan,
       child: Column(
         children: [
           _slider(
-            label: 'স্টপ লস',
-            value: '${_stopPips.toStringAsFixed(0)} পিপ',
+            label: s.stopLoss,
+            value: '${_stopPips.toStringAsFixed(0)} ${s.pips}',
             secondary: _instrument.formatPrice(_stopPrice),
             secondaryColor: AppColors.loss,
             slider: Slider(
@@ -300,8 +304,8 @@ class _TradeScreenState extends State<TradeScreen> {
             ),
           ),
           _slider(
-            label: 'টার্গেট (R:R)',
-            value: '১ : ${_rewardRatio.toStringAsFixed(1)}',
+            label: '${s.target} (R:R)',
+            value: '1 : ${_rewardRatio.toStringAsFixed(1)}',
             secondary: _instrument.formatPrice(_targetPrice),
             secondaryColor: AppColors.profit,
             slider: Slider(
@@ -313,7 +317,7 @@ class _TradeScreenState extends State<TradeScreen> {
             ),
           ),
           _slider(
-            label: 'রিস্ক',
+            label: s.risk,
             value: '${_riskPercent.toStringAsFixed(2)}%',
             secondary: money(-size.plannedRisk),
             secondaryColor: AppColors.loss,
@@ -328,11 +332,11 @@ class _TradeScreenState extends State<TradeScreen> {
           if (_riskPercent > 2) ...[
             Gap.h8,
             _Warning(
-              text: 'ট্রেডে ${_riskPercent.toStringAsFixed(2)}% রিস্ক নিলে '
-                  'টানা ১০টা হারলে অ্যাকাউন্টের '
-                  '${(100 * (1 - _survivalFactor(10))).toStringAsFixed(0)}% '
-                  'চলে যাবে। পেশাদাররা ১%-এর নিচে রাখেন।',
               color: AppColors.loss,
+              text: s.riskWarning(
+                '${_riskPercent.toStringAsFixed(2)}%',
+                '${(100 * (1 - _survivalFactor(10))).toStringAsFixed(0)}%',
+              ),
             ),
           ],
         ],
@@ -393,28 +397,25 @@ class _TradeScreenState extends State<TradeScreen> {
     );
   }
 
-  Widget _sizeCard(PositionSize size) {
+  Widget _sizeCard(PositionSize size, Strings s) {
     return SectionCard(
-      title: 'হিসাব',
-      trailing: const Pill(
-        text: 'রিস্ক থেকে সাইজ',
-        color: AppColors.brand,
-        dense: true,
-      ),
+      title: s.calculation,
+      trailing: Pill(text: s.sizeFromRisk, color: AppColors.brand, dense: true),
       child: Column(
         children: [
           Row(
             children: [
               Expanded(
                 child: StatTile(
-                  label: 'পজিশন সাইজ',
-                  value: '${size.lots.toStringAsFixed(2)} লট',
-                  hint: '${(size.lots * Instrument.contractSize).toStringAsFixed(0)} ইউনিট',
+                  label: s.positionSize,
+                  value: '${size.lots.toStringAsFixed(2)} ${s.lots}',
+                  hint: '${(size.lots * Instrument.contractSize)
+                      .toStringAsFixed(0)} ${s.units}',
                 ),
               ),
               Expanded(
                 child: StatTile(
-                  label: 'হারলে',
+                  label: s.ifYouLose,
                   value: money(-size.actualRisk),
                   hint: '${size.actualRiskPercent.toStringAsFixed(2)}%',
                   valueColor: AppColors.loss,
@@ -422,9 +423,10 @@ class _TradeScreenState extends State<TradeScreen> {
               ),
               Expanded(
                 child: StatTile(
-                  label: 'জিতলে',
+                  label: s.ifYouWin,
                   value: money(size.actualRisk * _rewardRatio),
-                  hint: '${(size.actualRiskPercent * _rewardRatio).toStringAsFixed(2)}%',
+                  hint: '${(size.actualRiskPercent * _rewardRatio)
+                      .toStringAsFixed(2)}%',
                   valueColor: AppColors.profit,
                 ),
               ),
@@ -434,12 +436,11 @@ class _TradeScreenState extends State<TradeScreen> {
             Gap.h16,
             _Warning(
               color: AppColors.warning,
-              text: 'এই অ্যাকাউন্টে ${_riskPercent.toStringAsFixed(2)}% রিস্কে '
-                  'সাইজ হয় ${size.exactLots.toStringAsFixed(4)} লট — কিন্তু ব্রোকারের '
-                  'সর্বনিম্ন সাইজ ০.০১ লট। সেটা নিলে রিস্ক দাঁড়াবে '
-                  '${size.minimumLotRiskPercent.toStringAsFixed(2)}%।\n\n'
-                  'এটাই ছোট অ্যাকাউন্টের আসল সমস্যা — বেশিরভাগ অ্যাপ এটা লুকায়। '
-                  'সমাধান: স্টপ কাছে আনুন, নয়তো ব্যালেন্স বাড়ান।',
+              text: s.belowMinimumLot(
+                '${_riskPercent.toStringAsFixed(2)}%',
+                size.exactLots.toStringAsFixed(4),
+                '${size.minimumLotRiskPercent.toStringAsFixed(2)}%',
+              ),
             ),
           ],
         ],
@@ -447,9 +448,9 @@ class _TradeScreenState extends State<TradeScreen> {
     );
   }
 
-  Widget _reasonCard() {
+  Widget _reasonCard(Strings s) {
     return SectionCard(
-      title: 'কেন এই ট্রেড?',
+      title: s.whyThisTrade,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -457,26 +458,26 @@ class _TradeScreenState extends State<TradeScreen> {
             controller: _reasonController,
             maxLines: 3,
             style: const TextStyle(fontSize: 14, height: 1.4),
-            decoration: const InputDecoration(
-              hintText: 'যেমন: H4 সাপোর্টে বুলিশ এনগাল্ফিং, ভলিউম কনফার্ম করেছে',
-            ),
+            decoration: InputDecoration(hintText: s.whyHint),
             onChanged: (_) => setState(() {}),
           ),
           Gap.h8,
-          const Text(
-            'ছয় মাস পর এই লেখাটাই বলে দেবে আপনি ট্রেডার নাকি জুয়াড়ি ছিলেন।',
-            style: TextStyle(fontSize: 11.5, color: AppColors.textMuted),
+          Text(
+            s.whyFootnote,
+            style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted),
           ),
         ],
       ),
     );
   }
 
-  Widget _violationsCard(Set<RuleViolation> violations) {
+  Widget _violationsCard(Set<RuleViolation> violations, Strings s) {
     return SectionCard(
-      title: 'নিয়ম ভাঙছেন',
+      title: s.breakingRules,
       trailing: Pill(
-        text: '−${violations.fold<int>(0, (s, v) => s + v.weight)} পয়েন্ট',
+        text: s.pointsPenalty(
+          violations.fold<int>(0, (sum, v) => sum + v.weight),
+        ),
         color: AppColors.loss,
         dense: true,
       ),
@@ -496,14 +497,14 @@ class _TradeScreenState extends State<TradeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          v.bn,
+                          v.label(s.isBangla),
                           style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         Text(
-                          v.why(true),
+                          v.why(s.isBangla),
                           style: const TextStyle(
                             fontSize: 12,
                             height: 1.4,
@@ -517,16 +518,16 @@ class _TradeScreenState extends State<TradeScreen> {
               ),
             ),
           Gap.h4,
-          const Text(
-            'ট্রেডটা আটকানো হবে না — কিন্তু ডিসিপ্লিন স্কোরে যোগ হবে।',
-            style: TextStyle(fontSize: 11.5, color: AppColors.textMuted),
+          Text(
+            s.violationsAllowed,
+            style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted),
           ),
         ],
       ),
     );
   }
 
-  Widget _placeBar(PositionSize size, String? blocker) {
+  Widget _placeBar(PositionSize size, String? blocker, Strings s) {
     final enabled = blocker == null;
 
     return Container(
@@ -558,7 +559,7 @@ class _TradeScreenState extends State<TradeScreen> {
             Gap.h8,
           ],
           FilledButton(
-            onPressed: enabled ? () => _place(size) : null,
+            onPressed: enabled ? () => _place(size, s) : null,
             style: FilledButton.styleFrom(
               backgroundColor: _direction == TradeDirection.buy
                   ? AppColors.profit
@@ -566,8 +567,9 @@ class _TradeScreenState extends State<TradeScreen> {
               foregroundColor: Colors.white,
             ),
             child: Text(
-              '${_direction.bn} · ${size.lots.toStringAsFixed(2)} লট · '
-              'রিস্ক ${money(-size.actualRisk)}',
+              '${_directionLabel(_direction, s)} · '
+              '${size.lots.toStringAsFixed(2)} ${s.lots} · '
+              '${s.risk} ${money(-size.actualRisk)}',
             ),
           ),
         ],
@@ -575,7 +577,7 @@ class _TradeScreenState extends State<TradeScreen> {
     );
   }
 
-  void _place(PositionSize size) {
+  void _place(PositionSize size, Strings s) {
     final store = AccountScope.of(context);
 
     store.openTrade(
@@ -593,8 +595,11 @@ class _TradeScreenState extends State<TradeScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '${_instrument.symbol} ${_direction.bn} খোলা হয়েছে · '
-          'স্টপ ${_stopPips.toStringAsFixed(0)} পিপ',
+          s.tradeOpened(
+            _instrument.symbol,
+            _directionLabel(_direction, s),
+            _stopPips.toStringAsFixed(0),
+          ),
         ),
       ),
     );

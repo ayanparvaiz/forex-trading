@@ -55,6 +55,8 @@ class Strings {
   // --- Auth: login --------------------------------------------------------
 
   String get login => _t('লগইন', 'Log in');
+  String get logOut => _t('লগআউট', 'Log out');
+  String get chartLoading => _t('চার্ট লোড হচ্ছে…', 'Loading chart…');
   String get loginTitle => _t('ফিরে এসেছেন', 'Welcome back');
   String get loginSubtitle => _t(
         'ইউজারনেম আর পাসওয়ার্ড দিন।',

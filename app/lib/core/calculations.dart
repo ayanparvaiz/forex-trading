@@ -275,14 +275,6 @@ class DisciplineBreakdown {
           (b.value * b.key.weight).compareTo(a.value * a.key.weight));
     return entries;
   }
-
-  String get grade {
-    if (score >= 90) return 'চমৎকার';
-    if (score >= 75) return 'ভালো';
-    if (score >= 60) return 'মোটামুটি';
-    if (score >= 40) return 'দুর্বল';
-    return 'বিপজ্জনক';
-  }
 }
 
 /// Discipline score — the app's headline metric.
