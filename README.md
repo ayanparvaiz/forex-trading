@@ -1,9 +1,12 @@
-# শিখি — Shikhi
+# Forex Trading — বাংলায় ফরেক্স শেখার অ্যাপ
 
-**বাংলায় ট্রেডিং শেখার অ্যাপ।** ডেমো টাকা দিয়ে প্র্যাকটিস, আসল হিসাব, আসল নিয়ম — আসল ঝুঁকি ছাড়া।
+**ডেমো টাকা দিয়ে প্র্যাকটিস, আসল হিসাব, আসল নিয়ম — আসল ঝুঁকি ছাড়া।**
 
-> A Bengali-first trading education app. Practice with demo money, learn real risk
-> management, and get ranked on **discipline — not profit**.
+> A Bengali-first forex **education** app. Practice with demo money, learn real
+> risk management, and get ranked on **discipline — not profit**.
+>
+> ⚠️ This is a learning simulator. No real money, no broker connection, no
+> deposits, no signals. See [জরুরি কথা](#️-জরুরি-কথা).
 
 ---
 
@@ -15,9 +18,9 @@
 আত্মবিশ্বাস নিয়ে আসল মার্কেটে নামে — আর $১০০ হারিয়ে ফেলে। সিমুলেটরটা তাকে জুয়া শিখিয়েছে,
 ট্রেডিং না।
 
-শিখি অন্যভাবে কাজ করে:
+এই অ্যাপ অন্যভাবে কাজ করে:
 
-| বেশিরভাগ অ্যাপ | শিখি |
+| বেশিরভাগ অ্যাপ | এই অ্যাপ |
 |---|---|
 | $১,০০,০০০ ডেমো ব্যালেন্স | **$১০০ দিয়ে শুরু** — বাস্তব সংখ্যা, বাস্তব শিক্ষা |
 | স্টপ লস অপশনাল | **স্টপ লস ছাড়া ট্রেড হবে না** |
