@@ -42,6 +42,12 @@ class AuthFailure extends AuthResult {
 abstract class AuthRepository {
   Future<UserProfile?> currentUser();
 
+  /// The signed-in account's id, or null.
+  ///
+  /// Distinct from the username: rules and notifications key off this, and on
+  /// Firebase it is the auth uid rather than anything the person chose.
+  Future<String?> currentUid();
+
   Future<bool> isUsernameAvailable(String username);
 
   /// Free usernames near [base], for when the one they wanted is taken.
@@ -141,6 +147,9 @@ class LocalAuthRepository implements AuthRepository {
       (account['profile'] as Map).cast<String, dynamic>(),
     );
   }
+
+  @override
+  Future<String?> currentUid() async => (await _prefs).getString(_sessionKey);
 
   @override
   Future<bool> isUsernameAvailable(String username) async {

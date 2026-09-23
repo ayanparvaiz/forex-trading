@@ -53,6 +53,9 @@ class FirebaseAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<String?> currentUid() async => _auth.currentUser?.uid;
+
+  @override
   Future<bool> isUsernameAvailable(String username) async {
     final normalised = AuthRepository.normalise(username);
     if (!AuthRepository.usernamePattern.hasMatch(normalised)) return false;

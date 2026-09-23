@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../data/community_repository.dart';
+import '../data/notification_repository.dart';
 import '../data/page.dart';
 import '../data/session_controller.dart';
 import '../i18n/strings.dart';
+import '../models/app_notification.dart';
 import '../models/connection.dart';
 import '../models/trader.dart';
 import '../theme/app_theme.dart';
@@ -113,6 +115,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  /// Tells [toUsername] what just happened.
+  ///
+  /// Addressed by uid because that is what the rules can verify; the username
+  /// travels alongside only so the row can link back to a profile.
+  Future<void> _notify(NotificationKind kind, String toUsername) async {
+    final session = context.session;
+    final me = session.profile;
+    final myUid = session.uid;
+    if (me == null || myUid == null) return;
+
+    final theirUid = await widget.repository.uidFor(toUsername);
+    if (theirUid == null) return;
+
+    await notificationRepository.notify(
+      recipientUid: theirUid,
+      kind: kind,
+      actorUid: myUid,
+      actorUsername: me.username,
+      actorName: me.displayName,
+      actorAvatarId: me.avatarId,
+    );
+  }
+
   Future<void> _act(Future<void> Function() action) async {
     setState(() => _busy = true);
 
@@ -197,18 +222,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     status: _status,
                     busy: _busy,
                     s: s,
-                    onConnect: () => _act(
-                      () => widget.repository.sendRequest(
+                    onConnect: () => _act(() async {
+                      await widget.repository.sendRequest(
                         from: _me!,
                         to: widget.username,
-                      ),
-                    ),
-                    onAccept: () => _act(
-                      () => widget.repository.acceptRequest(
+                      );
+                      await _notify(
+                        NotificationKind.connectionRequest,
+                        widget.username,
+                      );
+                    }),
+                    onAccept: () => _act(() async {
+                      await widget.repository.acceptRequest(
                         me: _me!,
                         from: widget.username,
-                      ),
-                    ),
+                      );
+                      await _notify(
+                        NotificationKind.connectionAccepted,
+                        widget.username,
+                      );
+                    }),
                     onRemove: () => _act(
                       () => widget.repository.removeConnection(
                         me: _me!,
@@ -232,6 +265,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     username: widget.username,
                     repository: widget.repository,
                     s: s,
+                    onNotify: _notify,
                     onChanged: () => _act(() async {}),
                   ),
                   Gap.h12,
@@ -790,12 +824,14 @@ class _PendingRequests extends StatelessWidget {
     required this.repository,
     required this.s,
     required this.onChanged,
+    required this.onNotify,
   });
 
   final String username;
   final CommunityRepository repository;
   final Strings s;
   final VoidCallback onChanged;
+  final Future<void> Function(NotificationKind, String) onNotify;
 
   @override
   Widget build(BuildContext context) {
@@ -816,6 +852,10 @@ class _PendingRequests extends StatelessWidget {
               IconButton(
                 onPressed: () async {
                   await repository.acceptRequest(me: username, from: trader.id);
+                  await onNotify(
+                    NotificationKind.connectionAccepted,
+                    trader.id,
+                  );
                   onChanged();
                 },
                 icon: const Icon(Icons.check_circle, size: 22),

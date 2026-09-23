@@ -347,6 +347,17 @@ class Strings {
   // --- Profile and connections --------------------------------------------
 
   String get profile => _t('প্রোফাইল', 'Profile');
+
+  // --- Notifications ------------------------------------------------------
+
+  String get notifications => _t('নোটিফিকেশন', 'Notifications');
+  String get noNotifications =>
+      _t('নতুন কিছু নেই।', 'Nothing new.');
+  String get markAllRead => _t('সব পড়া হয়েছে', 'Mark all read');
+  String get notificationsExpire => _t(
+        '৪৮ ঘণ্টা পর নিজে থেকে মুছে যায়।',
+        'These clear themselves after 48 hours.',
+      );
   String get journalStreakLabel => _t('জার্নাল স্ট্রিক', 'Journal streak');
   String get rank => _t('র‍্যাংক', 'Rank');
   String get yourPosition => _t('আপনার অবস্থান', 'Your position');

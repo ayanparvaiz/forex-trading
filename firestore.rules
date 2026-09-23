@@ -267,6 +267,37 @@ service cloud.firestore {
       allow delete: if isSignedIn() && request.auth.uid in resource.data.uids;
     }
 
+    // --- Notifications ------------------------------------------------------
+    //
+    // Written by whoever caused the thing, read only by whoever it happened to.
+    // Without Cloud Functions the actor's own client writes the row, so the
+    // rules have to do the work a server would: you may tell someone what you
+    // did, in your own name, and nothing else.
+
+    match /notifications/{id} {
+      allow read: if isSignedIn()
+        && request.auth.uid == resource.data.recipientUid;
+
+      allow create: if isSignedIn()
+        // In your own name only — otherwise anyone could forge a notification
+        // from anyone.
+        && request.resource.data.actorUid == request.auth.uid
+        // Never to yourself, so the badge cannot be self-inflated.
+        && request.resource.data.recipientUid != request.auth.uid
+        && request.resource.data.read == false
+        && request.resource.data.kind is string;
+
+      // The recipient marks it read. Nothing else about it may change — not
+      // who did it, not when, not what it was.
+      allow update: if isSignedIn()
+        && request.auth.uid == resource.data.recipientUid
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['read']);
+
+      allow delete: if isSignedIn()
+        && request.auth.uid == resource.data.recipientUid;
+    }
+
     // --- Profile views ------------------------------------------------------
 
     match /profileViews/{view} {

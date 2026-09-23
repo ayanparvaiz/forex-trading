@@ -17,6 +17,11 @@ class SessionController extends ChangeNotifier {
   UserProfile? _profile;
   UserProfile? get profile => _profile;
 
+  /// The account id behind the profile. Notifications and security rules key
+  /// off this rather than the username.
+  String? _uid;
+  String? get uid => _uid;
+
   bool get isSignedIn => _profile != null;
 
   AppLanguage _language = AppLanguage.bn;
@@ -31,6 +36,7 @@ class SessionController extends ChangeNotifier {
 
   Future<void> restore() async {
     _profile = await _auth.currentUser();
+    _uid = await _auth.currentUid();
     if (_profile != null) _language = _profile!.language;
     _restoring = false;
     notifyListeners();
@@ -71,6 +77,7 @@ class SessionController extends ChangeNotifier {
     );
     if (result is AuthSuccess) {
       _profile = result.profile;
+      _uid = await _auth.currentUid();
       notifyListeners();
     }
     return result;
@@ -84,6 +91,7 @@ class SessionController extends ChangeNotifier {
     if (result is AuthSuccess) {
       _profile = result.profile;
       _language = result.profile.language;
+      _uid = await _auth.currentUid();
       notifyListeners();
     }
     return result;
@@ -92,6 +100,7 @@ class SessionController extends ChangeNotifier {
   Future<void> logOut() async {
     await _auth.logOut();
     _profile = null;
+    _uid = null;
     notifyListeners();
   }
 

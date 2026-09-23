@@ -163,6 +163,9 @@ class FirestoreCommunityRepository implements CommunityRepository {
   }
 
   @override
+  Future<String?> uidFor(String username) => _uidFor(username);
+
+  @override
   Future<int?> rankOf(String username) async {
     final me = await trader(username);
     if (me == null) return null;

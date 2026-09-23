@@ -5,11 +5,13 @@ import '../data/account_scope.dart';
 import '../data/account_store.dart';
 import '../data/avatars.dart';
 import '../data/firestore_community_repository.dart';
+import '../data/notification_repository.dart';
 import '../data/session_controller.dart';
 import '../i18n/strings.dart';
 import '../models/trade.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
+import 'notifications_screen.dart';
 import 'profile_screen.dart';
 
 /// Home screen: what the account is worth, and how well it is being run.
@@ -37,7 +39,7 @@ class PortfolioScreen extends StatelessWidget {
             text: '${store.badge.tier.emoji} ${store.badge.label(s.isBangla)}',
             color: AppColors.warning,
           ),
-          Gap.w8,
+          NotificationBell(repository: notificationRepository),
           if (profile != null)
             _ProfileButton(avatarId: profile.avatarId, name: profile.displayName),
           Gap.w8,

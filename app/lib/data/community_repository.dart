@@ -22,6 +22,12 @@ abstract class CommunityRepository {
 
   Future<Trader?> trader(String username);
 
+  /// The account id behind a username, or null if there is no such account.
+  ///
+  /// Notifications are addressed by id rather than by username, because that
+  /// is what the security rules can verify.
+  Future<String?> uidFor(String username);
+
   /// Where [username] sits on the leaderboard, 1-based, or null if unranked.
   ///
   /// Asked separately from the list because the list stops at
@@ -170,6 +176,9 @@ class LocalCommunityRepository implements CommunityRepository {
     }
     return null;
   }
+
+  @override
+  Future<String?> uidFor(String username) async => username;
 
   @override
   Future<int?> rankOf(String username) async {
