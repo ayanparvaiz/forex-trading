@@ -103,25 +103,31 @@ class _TradeScreenState extends State<TradeScreen> {
           ),
         ],
       ),
-      body: ListView(
+      // A form, so it is built in one piece. A lazy list would dispose the
+      // cards the keyboard pushes off screen, and the reason field is the last
+      // one down — exactly the one that would be thrown away mid-sentence.
+      body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, 120),
-        children: [
-          _pairSelector(),
-          Gap.h12,
-          _chartCard(store.market.price(_instrument), s),
-          Gap.h12,
-          _directionToggle(s),
-          Gap.h12,
-          _planCard(size, s),
-          Gap.h12,
-          _sizeCard(size, s),
-          Gap.h12,
-          _reasonCard(s),
-          if (violations.isNotEmpty) ...[
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _pairSelector(),
             Gap.h12,
-            _violationsCard(violations, s),
+            _chartCard(store.market.price(_instrument), s),
+            Gap.h12,
+            _directionToggle(s),
+            Gap.h12,
+            _planCard(size, s),
+            Gap.h12,
+            _sizeCard(size, s),
+            Gap.h12,
+            _reasonCard(s),
+            if (violations.isNotEmpty) ...[
+              Gap.h12,
+              _violationsCard(violations, s),
+            ],
           ],
-        ],
+        ),
       ),
       bottomNavigationBar: _placeBar(size, blocker, s),
     );

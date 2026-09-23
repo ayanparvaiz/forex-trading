@@ -167,18 +167,24 @@ class _ComposerState extends State<_Composer> {
                 Gap.lg,
                 Gap.md,
               ),
-              child: FilledButton(
-                onPressed: _canPost ? _publish : null,
-                child: _posting
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.4,
-                          color: Colors.white,
-                        ),
-                      )
-                    : Text(s.publish),
+              // Listens to the controllers instead of rebuilding the form on
+              // every keystroke. The button is the only thing typing changes,
+              // so the button is the only thing that should be rebuilt by it.
+              child: ListenableBuilder(
+                listenable: Listenable.merge([_reason, _lesson]),
+                builder: (context, _) => FilledButton(
+                  onPressed: _canPost ? _publish : null,
+                  child: _posting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.4,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(s.publish),
+                ),
               ),
             ),
           ),
@@ -190,136 +196,153 @@ class _ComposerState extends State<_Composer> {
   Widget _body(Strings s) {
     final shared = widget.rank;
 
-    return ListView(
-      shrinkWrap: true,
+    // A scrolling Column, never a ListView.
+    //
+    // ListView builds lazily and throws its children away once they leave the
+    // viewport — which for a form means the field being typed into can be
+    // disposed out from under the keyboard the moment the layout shifts, and
+    // its connection to the platform's text input goes with it. That is what
+    // eats characters: a letter or two arrives, the field is rebuilt, and the
+    // rest go nowhere. A form is a fixed, short list of controls that all have
+    // to stay alive, so every one of them is built up front.
+    return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.lg, Gap.lg, Gap.lg),
-      children: [
-        if (shared != null)
-          _RankSummary(share: shared, s: s)
-        else if (_fromTrade)
-          _TradeSummary(trade: widget.trade!, s: s)
-        else ...[
-          Text(s.pair, style: Theme.of(context).textTheme.labelSmall),
-          Gap.h8,
-          Wrap(
-            spacing: 8,
-            children: [
-              for (final i in Instrument.all)
-                ChoiceChip(
-                  label: Text(i.symbol),
-                  selected: _symbol == i.symbol,
-                  showCheckmark: false,
-                  onSelected: (_) => setState(() => _symbol = i.symbol),
-                  backgroundColor: AppColors.elevated,
-                  selectedColor: AppColors.brandDim,
-                  side: BorderSide(
-                    color: _symbol == i.symbol
-                        ? AppColors.brand
-                        : AppColors.border,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (shared != null)
+            _RankSummary(share: shared, s: s)
+          else if (_fromTrade)
+            _TradeSummary(trade: widget.trade!, s: s)
+          else ...[
+            Text(s.pair, style: Theme.of(context).textTheme.labelSmall),
+            Gap.h8,
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final i in Instrument.all)
+                  ChoiceChip(
+                    label: Text(i.symbol),
+                    selected: _symbol == i.symbol,
+                    showCheckmark: false,
+                    onSelected: (_) => setState(() => _symbol = i.symbol),
+                    backgroundColor: AppColors.elevated,
+                    selectedColor: AppColors.brandDim,
+                    side: BorderSide(
+                      color: _symbol == i.symbol
+                          ? AppColors.brand
+                          : AppColors.border,
+                    ),
+                    labelStyle: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  labelStyle: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+              ],
+            ),
+            Gap.h16,
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    s.result,
+                    style: Theme.of(context).textTheme.labelSmall,
                   ),
                 ),
-            ],
-          ),
-          Gap.h16,
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  s.result,
-                  style: Theme.of(context).textTheme.labelSmall,
+                Text(
+                  rMultiple(_r),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    fontFeatures: tabularFigures,
+                    color: AppColors.forValue(_r),
+                  ),
                 ),
-              ),
-              Text(
-                rMultiple(_r),
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  fontFeatures: tabularFigures,
-                  color: AppColors.forValue(_r),
-                ),
-              ),
-            ],
-          ),
-          Slider(
-            value: _r.clamp(-5, 10),
-            min: -5,
-            max: 10,
-            divisions: 150,
-            onChanged: (v) => setState(() => _r = v),
-          ),
-          Gap.h8,
-        ],
+              ],
+            ),
+            Slider(
+              value: _r.clamp(-5, 10),
+              min: -5,
+              max: 10,
+              divisions: 150,
+              onChanged: (v) => setState(() => _r = v),
+            ),
+            Gap.h8,
+          ],
 
-        // A rank post has no trade behind it, so there is nothing to ask why
-        // about. The one line it does carry is how the author got there.
-        if (!_fromRank) ...[
+          // A rank post has no trade behind it, so there is nothing to ask why
+          // about. The one line it does carry is how the author got there.
+          if (!_fromRank) ...[
+            Gap.h16,
+            Text(s.whyITookIt, style: Theme.of(context).textTheme.labelSmall),
+            Gap.h8,
+            TextField(
+              // Keyed so the field keeps its element, and with it its focus and
+              // its selection, when the list around it changes shape.
+              key: const ValueKey('composer.reason'),
+              controller: _reason,
+              maxLines: 3,
+              keyboardType: TextInputType.multiline,
+              textCapitalization: TextCapitalization.sentences,
+              style: const TextStyle(fontSize: 14, height: 1.45),
+              decoration: InputDecoration(hintText: s.whyHint),
+            ),
+          ],
+
           Gap.h16,
-          Text(s.whyITookIt, style: Theme.of(context).textTheme.labelSmall),
+          Text(
+            _fromRank ? s.howYouGotHere : s.whatILearned,
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
           Gap.h8,
           TextField(
-            controller: _reason,
-            maxLines: 3,
+            key: const ValueKey('composer.lesson'),
+            controller: _lesson,
+            maxLines: 5,
+            keyboardType: TextInputType.multiline,
+            textCapitalization: TextCapitalization.sentences,
             style: const TextStyle(fontSize: 14, height: 1.45),
-            decoration: InputDecoration(hintText: s.whyHint),
-            onChanged: (_) => setState(() {}),
-          ),
-        ],
-
-        Gap.h16,
-        Text(
-          _fromRank ? s.howYouGotHere : s.whatILearned,
-          style: Theme.of(context).textTheme.labelSmall,
-        ),
-        Gap.h8,
-        TextField(
-          controller: _lesson,
-          maxLines: 5,
-          style: const TextStyle(fontSize: 14, height: 1.45),
-          decoration: InputDecoration(
-            hintText: _fromRank ? s.howYouGotHereHint : s.lessonHint,
-            helperText: s.lessonRequiredToPost,
-            helperMaxLines: 2,
-            helperStyle: const TextStyle(
-              fontSize: 11,
-              color: AppColors.textMuted,
-            ),
-          ),
-          onChanged: (_) => setState(() {}),
-        ),
-        Gap.h16,
-        Container(
-          padding: const EdgeInsets.all(Gap.md),
-          decoration: BoxDecoration(
-            color: AppColors.elevated,
-            borderRadius: Radii.tile,
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(
-                Icons.info_outline,
-                size: 16,
+            decoration: InputDecoration(
+              hintText: _fromRank ? s.howYouGotHereHint : s.lessonHint,
+              helperText: s.lessonRequiredToPost,
+              helperMaxLines: 2,
+              helperStyle: const TextStyle(
+                fontSize: 11,
                 color: AppColors.textMuted,
               ),
-              Gap.w8,
-              Expanded(
-                child: Text(
-                  _fromRank ? s.rankPostGuideline : s.postGuideline,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    height: 1.5,
-                    color: AppColors.textMuted,
+            ),
+          ),
+          Gap.h16,
+          Container(
+            padding: const EdgeInsets.all(Gap.md),
+            decoration: BoxDecoration(
+              color: AppColors.elevated,
+              borderRadius: Radii.tile,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.info_outline,
+                  size: 16,
+                  color: AppColors.textMuted,
+                ),
+                Gap.w8,
+                Expanded(
+                  child: Text(
+                    _fromRank ? s.rankPostGuideline : s.postGuideline,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      height: 1.5,
+                      color: AppColors.textMuted,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

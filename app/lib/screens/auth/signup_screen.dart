@@ -539,31 +539,37 @@ class _StepBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
+    // Not a ListView: these steps hold text fields, and a lazy list disposes
+    // whatever scrolls out of the viewport when the keyboard opens — taking
+    // the field's connection to the keyboard with it.
+    return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.lg, Gap.xl, Gap.xl),
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 25,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.7,
-          ),
-        ),
-        if (subtitle != null) ...[
-          Gap.h8,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
           Text(
-            subtitle!,
+            title,
             style: const TextStyle(
-              fontSize: 13.5,
-              height: 1.5,
-              color: AppColors.textSecondary,
+              fontSize: 25,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.7,
             ),
           ),
+          if (subtitle != null) ...[
+            Gap.h8,
+            Text(
+              subtitle!,
+              style: const TextStyle(
+                fontSize: 13.5,
+                height: 1.5,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+          Gap.h24,
+          ...children,
         ],
-        Gap.h24,
-        ...children,
-      ],
+      ),
     );
   }
 }
