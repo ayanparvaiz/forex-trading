@@ -25,7 +25,7 @@ void main() {
       displayName: name,
       gender: Gender.male,
       language: AppLanguage.bn,
-      avatarId: 'owl',
+      avatarId: 1,
     );
   }
 
@@ -172,12 +172,12 @@ void main() {
     final profile = ((await signUp()) as AuthSuccess).profile;
 
     await auth.updateProfile(
-      profile.copyWith(displayName: 'Rifat H.', avatarId: 'tiger'),
+      profile.copyWith(displayName: 'Rifat H.', avatarId: 2),
     );
 
     final reloaded = await auth.currentUser();
     expect(reloaded!.displayName, 'Rifat H.');
-    expect(reloaded.avatarId, 'tiger');
+    expect(reloaded.avatarId, 2);
     expect(reloaded.username, 'rifat');
   });
 

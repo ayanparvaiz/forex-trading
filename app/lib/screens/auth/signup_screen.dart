@@ -38,7 +38,7 @@ class _SignupScreenState extends State<SignupScreen> {
   Timer? _debounce;
 
   Gender? _gender;
-  String? _avatarId;
+  int? _avatarId;
 
   bool _busy = false;
   bool _obscure = true;

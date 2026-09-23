@@ -59,7 +59,7 @@ class SessionController extends ChangeNotifier {
     required String password,
     required String displayName,
     required Gender gender,
-    required String avatarId,
+    required int avatarId,
   }) async {
     final result = await _auth.signUp(
       username: username,

@@ -29,6 +29,27 @@ void main() {
       }
     });
 
+    test('avatar numbers are unique, positive and not list positions', () {
+      final ids = Avatars.all.map((a) => a.id).toList();
+
+      expect(ids.toSet(), hasLength(ids.length), reason: 'duplicate avatar id');
+      expect(ids.every((id) => id > 0), isTrue);
+
+      // Zero is never a valid id, so a missing or defaulted field cannot
+      // silently resolve to a real avatar.
+      expect(Avatars.byId(0).id, Avatars.fallback.id);
+      expect(Avatars.byId(null).id, Avatars.fallback.id);
+      expect(Avatars.byId(9999).id, Avatars.fallback.id);
+    });
+
+    test('profiles written with the old slug still resolve', () {
+      // Accounts created before avatars were numbered are on real devices.
+      expect(Avatars.from('tiger').id, Avatars.bySlug('tiger').id);
+      expect(Avatars.from(2).slug, 'tiger');
+      expect(Avatars.from('2').slug, 'tiger');
+      expect(Avatars.from(null).id, Avatars.fallback.id);
+    });
+
     test('every avatar id actually exists', () {
       for (final account in SeedAccounts.all) {
         expect(
@@ -104,7 +125,7 @@ void main() {
         displayName: 'Someone',
         gender: Gender.private,
         language: AppLanguage.en,
-        avatarId: 'fox',
+        avatarId: 3,
       );
       expect((await auth.currentUser())?.username, 'someone');
 

@@ -26,7 +26,7 @@ class SeedAccount {
 
   final String username;
   final String name;
-  final String avatarId;
+  final int avatarId;
   final Gender gender;
   final AppLanguage language;
 
@@ -84,7 +84,7 @@ class SeedAccounts {
     SeedAccount(
       username: owner,
       name: 'আয়ান পারভেজ',
-      avatarId: 'tiger',
+      avatarId: 2,
       gender: Gender.male,
       language: AppLanguage.bn,
       badgePoints: 64,
@@ -97,7 +97,7 @@ class SeedAccounts {
     SeedAccount(
       username: 'rifat',
       name: 'রিফাত হাসান',
-      avatarId: 'owl',
+      avatarId: 1,
       gender: Gender.male,
       language: AppLanguage.bn,
       badgePoints: 9,
@@ -110,7 +110,7 @@ class SeedAccounts {
     SeedAccount(
       username: 'nusrat',
       name: 'নুসরাত জাহান',
-      avatarId: 'moon',
+      avatarId: 16,
       gender: Gender.female,
       language: AppLanguage.bn,
       badgePoints: 128,
@@ -123,7 +123,7 @@ class SeedAccounts {
     SeedAccount(
       username: 'tanvir',
       name: 'তানভীর আহমেদ',
-      avatarId: 'wolf',
+      avatarId: 4,
       gender: Gender.male,
       language: AppLanguage.bn,
       badgePoints: 62,
@@ -136,7 +136,7 @@ class SeedAccounts {
     SeedAccount(
       username: 'sadia',
       name: 'সাদিয়া ইসলাম',
-      avatarId: 'butterfly',
+      avatarId: 11,
       gender: Gender.female,
       language: AppLanguage.bn,
       badgePoints: 31,
@@ -149,7 +149,7 @@ class SeedAccounts {
     SeedAccount(
       username: 'imran',
       name: 'ইমরান খান',
-      avatarId: 'lion',
+      avatarId: 5,
       gender: Gender.male,
       language: AppLanguage.bn,
       badgePoints: 214,
@@ -162,7 +162,7 @@ class SeedAccounts {
     SeedAccount(
       username: 'mehedi',
       name: 'মেহেদী হাসান',
-      avatarId: 'fox',
+      avatarId: 3,
       gender: Gender.male,
       language: AppLanguage.bn,
       badgePoints: 0,
@@ -175,7 +175,7 @@ class SeedAccounts {
     SeedAccount(
       username: 'tasnim',
       name: 'তাসনিম আক্তার',
-      avatarId: 'dolphin',
+      avatarId: 14,
       gender: Gender.female,
       language: AppLanguage.bn,
       badgePoints: 44,
@@ -188,7 +188,7 @@ class SeedAccounts {
     SeedAccount(
       username: 'shakib',
       name: 'সাকিব রহমান',
-      avatarId: 'shark',
+      avatarId: 9,
       gender: Gender.male,
       language: AppLanguage.en,
       badgePoints: 97,
@@ -201,7 +201,7 @@ class SeedAccounts {
     SeedAccount(
       username: 'farhana',
       name: 'ফারহানা ইয়াসমিন',
-      avatarId: 'panda',
+      avatarId: 6,
       gender: Gender.female,
       language: AppLanguage.bn,
       badgePoints: 26,
@@ -214,7 +214,7 @@ class SeedAccounts {
     SeedAccount(
       username: 'arif',
       name: 'আরিফুল ইসলাম',
-      avatarId: 'eagle',
+      avatarId: 8,
       gender: Gender.male,
       language: AppLanguage.bn,
       badgePoints: 71,
@@ -227,7 +227,7 @@ class SeedAccounts {
     SeedAccount(
       username: 'jarin',
       name: 'জারিন তাসনিয়া',
-      avatarId: 'gem',
+      avatarId: 19,
       gender: Gender.female,
       language: AppLanguage.bn,
       badgePoints: 132,
@@ -240,7 +240,7 @@ class SeedAccounts {
     SeedAccount(
       username: 'sabbir',
       name: 'সাব্বির আহমেদ',
-      avatarId: 'dragon',
+      avatarId: 10,
       gender: Gender.male,
       language: AppLanguage.bn,
       badgePoints: 18,
@@ -253,7 +253,7 @@ class SeedAccounts {
     SeedAccount(
       username: 'mim',
       name: 'মাইশা মিম',
-      avatarId: 'koala',
+      avatarId: 7,
       gender: Gender.female,
       language: AppLanguage.bn,
       badgePoints: 5,
@@ -266,7 +266,7 @@ class SeedAccounts {
     SeedAccount(
       username: 'raihan',
       name: 'রায়হান কবির',
-      avatarId: 'bolt',
+      avatarId: 17,
       gender: Gender.male,
       language: AppLanguage.bn,
       badgePoints: 203,
@@ -279,7 +279,7 @@ class SeedAccounts {
     SeedAccount(
       username: 'anika',
       name: 'আনিকা তাবাসসুম',
-      avatarId: 'cat',
+      avatarId: 15,
       gender: Gender.female,
       language: AppLanguage.en,
       badgePoints: 38,
@@ -292,7 +292,7 @@ class SeedAccounts {
     SeedAccount(
       username: 'niloy',
       name: 'নিলয় দাস',
-      avatarId: 'octopus',
+      avatarId: 12,
       gender: Gender.male,
       language: AppLanguage.bn,
       badgePoints: 12,
@@ -305,7 +305,7 @@ class SeedAccounts {
     SeedAccount(
       username: 'proma',
       name: 'প্রমা চৌধুরী',
-      avatarId: 'fire',
+      avatarId: 18,
       gender: Gender.female,
       language: AppLanguage.bn,
       badgePoints: 88,
@@ -318,7 +318,7 @@ class SeedAccounts {
     SeedAccount(
       username: 'sohan',
       name: 'সোহান মাহমুদ',
-      avatarId: 'dino',
+      avatarId: 13,
       gender: Gender.male,
       language: AppLanguage.bn,
       badgePoints: 2,
@@ -331,7 +331,7 @@ class SeedAccounts {
     SeedAccount(
       username: 'ishrat',
       name: 'ইশরাত জাহান',
-      avatarId: 'rocket',
+      avatarId: 20,
       gender: Gender.female,
       language: AppLanguage.bn,
       badgePoints: 156,

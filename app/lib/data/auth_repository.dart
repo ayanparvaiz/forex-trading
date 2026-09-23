@@ -57,7 +57,7 @@ abstract class AuthRepository {
     required String displayName,
     required Gender gender,
     required AppLanguage language,
-    required String avatarId,
+    required int avatarId,
     bool startSession = true,
   });
 
@@ -184,7 +184,7 @@ class LocalAuthRepository implements AuthRepository {
     required String displayName,
     required Gender gender,
     required AppLanguage language,
-    required String avatarId,
+    required int avatarId,
     bool startSession = true,
   }) async {
     final invalid = AuthRepository.validate(

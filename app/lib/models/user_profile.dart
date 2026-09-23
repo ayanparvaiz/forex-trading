@@ -1,3 +1,4 @@
+import '../data/avatars.dart';
 import '../i18n/strings.dart';
 
 enum Gender {
@@ -43,7 +44,7 @@ class UserProfile {
 
   final Gender gender;
   final AppLanguage language;
-  final String avatarId;
+  final int avatarId;
   final DateTime createdAt;
 
   /// The monthly batch this learner started with.
@@ -53,7 +54,7 @@ class UserProfile {
     String? displayName,
     Gender? gender,
     AppLanguage? language,
-    String? avatarId,
+    int? avatarId,
   }) {
     return UserProfile(
       username: username,
@@ -81,7 +82,9 @@ class UserProfile {
         displayName: json['displayName'] as String,
         gender: Gender.fromCode(json['gender'] as String?),
         language: AppLanguage.fromCode(json['language'] as String?),
-        avatarId: json['avatarId'] as String? ?? 'owl',
+        // Accepts the old slug form too, so accounts created before
+        // avatars were numbered keep the face they picked.
+        avatarId: Avatars.from(json['avatarId']).id,
         createdAt: DateTime.parse(json['createdAt'] as String),
         cohort: json['cohort'] as String? ?? '',
       );

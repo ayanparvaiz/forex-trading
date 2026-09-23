@@ -65,7 +65,7 @@ class PortfolioScreen extends StatelessWidget {
 class _ProfileButton extends StatelessWidget {
   const _ProfileButton({required this.avatarId, required this.name});
 
-  final String avatarId;
+  final int avatarId;
   final String name;
 
   @override
