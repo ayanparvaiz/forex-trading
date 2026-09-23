@@ -159,12 +159,56 @@ service cloud.firestore {
       }
     }
 
-    // --- Leaderboard --------------------------------------------------------
+    // --- Connections --------------------------------------------------------
     //
-    // Written exclusively by Cloud Functions. No client write path exists.
-    match /leaderboard/{uid} {
-      allow read: if isSignedIn();
-      allow write: if false;
+    // One document per relationship, keyed by the two usernames sorted and
+    // joined with a hyphen — a character the username rules exclude, so the id
+    // cannot be ambiguous. One document rather than a row each: two rows for
+    // one relationship is two rows to keep in step, and they drift.
+    //
+    // Usernames are carried for display, uids for these rules. Security has to
+    // key off request.auth.uid, and a username is not proof of anything.
+
+    match /connections/{pair} {
+      allow read: if isSignedIn() && request.auth.uid in resource.data.uids;
+
+      // You may only send a request as yourself, and it starts unaccepted —
+      // otherwise anyone could write themselves into someone's network.
+      allow create: if isSignedIn()
+        && request.resource.data.fromUid == request.auth.uid
+        && request.resource.data.accepted == false
+        && request.resource.data.uids.size() == 2
+        && request.auth.uid in request.resource.data.uids
+        && request.resource.data.toUid in request.resource.data.uids;
+
+      // Only the recipient can accept, and accepting is the only edit allowed.
+      // Letting the sender flip this would make a request meaningless.
+      allow update: if isSignedIn()
+        && request.auth.uid == resource.data.toUid
+        && resource.data.accepted == false
+        && request.resource.data.accepted == true
+        && unchanged('fromUid')
+        && unchanged('toUid')
+        && unchanged('uids')
+        && unchanged('requestedAt');
+
+      // Either side may withdraw, decline or disconnect — all the same delete.
+      allow delete: if isSignedIn() && request.auth.uid in resource.data.uids;
+    }
+
+    // --- Profile views ------------------------------------------------------
+
+    match /profileViews/{view} {
+      // Only the person being looked at may read their visitor list. A public
+      // record of who is watching whom is a different and much worse product.
+      allow read: if isSignedIn() && request.auth.uid == resource.data.profileUid;
+
+      // A visit is recorded as the viewer, about someone else.
+      allow create, update: if isSignedIn()
+        && request.resource.data.viewerUid == request.auth.uid
+        && request.resource.data.profileUid != request.auth.uid;
+
+      allow delete: if false;
     }
 
     // --- Lessons ------------------------------------------------------------

@@ -66,12 +66,35 @@
       ]
     },
     {
-      "comment": "Incoming connection requests awaiting a decision.",
+      "comment": "A trader's accepted connections, newest first.",
       "collectionGroup": "connections",
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "status",
+          "fieldPath": "uids",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "accepted",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "requestedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "comment": "Requests waiting on you to decide.",
+      "collectionGroup": "connections",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "toUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "accepted",
           "order": "ASCENDING"
         },
         {
@@ -86,7 +109,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "profileId",
+          "fieldPath": "profileUid",
           "order": "ASCENDING"
         },
         {
