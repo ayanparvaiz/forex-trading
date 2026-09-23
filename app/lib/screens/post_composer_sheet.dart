@@ -8,35 +8,56 @@ import '../models/trade.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 
-/// Writes a post, either from scratch or prefilled from a closed trade.
+/// A leaderboard position, captured before the sheet opens.
 ///
-/// One composer for both routes. Sharing a trade is the common case and fills
-/// in the pair, the result and the reasoning that were already recorded — but
-/// the lesson is always typed here, because a lesson written at the moment of
-/// sharing is a different and better sentence than one written at the moment
-/// of closing.
+/// Passed in rather than looked up here, because the number the author is
+/// sharing is the one they were looking at when they tapped — not whatever the
+/// board says by the time the sheet has finished animating.
+class RankShare {
+  const RankShare({
+    required this.rank,
+    required this.score,
+    required this.badgeEmoji,
+  });
+
+  final int rank;
+  final double score;
+  final String badgeEmoji;
+}
+
+/// Writes a post: from scratch, from a closed trade, or from a leaderboard row.
+///
+/// One composer for all three. Sharing a trade fills in the pair, the result
+/// and the reasoning that were already recorded — but the lesson is always
+/// typed here, because a lesson written at the moment of sharing is a different
+/// and better sentence than one written at the moment of closing.
 Future<bool> showPostComposer(
   BuildContext context, {
   required CommunityRepository repository,
   Trade? trade,
+  RankShare? rank,
 }) async {
   final posted = await showModalBottomSheet<bool>(
     context: context,
     backgroundColor: AppColors.surface,
     isScrollControlled: true,
+    // Keeps the sheet clear of the notch and the home indicator, and gives it
+    // a real maximum height to size itself against.
+    useSafeArea: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
-    builder: (_) => _Composer(repository: repository, trade: trade),
+    builder: (_) => _Composer(repository: repository, trade: trade, rank: rank),
   );
   return posted ?? false;
 }
 
 class _Composer extends StatefulWidget {
-  const _Composer({required this.repository, this.trade});
+  const _Composer({required this.repository, this.trade, this.rank});
 
   final CommunityRepository repository;
   final Trade? trade;
+  final RankShare? rank;
 
   @override
   State<_Composer> createState() => _ComposerState();
@@ -46,7 +67,7 @@ class _ComposerState extends State<_Composer> {
   late String _symbol = widget.trade?.symbol ?? Instrument.all.first.symbol;
   late double _r = widget.trade?.rMultiple ?? 1.0;
   late final _reason = TextEditingController(text: widget.trade?.reason ?? '');
-  late final _lesson = TextEditingController(text: widget.trade?.lesson ?? '');
+  final _lesson = TextEditingController();
 
   /// Taken from the trade rather than asked, because the app already knows.
   /// Claiming you followed your rules when the record says otherwise is not a
@@ -56,6 +77,7 @@ class _ComposerState extends State<_Composer> {
   bool _posting = false;
 
   bool get _fromTrade => widget.trade != null;
+  bool get _fromRank => widget.rank != null;
 
   @override
   void dispose() {
@@ -66,7 +88,7 @@ class _ComposerState extends State<_Composer> {
 
   bool get _canPost =>
       _lesson.text.trim().length >= 10 &&
-      _reason.text.trim().isNotEmpty &&
+      (_fromRank || _reason.text.trim().isNotEmpty) &&
       !_posting;
 
   Future<void> _publish() async {
@@ -77,203 +99,284 @@ class _ComposerState extends State<_Composer> {
 
     setState(() => _posting = true);
 
-    final id = await widget.repository.createPost(
-      uid: uid,
-      username: me.username,
-      symbol: _symbol,
-      rMultiple: _r,
-      reason: _reason.text,
-      lesson: _lesson.text,
-      followedRules: _followedRules,
-    );
+    final shared = widget.rank;
+    final id = shared != null
+        ? await widget.repository.createRankPost(
+            uid: uid,
+            username: me.username,
+            rank: shared.rank,
+            score: shared.score,
+            lesson: _lesson.text,
+          )
+        : await widget.repository.createPost(
+            uid: uid,
+            username: me.username,
+            symbol: _symbol,
+            rMultiple: _r,
+            reason: _reason.text,
+            lesson: _lesson.text,
+            followedRules: _followedRules,
+          );
 
     if (!mounted) return;
     setState(() => _posting = false);
     Navigator.of(context).pop(id != null);
   }
 
+  String _title(Strings s) {
+    if (_fromRank) return s.shareYourRank;
+    return _fromTrade ? s.shareToFeed : s.newPost;
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = context.s;
 
+    // The sheet is lifted by the keyboard rather than squeezed under it. The
+    // body is the only flexible part, so as the keyboard grows it is the list
+    // that shrinks — the heading stays put and the post button stays reachable
+    // instead of ending up behind the keys.
     return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.sm),
+            child: Row(
+              children: [
+                Text(_title(s), style: Theme.of(context).textTheme.titleMedium),
+                const Spacer(),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  icon: const Icon(Icons.close, size: 20),
+                  color: AppColors.textMuted,
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Flexible(child: _body(s)),
+          const Divider(height: 1),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                Gap.lg,
+                Gap.sm,
+                Gap.lg,
+                Gap.md,
+              ),
+              child: FilledButton(
+                onPressed: _canPost ? _publish : null,
+                child: _posting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.4,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(s.publish),
+              ),
+            ),
+          ),
+        ],
       ),
-      child: DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.82,
-        maxChildSize: 0.94,
-        builder: (context, scrollController) => Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.sm),
-              child: Row(
-                children: [
-                  Text(
-                    _fromTrade ? s.shareToFeed : s.newPost,
-                    style: Theme.of(context).textTheme.titleMedium,
+    );
+  }
+
+  Widget _body(Strings s) {
+    final shared = widget.rank;
+
+    return ListView(
+      shrinkWrap: true,
+      padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.lg, Gap.lg, Gap.lg),
+      children: [
+        if (shared != null)
+          _RankSummary(share: shared, s: s)
+        else if (_fromTrade)
+          _TradeSummary(trade: widget.trade!, s: s)
+        else ...[
+          Text(s.pair, style: Theme.of(context).textTheme.labelSmall),
+          Gap.h8,
+          Wrap(
+            spacing: 8,
+            children: [
+              for (final i in Instrument.all)
+                ChoiceChip(
+                  label: Text(i.symbol),
+                  selected: _symbol == i.symbol,
+                  showCheckmark: false,
+                  onSelected: (_) => setState(() => _symbol = i.symbol),
+                  backgroundColor: AppColors.elevated,
+                  selectedColor: AppColors.brandDim,
+                  side: BorderSide(
+                    color: _symbol == i.symbol
+                        ? AppColors.brand
+                        : AppColors.border,
                   ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(false),
-                    icon: const Icon(Icons.close, size: 20),
-                    color: AppColors.textMuted,
+                  labelStyle: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
                   ),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-            Expanded(
-              child: ListView(
-                controller: scrollController,
-                padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.lg, Gap.lg, Gap.lg),
-                children: [
-                  if (_fromTrade)
-                    _TradeSummary(trade: widget.trade!, s: s)
-                  else ...[
-                    Text(s.pair, style: Theme.of(context).textTheme.labelSmall),
-                    Gap.h8,
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        for (final i in Instrument.all)
-                          ChoiceChip(
-                            label: Text(i.symbol),
-                            selected: _symbol == i.symbol,
-                            showCheckmark: false,
-                            onSelected: (_) =>
-                                setState(() => _symbol = i.symbol),
-                            backgroundColor: AppColors.elevated,
-                            selectedColor: AppColors.brandDim,
-                            side: BorderSide(
-                              color: _symbol == i.symbol
-                                  ? AppColors.brand
-                                  : AppColors.border,
-                            ),
-                            labelStyle: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                      ],
-                    ),
-                    Gap.h16,
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            s.result,
-                            style: Theme.of(context).textTheme.labelSmall,
-                          ),
-                        ),
-                        Text(
-                          rMultiple(_r),
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            fontFeatures: tabularFigures,
-                            color: AppColors.forValue(_r),
-                          ),
-                        ),
-                      ],
-                    ),
-                    Slider(
-                      value: _r.clamp(-5, 10),
-                      min: -5,
-                      max: 10,
-                      divisions: 150,
-                      onChanged: (v) => setState(() => _r = v),
-                    ),
-                    Gap.h8,
-                  ],
-                  Gap.h16,
-                  Text(
-                    s.whyITookIt,
-                    style: Theme.of(context).textTheme.labelSmall,
-                  ),
-                  Gap.h8,
-                  TextField(
-                    controller: _reason,
-                    maxLines: 3,
-                    style: const TextStyle(fontSize: 14, height: 1.45),
-                    decoration: InputDecoration(hintText: s.whyHint),
-                    onChanged: (_) => setState(() {}),
-                  ),
-                  Gap.h16,
-                  Text(
-                    s.whatILearned,
-                    style: Theme.of(context).textTheme.labelSmall,
-                  ),
-                  Gap.h8,
-                  TextField(
-                    controller: _lesson,
-                    maxLines: 5,
-                    style: const TextStyle(fontSize: 14, height: 1.45),
-                    decoration: InputDecoration(
-                      hintText: s.lessonHint,
-                      helperText: s.lessonRequiredToPost,
-                      helperMaxLines: 2,
-                      helperStyle: const TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                    onChanged: (_) => setState(() {}),
-                  ),
-                  Gap.h16,
-                  Container(
-                    padding: const EdgeInsets.all(Gap.md),
-                    decoration: BoxDecoration(
-                      color: AppColors.elevated,
-                      borderRadius: Radii.tile,
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(
-                          Icons.info_outline,
-                          size: 16,
-                          color: AppColors.textMuted,
-                        ),
-                        Gap.w8,
-                        Expanded(
-                          child: Text(
-                            s.postGuideline,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              height: 1.5,
-                              color: AppColors.textMuted,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.sm, Gap.lg, Gap.md),
-                child: FilledButton(
-                  onPressed: _canPost ? _publish : null,
-                  child: _posting
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.4,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Text(s.publish),
+                ),
+            ],
+          ),
+          Gap.h16,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  s.result,
+                  style: Theme.of(context).textTheme.labelSmall,
                 ),
               ),
-            ),
-          ],
+              Text(
+                rMultiple(_r),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  fontFeatures: tabularFigures,
+                  color: AppColors.forValue(_r),
+                ),
+              ),
+            ],
+          ),
+          Slider(
+            value: _r.clamp(-5, 10),
+            min: -5,
+            max: 10,
+            divisions: 150,
+            onChanged: (v) => setState(() => _r = v),
+          ),
+          Gap.h8,
+        ],
+
+        // A rank post has no trade behind it, so there is nothing to ask why
+        // about. The one line it does carry is how the author got there.
+        if (!_fromRank) ...[
+          Gap.h16,
+          Text(s.whyITookIt, style: Theme.of(context).textTheme.labelSmall),
+          Gap.h8,
+          TextField(
+            controller: _reason,
+            maxLines: 3,
+            style: const TextStyle(fontSize: 14, height: 1.45),
+            decoration: InputDecoration(hintText: s.whyHint),
+            onChanged: (_) => setState(() {}),
+          ),
+        ],
+
+        Gap.h16,
+        Text(
+          _fromRank ? s.howYouGotHere : s.whatILearned,
+          style: Theme.of(context).textTheme.labelSmall,
         ),
+        Gap.h8,
+        TextField(
+          controller: _lesson,
+          maxLines: 5,
+          style: const TextStyle(fontSize: 14, height: 1.45),
+          decoration: InputDecoration(
+            hintText: _fromRank ? s.howYouGotHereHint : s.lessonHint,
+            helperText: s.lessonRequiredToPost,
+            helperMaxLines: 2,
+            helperStyle: const TextStyle(
+              fontSize: 11,
+              color: AppColors.textMuted,
+            ),
+          ),
+          onChanged: (_) => setState(() {}),
+        ),
+        Gap.h16,
+        Container(
+          padding: const EdgeInsets.all(Gap.md),
+          decoration: BoxDecoration(
+            color: AppColors.elevated,
+            borderRadius: Radii.tile,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.info_outline,
+                size: 16,
+                color: AppColors.textMuted,
+              ),
+              Gap.w8,
+              Expanded(
+                child: Text(
+                  _fromRank ? s.rankPostGuideline : s.postGuideline,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    height: 1.5,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The leaderboard position being shared, shown rather than re-entered.
+class _RankSummary extends StatelessWidget {
+  const _RankSummary({required this.share, required this.s});
+
+  final RankShare share;
+  final Strings s;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(Gap.md),
+      decoration: BoxDecoration(
+        color: AppColors.disciplineDim,
+        borderRadius: Radii.tile,
+        border: Border.all(color: AppColors.discipline.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          Text(
+            '#${share.rank}',
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              fontFeatures: tabularFigures,
+              color: AppColors.discipline,
+            ),
+          ),
+          Gap.w16,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  s.leaderboard,
+                  style: const TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  '${s.discipline} ${share.score.toStringAsFixed(0)} · '
+                  '${s.gradeFor(share.score)}',
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    color: AppColors.textMuted,
+                    fontFeatures: tabularFigures,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(share.badgeEmoji, style: const TextStyle(fontSize: 22)),
+        ],
       ),
     );
   }

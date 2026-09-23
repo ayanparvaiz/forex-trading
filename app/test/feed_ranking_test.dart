@@ -61,15 +61,17 @@ void main() {
     expect(score(busy), greaterThan(score(quiet)));
   });
 
-  test('a comment counts for more than a like, and a like more than a view',
-      () {
-    final viewed = post(id: 'v', hoursOld: 3, reach: 5);
-    final liked = post(id: 'l', hoursOld: 3, claps: 5);
-    final discussed = post(id: 'c', hoursOld: 3, comments: 5);
+  test(
+    'a comment counts for more than a like, and a like more than a view',
+    () {
+      final viewed = post(id: 'v', hoursOld: 3, reach: 5);
+      final liked = post(id: 'l', hoursOld: 3, claps: 5);
+      final discussed = post(id: 'c', hoursOld: 3, comments: 5);
 
-    expect(score(liked), greaterThan(score(viewed)));
-    expect(score(discussed), greaterThan(score(liked)));
-  });
+      expect(score(liked), greaterThan(score(viewed)));
+      expect(score(discussed), greaterThan(score(liked)));
+    },
+  );
 
   test('unread comes before read, however popular the read one is', () {
     // Seen-ness is an ordering rule, not a discount. As a multiplier a heavily
@@ -79,7 +81,8 @@ void main() {
     final unread = post(id: 'unread', hoursOld: 2, reach: 1);
     const seen = {'read'};
 
-    final ordered = [read, unread]..sort((a, b) {
+    final ordered = [read, unread]
+      ..sort((a, b) {
         final aSeen = seen.contains(a.id);
         final bSeen = seen.contains(b.id);
         if (aSeen != bSeen) return aSeen ? 1 : -1;

@@ -79,8 +79,15 @@ class _CommunityScreenState extends State<CommunityScreen>
   /// answer on the screen half the people were looking at. It sits in the app
   /// bar now, above the tabs, because it belongs to the section rather than to
   /// one of its two lists.
-  Future<void> _compose(CommunityRepository repository) async {
-    final posted = await showPostComposer(context, repository: repository);
+  Future<void> _compose(
+    CommunityRepository repository, {
+    RankShare? rank,
+  }) async {
+    final posted = await showPostComposer(
+      context,
+      repository: repository,
+      rank: rank,
+    );
     if (!mounted || !posted) return;
 
     setState(() => _feedVersion++);
@@ -147,7 +154,12 @@ class _CommunityScreenState extends State<CommunityScreen>
       body: TabBarView(
         controller: _tabs,
         children: [
-          _Leaderboard(s: s, repository: repository, you: you),
+          _Leaderboard(
+            s: s,
+            repository: repository,
+            you: you,
+            onShareRank: (share) => _compose(repository, rank: share),
+          ),
           _Feed(s: s, repository: repository, version: _feedVersion),
         ],
       ),
@@ -160,11 +172,13 @@ class _Leaderboard extends StatelessWidget {
     required this.s,
     required this.repository,
     required this.you,
+    required this.onShareRank,
   });
 
   final Strings s;
   final CommunityRepository repository;
   final Trader? you;
+  final ValueChanged<RankShare> onShareRank;
 
   @override
   Widget build(BuildContext context) {
@@ -206,7 +220,13 @@ class _Leaderboard extends StatelessWidget {
             ),
           ),
         ),
-        if (you != null) _YourRankBar(you: you!, s: s, repository: repository),
+        if (you != null)
+          _YourRankBar(
+            you: you!,
+            s: s,
+            repository: repository,
+            onShare: onShareRank,
+          ),
       ],
     );
   }
@@ -222,11 +242,13 @@ class _YourRankBar extends StatefulWidget {
     required this.you,
     required this.s,
     required this.repository,
+    required this.onShare,
   });
 
   final Trader you;
   final Strings s;
   final CommunityRepository repository;
+  final ValueChanged<RankShare> onShare;
 
   @override
   State<_YourRankBar> createState() => _YourRankBarState();
@@ -342,6 +364,26 @@ class _YourRankBarState extends State<_YourRankBar> {
                   fontFeatures: tabularFigures,
                   color: AppColors.discipline,
                 ),
+              ),
+              Gap.w4,
+              // Only offered once the rank has actually come back. Sharing a
+              // position the app is still looking up would post a number
+              // nobody has seen, including its author.
+              IconButton(
+                onPressed: rank == null
+                    ? null
+                    : () => widget.onShare(
+                        RankShare(
+                          rank: rank,
+                          score: widget.you.disciplineScore,
+                          badgeEmoji: widget.you.badge.tier.emoji,
+                        ),
+                      ),
+                icon: const Icon(Icons.ios_share, size: 19),
+                color: AppColors.brand,
+                disabledColor: AppColors.textMuted,
+                visualDensity: VisualDensity.compact,
+                tooltip: s.shareYourRank,
               ),
             ],
           ),
@@ -687,6 +729,8 @@ class _FeedCard extends StatelessWidget {
   final Strings s;
   final CommunityRepository repository;
 
+  bool get _isRank => post.kind == PostKind.rank;
+
   @override
   Widget build(BuildContext context) {
     return SectionCard(
@@ -719,7 +763,9 @@ class _FeedCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '${post.symbol} · ${s.timeAgo(post.postedAt)}',
+                      _isRank
+                          ? s.timeAgo(post.postedAt)
+                          : '${post.symbol} · ${s.timeAgo(post.postedAt)}',
                       style: const TextStyle(
                         fontSize: 11.5,
                         color: AppColors.textMuted,
@@ -728,15 +774,25 @@ class _FeedCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Text(
-                rMultiple(post.rMultiple),
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  fontFeatures: tabularFigures,
-                  color: AppColors.forValue(post.rMultiple),
-                ),
-              ),
+              _isRank
+                  ? Text(
+                      '#${post.rank}',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        fontFeatures: tabularFigures,
+                        color: AppColors.discipline,
+                      ),
+                    )
+                  : Text(
+                      rMultiple(post.rMultiple),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        fontFeatures: tabularFigures,
+                        color: AppColors.forValue(post.rMultiple),
+                      ),
+                    ),
             ],
           ),
           Gap.h12,
@@ -750,23 +806,27 @@ class _FeedCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  s.whyITookIt,
-                  style: const TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.3,
-                    color: AppColors.textMuted,
+                // A rank post has no trade behind it, so there is no reasoning
+                // to show — only the line about how the author got there.
+                if (!_isRank) ...[
+                  Text(
+                    s.whyITookIt,
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.3,
+                      color: AppColors.textMuted,
+                    ),
                   ),
-                ),
-                Gap.h4,
+                  Gap.h4,
+                  Text(
+                    post.reason,
+                    style: const TextStyle(fontSize: 12.5, height: 1.5),
+                  ),
+                  Gap.h12,
+                ],
                 Text(
-                  post.reason,
-                  style: const TextStyle(fontSize: 12.5, height: 1.5),
-                ),
-                Gap.h12,
-                Text(
-                  s.whatILearned,
+                  _isRank ? s.howYouGotHere : s.whatILearned,
                   style: TextStyle(
                     fontSize: 10.5,
                     fontWeight: FontWeight.w700,
@@ -787,14 +847,24 @@ class _FeedCard extends StatelessWidget {
           Gap.h12,
           Row(
             children: [
-              Pill(
-                text: post.followedRules ? s.followedRules : s.brokeRules,
-                color: post.followedRules ? AppColors.profit : AppColors.loss,
-                icon: post.followedRules
-                    ? Icons.verified_outlined
-                    : Icons.error_outline,
-                dense: true,
-              ),
+              if (_isRank)
+                Pill(
+                  text:
+                      '${s.discipline} '
+                      '${(post.disciplineScore ?? 0).toStringAsFixed(0)}',
+                  color: AppColors.discipline,
+                  icon: Icons.shield_outlined,
+                  dense: true,
+                )
+              else
+                Pill(
+                  text: post.followedRules ? s.followedRules : s.brokeRules,
+                  color: post.followedRules ? AppColors.profit : AppColors.loss,
+                  icon: post.followedRules
+                      ? Icons.verified_outlined
+                      : Icons.error_outline,
+                  dense: true,
+                ),
               const Spacer(),
               _PostActions(post: post, repository: repository),
             ],

@@ -80,10 +80,9 @@ class Avatars {
   /// accounts already exist on installed devices. Accepting both costs three
   /// lines and avoids resetting real people's avatars.
   static Avatar from(Object? stored) => switch (stored) {
-        final int id => byId(id),
-        final String slug => int.tryParse(slug) != null
-            ? byId(int.parse(slug))
-            : bySlug(slug),
-        _ => fallback,
-      };
+    final int id => byId(id),
+    final String slug =>
+      int.tryParse(slug) != null ? byId(int.parse(slug)) : bySlug(slug),
+    _ => fallback,
+  };
 }

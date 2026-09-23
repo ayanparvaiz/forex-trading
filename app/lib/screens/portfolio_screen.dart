@@ -41,7 +41,10 @@ class PortfolioScreen extends StatelessWidget {
           ),
           NotificationBell(repository: notificationRepository),
           if (profile != null)
-            _ProfileButton(avatarId: profile.avatarId, name: profile.displayName),
+            _ProfileButton(
+              avatarId: profile.avatarId,
+              name: profile.displayName,
+            ),
           Gap.w8,
         ],
       ),
@@ -138,8 +141,10 @@ class _ProfileButton extends StatelessWidget {
                 ],
               ),
               Gap.h24,
-              Text(s.chooseLanguage,
-                  style: Theme.of(sheetContext).textTheme.labelSmall),
+              Text(
+                s.chooseLanguage,
+                style: Theme.of(sheetContext).textTheme.labelSmall,
+              ),
               Gap.h8,
               Row(
                 children: [
@@ -219,7 +224,11 @@ class _ProfileButton extends StatelessWidget {
 }
 
 class _EquityCard extends StatelessWidget {
-  const _EquityCard({required this.store, required this.stats, required this.s});
+  const _EquityCard({
+    required this.store,
+    required this.stats,
+    required this.s,
+  });
 
   final AccountStore store;
   final TradeStats stats;
@@ -542,11 +551,7 @@ class _StatsCard extends StatelessWidget {
 }
 
 class _Insight extends StatelessWidget {
-  const _Insight({
-    required this.icon,
-    required this.color,
-    required this.text,
-  });
+  const _Insight({required this.icon, required this.color, required this.text});
 
   final IconData icon;
   final Color color;

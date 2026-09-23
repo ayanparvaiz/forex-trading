@@ -50,9 +50,8 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final s = context.s;
-    final canSubmit = _username.text.trim().isNotEmpty &&
-        _password.text.isNotEmpty &&
-        !_busy;
+    final canSubmit =
+        _username.text.trim().isNotEmpty && _password.text.isNotEmpty && !_busy;
 
     return Scaffold(
       body: SafeArea(
@@ -114,8 +113,11 @@ class _LoginScreenState extends State<LoginScreen> {
               Gap.h12,
               Row(
                 children: [
-                  const Icon(Icons.error_outline,
-                      size: 16, color: AppColors.loss),
+                  const Icon(
+                    Icons.error_outline,
+                    size: 16,
+                    color: AppColors.loss,
+                  ),
                   Gap.w8,
                   Text(
                     _error!,
@@ -181,8 +183,11 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.info_outline,
-                      size: 16, color: AppColors.textMuted),
+                  const Icon(
+                    Icons.info_outline,
+                    size: 16,
+                    color: AppColors.textMuted,
+                  ),
                   Gap.w8,
                   Expanded(
                     child: Text(

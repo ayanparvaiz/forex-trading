@@ -52,15 +52,13 @@ class _TradeScreenState extends State<TradeScreen> {
         : store.market.bid(_instrument);
   }
 
-  double get _stopPrice => _instrument.shiftByPips(
-        _entryPrice,
-        -_stopPips * _direction.sign,
-      );
+  double get _stopPrice =>
+      _instrument.shiftByPips(_entryPrice, -_stopPips * _direction.sign);
 
   double get _targetPrice => _instrument.shiftByPips(
-        _entryPrice,
-        _stopPips * _rewardRatio * _direction.sign,
-      );
+    _entryPrice,
+    _stopPips * _rewardRatio * _direction.sign,
+  );
 
   String _directionLabel(TradeDirection d, Strings s) =>
       d == TradeDirection.buy ? s.buy : s.sell;
@@ -250,15 +248,15 @@ class _TradeScreenState extends State<TradeScreen> {
                 decoration: BoxDecoration(
                   color: _direction == d
                       ? (d == TradeDirection.buy
-                          ? AppColors.profitDim
-                          : AppColors.lossDim)
+                            ? AppColors.profitDim
+                            : AppColors.lossDim)
                       : AppColors.surface,
                   borderRadius: Radii.tile,
                   border: Border.all(
                     color: _direction == d
                         ? (d == TradeDirection.buy
-                            ? AppColors.profit
-                            : AppColors.loss)
+                              ? AppColors.profit
+                              : AppColors.loss)
                         : AppColors.border,
                   ),
                 ),
@@ -270,8 +268,8 @@ class _TradeScreenState extends State<TradeScreen> {
                       fontWeight: FontWeight.w700,
                       color: _direction == d
                           ? (d == TradeDirection.buy
-                              ? AppColors.profit
-                              : AppColors.loss)
+                                ? AppColors.profit
+                                : AppColors.loss)
                           : AppColors.textSecondary,
                     ),
                   ),
@@ -409,8 +407,8 @@ class _TradeScreenState extends State<TradeScreen> {
                 child: StatTile(
                   label: s.positionSize,
                   value: '${size.lots.toStringAsFixed(2)} ${s.lots}',
-                  hint: '${(size.lots * Instrument.contractSize)
-                      .toStringAsFixed(0)} ${s.units}',
+                  hint:
+                      '${(size.lots * Instrument.contractSize).toStringAsFixed(0)} ${s.units}',
                 ),
               ),
               Expanded(
@@ -425,8 +423,8 @@ class _TradeScreenState extends State<TradeScreen> {
                 child: StatTile(
                   label: s.ifYouWin,
                   value: pointsDelta(size.actualRisk * _rewardRatio),
-                  hint: '${(size.actualRiskPercent * _rewardRatio)
-                      .toStringAsFixed(2)}%',
+                  hint:
+                      '${(size.actualRiskPercent * _rewardRatio).toStringAsFixed(2)}%',
                   valueColor: AppColors.profit,
                 ),
               ),
@@ -489,8 +487,11 @@ class _TradeScreenState extends State<TradeScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.error_outline,
-                      size: 16, color: AppColors.loss),
+                  const Icon(
+                    Icons.error_outline,
+                    size: 16,
+                    color: AppColors.loss,
+                  ),
                   Gap.w8,
                   Expanded(
                     child: Column(
@@ -542,8 +543,11 @@ class _TradeScreenState extends State<TradeScreen> {
           if (!enabled) ...[
             Row(
               children: [
-                const Icon(Icons.lock_outline,
-                    size: 15, color: AppColors.textMuted),
+                const Icon(
+                  Icons.lock_outline,
+                  size: 15,
+                  color: AppColors.textMuted,
+                ),
                 Gap.w8,
                 Expanded(
                   child: Text(

@@ -96,8 +96,7 @@ PositionSize sizePosition({
     actualRiskPercent: balance == 0 ? 0 : actualRisk / balance * 100,
     stopPips: stopPips,
     isBelowMinimum: exactLots < Instrument.minLot,
-    minimumLotRiskPercent:
-        balance == 0 ? 0 : minimumLotRisk / balance * 100,
+    minimumLotRiskPercent: balance == 0 ? 0 : minimumLotRisk / balance * 100,
   );
 }
 
@@ -171,7 +170,10 @@ class TradeStats {
     equityCurve: [],
   );
 
-  factory TradeStats.from(List<Trade> trades, {required double startingBalance}) {
+  factory TradeStats.from(
+    List<Trade> trades, {
+    required double startingBalance,
+  }) {
     final closed = trades.where((t) => !t.isOpen).toList()
       ..sort((a, b) => a.closedAt!.compareTo(b.closedAt!));
 
@@ -236,7 +238,9 @@ class TradeStats {
       totalR: totalR,
       netPnl: netPnl,
       maxDrawdownPercent: maxDd * 100,
-      recoveryNeededPercent: maxDd >= 1 ? double.infinity : maxDd / (1 - maxDd) * 100,
+      recoveryNeededPercent: maxDd >= 1
+          ? double.infinity
+          : maxDd / (1 - maxDd) * 100,
       equityCurve: curve,
     );
   }
@@ -268,11 +272,10 @@ class DisciplineBreakdown {
 
   /// Rules broken at least once, worst offender first.
   List<MapEntry<RuleViolation, int>> get worstFirst {
-    final entries = violationCounts.entries
-        .where((e) => e.value > 0)
-        .toList()
-      ..sort((a, b) =>
-          (b.value * b.key.weight).compareTo(a.value * a.key.weight));
+    final entries = violationCounts.entries.where((e) => e.value > 0).toList()
+      ..sort(
+        (a, b) => (b.value * b.key.weight).compareTo(a.value * a.key.weight),
+      );
     return entries;
   }
 }
@@ -341,11 +344,12 @@ Set<RuleViolation> detectEntryViolations({
   final lastLoss = recentTrades
       .where((t) => !t.isOpen && (t.realisedPnl ?? 0) < 0)
       .fold<DateTime?>(null, (latest, t) {
-    final closedAt = t.closedAt!;
-    if (latest == null || closedAt.isAfter(latest)) return closedAt;
-    return latest;
-  });
-  if (lastLoss != null && now.difference(lastLoss) < const Duration(minutes: 15)) {
+        final closedAt = t.closedAt!;
+        if (latest == null || closedAt.isAfter(latest)) return closedAt;
+        return latest;
+      });
+  if (lastLoss != null &&
+      now.difference(lastLoss) < const Duration(minutes: 15)) {
     violations.add(RuleViolation.revengeTrade);
   }
 

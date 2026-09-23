@@ -15,7 +15,10 @@ void main() {
     });
 
     test('sorts, so the id is predictable', () {
-      expect(FirestoreCommunityRepository.pairId('rifat', 'ayan'), 'ayan-rifat');
+      expect(
+        FirestoreCommunityRepository.pairId('rifat', 'ayan'),
+        'ayan-rifat',
+      );
     });
 
     test('cannot collide across different pairs', () {
@@ -29,7 +32,16 @@ void main() {
 
     test('distinct pairs stay distinct across a realistic set', () {
       const names = [
-        'ayan', 'rifat', 'nusrat', 'a_b', 'ab', 'a', 'b_', '_b', 'ab_c', 'a_bc',
+        'ayan',
+        'rifat',
+        'nusrat',
+        'a_b',
+        'ab',
+        'a',
+        'b_',
+        '_b',
+        'ab_c',
+        'a_bc',
       ];
 
       final ids = <String>{};

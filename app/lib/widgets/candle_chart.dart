@@ -141,20 +141,48 @@ class _CandlePainter extends CustomPainter {
 
     // Levels last, so they sit on top of the candles.
     if (targetPrice != null) {
-      _paintLevel(canvas, size, plotWidth, y(targetPrice!), targetPrice!,
-          AppColors.profit, targetLabel);
+      _paintLevel(
+        canvas,
+        size,
+        plotWidth,
+        y(targetPrice!),
+        targetPrice!,
+        AppColors.profit,
+        targetLabel,
+      );
     }
     if (stopPrice != null) {
-      _paintLevel(canvas, size, plotWidth, y(stopPrice!), stopPrice!,
-          AppColors.loss, stopLabel);
+      _paintLevel(
+        canvas,
+        size,
+        plotWidth,
+        y(stopPrice!),
+        stopPrice!,
+        AppColors.loss,
+        stopLabel,
+      );
     }
     if (entryPrice != null) {
-      _paintLevel(canvas, size, plotWidth, y(entryPrice!), entryPrice!,
-          AppColors.textSecondary, entryLabel);
+      _paintLevel(
+        canvas,
+        size,
+        plotWidth,
+        y(entryPrice!),
+        entryPrice!,
+        AppColors.textSecondary,
+        entryLabel,
+      );
     }
     if (livePrice != null) {
-      _paintLevel(canvas, size, plotWidth, y(livePrice!), livePrice!,
-          AppColors.brand, null);
+      _paintLevel(
+        canvas,
+        size,
+        plotWidth,
+        y(livePrice!),
+        livePrice!,
+        AppColors.brand,
+        null,
+      );
     }
   }
 
@@ -192,13 +220,14 @@ class _CandlePainter extends CustomPainter {
       textDirection: TextDirection.ltr,
     )..layout();
 
-    tp.paint(
-      canvas,
-      Offset(size.width - tp.width - 6, dy - tp.height / 2),
-    );
+    tp.paint(canvas, Offset(size.width - tp.width - 6, dy - tp.height / 2));
   }
 
-  void _paintCandles(Canvas canvas, double plotWidth, double Function(double) y) {
+  void _paintCandles(
+    Canvas canvas,
+    double plotWidth,
+    double Function(double) y,
+  ) {
     final slot = plotWidth / candles.length;
     // Leave a gap between candles, but never let a body vanish entirely.
     final bodyWidth = math.max(slot * 0.62, 1.0);
@@ -296,7 +325,12 @@ class _CandlePainter extends CustomPainter {
     lp.paint(canvas, Offset(6, dy - lp.height / 2));
   }
 
-  void _paintDashedLine(Canvas canvas, double dy, double plotWidth, Color color) {
+  void _paintDashedLine(
+    Canvas canvas,
+    double dy,
+    double plotWidth,
+    Color color,
+  ) {
     final paint = Paint()
       ..color = color.withValues(alpha: 0.85)
       ..strokeWidth = 1.2;

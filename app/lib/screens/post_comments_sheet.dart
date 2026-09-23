@@ -99,11 +99,18 @@ class _CommentsSheetState extends State<_CommentsSheet> {
         builder: (context, scrollController) => Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.sm),
+              padding: const EdgeInsets.fromLTRB(
+                Gap.lg,
+                Gap.md,
+                Gap.lg,
+                Gap.sm,
+              ),
               child: Row(
                 children: [
-                  Text(s.comments,
-                      style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    s.comments,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   const Spacer(),
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),
@@ -173,7 +180,12 @@ class _CommentsSheetState extends State<_CommentsSheet> {
             SafeArea(
               top: false,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.sm, Gap.lg, Gap.md),
+                padding: const EdgeInsets.fromLTRB(
+                  Gap.lg,
+                  Gap.sm,
+                  Gap.lg,
+                  Gap.md,
+                ),
                 child: Row(
                   children: [
                     Expanded(
@@ -198,8 +210,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                     ),
                     Gap.w8,
                     IconButton.filled(
-                      onPressed:
-                          _controller.text.trim().isEmpty || _sending
+                      onPressed: _controller.text.trim().isEmpty || _sending
                           ? null
                           : _send,
                       icon: const Icon(Icons.send_rounded, size: 19),

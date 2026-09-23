@@ -21,9 +21,7 @@ class MockCommunity {
   static List<Trader> traders(AppLanguage language) {
     final list = <Trader>[];
     for (var i = 0; i < SeedAccounts.all.length; i++) {
-      list.add(
-        SeedAccounts.all[i].toTrader(cohort: _cohortFor(i, language)),
-      );
+      list.add(SeedAccounts.all[i].toTrader(cohort: _cohortFor(i, language)));
     }
     return list;
   }
@@ -48,7 +46,8 @@ class MockCommunity {
 
   /// Ranked by discipline, with trade count as the tiebreak.
   static List<Trader> rank(List<Trader> traders) {
-    final sorted = [...traders]..sort((a, b) {
+    final sorted = [...traders]
+      ..sort((a, b) {
         final byScore = b.disciplineScore.compareTo(a.disciplineScore);
         return byScore != 0 ? byScore : b.tradeCount.compareTo(a.tradeCount);
       });
@@ -244,9 +243,7 @@ class MockCommunity {
   /// Posts that have not expired yet.
   static List<FeedPost> liveFeed(AppLanguage language) {
     final cutoff = DateTime.now().subtract(postLifetime);
-    return feed(language)
-        .where((p) => p.postedAt.isAfter(cutoff))
-        .toList()
+    return feed(language).where((p) => p.postedAt.isAfter(cutoff)).toList()
       ..sort((a, b) => b.postedAt.compareTo(a.postedAt));
   }
 }

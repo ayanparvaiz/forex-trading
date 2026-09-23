@@ -138,12 +138,35 @@ service cloud.firestore {
     match /posts/{postId} {
       allow read: if isSignedIn();
 
+      // A post is either a trade or a leaderboard position. Posts written
+      // before rank sharing existed carry no kind at all, so a missing kind
+      // reads as 'trade' rather than as nothing.
+      function postKind() {
+        return request.resource.data.get('kind', 'trade');
+      }
+
+      // A rank post's numbers cannot be checked here yet: discipline is still
+      // computed on the device, so there is nothing in Firestore to compare
+      // against. What the rule can do is keep them inside the range a real
+      // score lives in, which stops the obvious "#1 with 100" from a client
+      // that never traded. When trades move to Firestore this becomes an
+      // equality check against the author's own user document.
+      function rankShapeOk() {
+        return request.resource.data.rank is int
+          && request.resource.data.rank > 0
+          && request.resource.data.disciplineScore is number
+          && request.resource.data.disciplineScore >= 0
+          && request.resource.data.disciplineScore <= 100;
+      }
+
       allow create: if isSignedIn()
         && request.resource.data.authorUid == request.auth.uid
         && request.resource.data.lesson is string
         && request.resource.data.lesson.size() >= 10
         && request.resource.data.claps == 0
-        && request.resource.data.commentCount == 0;
+        && request.resource.data.commentCount == 0
+        && postKind() in ['trade', 'rank']
+        && (postKind() != 'rank' || rankShapeOk());
 
       // Two separate update paths.
       //
@@ -160,7 +183,12 @@ service cloud.firestore {
             && unchanged('commentCount')
             && unchanged('rMultiple')
             && unchanged('authorUid')
-            && unchanged('postedAt'))
+            && unchanged('postedAt')
+            // Same reasoning as rMultiple: wording is the author's, results
+            // are not. A shared rank stays the rank that was shared.
+            && unchanged('kind')
+            && unchanged('rank')
+            && unchanged('disciplineScore'))
           ||
           (onlyCounters()
             && withinOne('claps')

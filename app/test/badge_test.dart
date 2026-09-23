@@ -70,10 +70,15 @@ void main() {
     tearDown(() => store.dispose());
 
     test('balance is the allowance plus only what closed today', () {
-      final todaysPnl = store.todaysClosedTrades
-          .fold<double>(0, (sum, t) => sum + (t.realisedPnl ?? 0));
+      final todaysPnl = store.todaysClosedTrades.fold<double>(
+        0,
+        (sum, t) => sum + (t.realisedPnl ?? 0),
+      );
 
-      expect(store.balance, closeTo(AccountStore.dailyAllowance + todaysPnl, 0.01));
+      expect(
+        store.balance,
+        closeTo(AccountStore.dailyAllowance + todaysPnl, 0.01),
+      );
     });
 
     test('yesterday does not carry over', () {
@@ -120,8 +125,10 @@ void main() {
         selling.tick();
       }
 
-      expect(buying.price(Instrument.eurusd),
-          greaterThan(selling.price(Instrument.eurusd)));
+      expect(
+        buying.price(Instrument.eurusd),
+        greaterThan(selling.price(Instrument.eurusd)),
+      );
     });
 
     test('pressure fades instead of pinning the price forever', () {
@@ -133,7 +140,10 @@ void main() {
         market.tick();
       }
 
-      expect(market.pressureOn(Instrument.eurusd).abs(), lessThan(initial * 0.1));
+      expect(
+        market.pressureOn(Instrument.eurusd).abs(),
+        lessThan(initial * 0.1),
+      );
     });
 
     test('an untouched pair feels no crowd', () {

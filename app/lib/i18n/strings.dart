@@ -363,6 +363,26 @@ class Strings {
     'Post either result. The losing ones teach the most. No signals.',
   );
   String get alreadyShared => _t('শেয়ার করা হয়েছে', 'Shared');
+
+  // --- Sharing your rank --------------------------------------------------
+
+  String get shareYourRank => _t('র‍্যাংক শেয়ার', 'Share your rank');
+  String get howYouGotHere => _t('কীভাবে এখানে এলেন', 'How you got here');
+  String get howYouGotHereHint => _t(
+    'যেমন: তিন সপ্তাহ ধরে একবারও স্টপ সরাইনি।',
+    'e.g. Three weeks without moving a stop once.',
+  );
+  String get rankPostGuideline => _t(
+    'র‍্যাংক আর স্কোর এই মুহূর্তের — পরে বদলালেও পোস্টে যা আছে তাই থাকবে।',
+    'The rank and score are this moment\'s. They stay as posted even after '
+        'the board moves.',
+  );
+  String rankOnBoard(int rank) =>
+      _t('লিডারবোর্ডে #$rank', '#$rank on the board');
+  String get noRankYet => _t(
+    'র‍্যাংক এখনো আসেনি — কয়েকটা ট্রেড বন্ধ করে আবার দেখুন।',
+    'No rank yet — close a few trades and check back.',
+  );
   String get writeComment => _t('কিছু লিখুন…', 'Write something…');
   String get send => _t('পাঠান', 'Send');
   String get noComments => _t('এখনো কোনো মন্তব্য নেই।', 'No comments yet.');

@@ -15,7 +15,9 @@ Future<List<String>> suggestFreeUsernames(
 }) async {
   // Strip anything the username rules would reject, so a suggestion built from
   // "Rifat Hasan!" starts from "rifathasan".
-  var stem = AuthRepository.normalise(base).replaceAll(RegExp(r'[^a-z0-9_]'), '');
+  var stem = AuthRepository.normalise(
+    base,
+  ).replaceAll(RegExp(r'[^a-z0-9_]'), '');
   if (stem.length < 3) stem = stem.isEmpty ? 'trader' : '${stem}fx';
   if (stem.length > 14) stem = stem.substring(0, 14);
 

@@ -31,8 +31,10 @@ Future<Uint8List> renderLogoPng({
     canvas.scale(inset);
   }
 
-  _LogoPainter(mark: mark, background: background)
-      .paint(canvas, Size(size, size));
+  _LogoPainter(
+    mark: mark,
+    background: background,
+  ).paint(canvas, Size(size, size));
 
   final image = await recorder.endRecording().toImage(pixels, pixels);
   final data = await image.toByteData(format: ui.ImageByteFormat.png);
@@ -282,26 +284,29 @@ class _LogoPainter extends CustomPainter {
     }
 
     grown(
-        x: cx - w - gap,
-        top: s * 0.4,
-        bottom: s * 0.55,
-        wickTop: s * 0.35,
-        wickBottom: s * 0.59,
-        delay: 0.0);
+      x: cx - w - gap,
+      top: s * 0.4,
+      bottom: s * 0.55,
+      wickTop: s * 0.35,
+      wickBottom: s * 0.59,
+      delay: 0.0,
+    );
     grown(
-        x: cx,
-        top: s * 0.29,
-        bottom: s * 0.52,
-        wickTop: s * 0.25,
-        wickBottom: s * 0.57,
-        delay: 0.18);
+      x: cx,
+      top: s * 0.29,
+      bottom: s * 0.52,
+      wickTop: s * 0.25,
+      wickBottom: s * 0.57,
+      delay: 0.18,
+    );
     grown(
-        x: cx + w + gap,
-        top: s * 0.34,
-        bottom: s * 0.46,
-        wickTop: s * 0.29,
-        wickBottom: s * 0.51,
-        delay: 0.36);
+      x: cx + w + gap,
+      top: s * 0.34,
+      bottom: s * 0.46,
+      wickTop: s * 0.29,
+      wickBottom: s * 0.51,
+      delay: 0.36,
+    );
   }
 
   // --- Fusion --------------------------------------------------------------
@@ -430,7 +435,10 @@ class _LogoPainter extends CustomPainter {
       canvas.drawCircle(
         p,
         s * 0.062,
-        Paint()..color = i == (count - 1) ~/ 2 ? AppColors.brand : AppColors.discipline,
+        Paint()
+          ..color = i == (count - 1) ~/ 2
+              ? AppColors.brand
+              : AppColors.discipline,
       );
     }
 

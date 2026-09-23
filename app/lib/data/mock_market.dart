@@ -99,16 +99,20 @@ class MockMarket {
       final bodyLow = math.min(open, close);
 
       // Wicks: usually short, occasionally a long rejection tail.
-      final upperWick = range * rng.nextDouble() * (rng.nextDouble() < 0.12 ? 0.9 : 0.3);
-      final lowerWick = range * rng.nextDouble() * (rng.nextDouble() < 0.12 ? 0.9 : 0.3);
+      final upperWick =
+          range * rng.nextDouble() * (rng.nextDouble() < 0.12 ? 0.9 : 0.3);
+      final lowerWick =
+          range * rng.nextDouble() * (rng.nextDouble() < 0.12 ? 0.9 : 0.3);
 
-      candles.add(Candle(
-        time: now.subtract(timeframe.duration * i),
-        open: open,
-        high: bodyHigh + upperWick,
-        low: bodyLow - lowerWick,
-        close: close,
-      ));
+      candles.add(
+        Candle(
+          time: now.subtract(timeframe.duration * i),
+          open: open,
+          high: bodyHigh + upperWick,
+          low: bodyLow - lowerWick,
+          close: close,
+        ),
+      );
 
       price = close;
     }
@@ -126,16 +130,12 @@ class MockMarket {
   }
 
   /// What a buyer pays — mid plus half the spread.
-  double ask(Instrument instrument) => instrument.shiftByPips(
-        price(instrument),
-        instrument.spreadPips / 2,
-      );
+  double ask(Instrument instrument) =>
+      instrument.shiftByPips(price(instrument), instrument.spreadPips / 2);
 
   /// What a seller receives — mid minus half the spread.
-  double bid(Instrument instrument) => instrument.shiftByPips(
-        price(instrument),
-        -instrument.spreadPips / 2,
-      );
+  double bid(Instrument instrument) =>
+      instrument.shiftByPips(price(instrument), -instrument.spreadPips / 2);
 
   /// Records one order against a pair: `+1` for a buy, `-1` for a sell.
   ///
@@ -148,8 +148,7 @@ class MockMarket {
   }
 
   /// Net order flow currently pushing a pair. Positive means net buying.
-  double pressureOn(Instrument instrument) =>
-      _pressure[instrument.symbol] ?? 0;
+  double pressureOn(Instrument instrument) => _pressure[instrument.symbol] ?? 0;
 
   /// Nudges every price by a small random step, plus whatever the crowd is
   /// doing. Called on a timer so open positions show P&L moving the way they
@@ -159,9 +158,8 @@ class MockMarket {
       final current = price(instrument);
 
       final noise = instrument.pipSize * (_random.nextDouble() - 0.5) * 1.6;
-      final crowd = instrument.pipSize *
-          pressureOn(instrument) *
-          _pressurePipsPerOrder;
+      final crowd =
+          instrument.pipSize * pressureOn(instrument) * _pressurePipsPerOrder;
       final step = noise + crowd;
 
       _pressure[instrument.symbol] = pressureOn(instrument) * _pressureDecay;

@@ -56,13 +56,16 @@ void main() {
       }
     });
 
-    test('first page is exactly the page size, and says there is more', () async {
-      final page = await repo.leaderboard(limit: 5);
+    test(
+      'first page is exactly the page size, and says there is more',
+      () async {
+        final page = await repo.leaderboard(limit: 5);
 
-      expect(page.items, hasLength(5));
-      expect(page.hasMore, isTrue);
-      expect(page.cursor, 5);
-    });
+        expect(page.items, hasLength(5));
+        expect(page.hasMore, isTrue);
+        expect(page.cursor, 5);
+      },
+    );
 
     test('the last page reports no more', () async {
       final page = await repo.leaderboard(cursor: 18, limit: 10);
@@ -71,12 +74,15 @@ void main() {
       expect(page.hasMore, isFalse);
     });
 
-    test('a cursor past the end returns nothing rather than throwing', () async {
-      final page = await repo.leaderboard(cursor: 9999, limit: 10);
+    test(
+      'a cursor past the end returns nothing rather than throwing',
+      () async {
+        final page = await repo.leaderboard(cursor: 9999, limit: 10);
 
-      expect(page.items, isEmpty);
-      expect(page.hasMore, isFalse);
-    });
+        expect(page.items, isEmpty);
+        expect(page.hasMore, isFalse);
+      },
+    );
 
     test('pages the feed too', () async {
       final all = await drain(repo.feed, limit: 3);
@@ -91,24 +97,34 @@ void main() {
   });
 
   group('connections', () {
-    test('a request shows as outgoing to one side, incoming to the other',
-        () async {
-      await repo.sendRequest(from: 'ayan', to: 'rifat');
+    test(
+      'a request shows as outgoing to one side, incoming to the other',
+      () async {
+        await repo.sendRequest(from: 'ayan', to: 'rifat');
 
-      expect(await repo.statusBetween('ayan', 'rifat'),
-          ConnectionStatus.pendingOutgoing);
-      expect(await repo.statusBetween('rifat', 'ayan'),
-          ConnectionStatus.pendingIncoming);
-    });
+        expect(
+          await repo.statusBetween('ayan', 'rifat'),
+          ConnectionStatus.pendingOutgoing,
+        );
+        expect(
+          await repo.statusBetween('rifat', 'ayan'),
+          ConnectionStatus.pendingIncoming,
+        );
+      },
+    );
 
     test('accepting connects both sides', () async {
       await repo.sendRequest(from: 'ayan', to: 'rifat');
       await repo.acceptRequest(me: 'rifat', from: 'ayan');
 
-      expect(await repo.statusBetween('ayan', 'rifat'),
-          ConnectionStatus.connected);
-      expect(await repo.statusBetween('rifat', 'ayan'),
-          ConnectionStatus.connected);
+      expect(
+        await repo.statusBetween('ayan', 'rifat'),
+        ConnectionStatus.connected,
+      );
+      expect(
+        await repo.statusBetween('rifat', 'ayan'),
+        ConnectionStatus.connected,
+      );
       expect(await repo.connectionCount('ayan'), 1);
       expect(await repo.connectionCount('rifat'), 1);
     });
@@ -120,19 +136,23 @@ void main() {
       await repo.acceptRequest(me: 'ayan', from: 'ayan');
       await repo.acceptRequest(me: 'ayan', from: 'rifat');
 
-      expect(await repo.statusBetween('ayan', 'rifat'),
-          ConnectionStatus.pendingOutgoing);
+      expect(
+        await repo.statusBetween('ayan', 'rifat'),
+        ConnectionStatus.pendingOutgoing,
+      );
     });
 
-    test('a second request does not stack on an existing relationship',
-        () async {
-      await repo.sendRequest(from: 'ayan', to: 'rifat');
-      await repo.sendRequest(from: 'ayan', to: 'rifat');
-      await repo.sendRequest(from: 'rifat', to: 'ayan');
+    test(
+      'a second request does not stack on an existing relationship',
+      () async {
+        await repo.sendRequest(from: 'ayan', to: 'rifat');
+        await repo.sendRequest(from: 'ayan', to: 'rifat');
+        await repo.sendRequest(from: 'rifat', to: 'ayan');
 
-      await repo.acceptRequest(me: 'rifat', from: 'ayan');
-      expect(await repo.connectionCount('ayan'), 1);
-    });
+        await repo.acceptRequest(me: 'rifat', from: 'ayan');
+        expect(await repo.connectionCount('ayan'), 1);
+      },
+    );
 
     test('you cannot connect to yourself', () async {
       await repo.sendRequest(from: 'ayan', to: 'ayan');
@@ -141,17 +161,22 @@ void main() {
       expect(await repo.connectionCount('ayan'), 0);
     });
 
-    test('removing works for withdrawing, declining and disconnecting',
-        () async {
-      await repo.sendRequest(from: 'ayan', to: 'rifat');
-      await repo.removeConnection(me: 'rifat', other: 'ayan');
-      expect(await repo.statusBetween('ayan', 'rifat'), ConnectionStatus.none);
+    test(
+      'removing works for withdrawing, declining and disconnecting',
+      () async {
+        await repo.sendRequest(from: 'ayan', to: 'rifat');
+        await repo.removeConnection(me: 'rifat', other: 'ayan');
+        expect(
+          await repo.statusBetween('ayan', 'rifat'),
+          ConnectionStatus.none,
+        );
 
-      await repo.sendRequest(from: 'ayan', to: 'rifat');
-      await repo.acceptRequest(me: 'rifat', from: 'ayan');
-      await repo.removeConnection(me: 'ayan', other: 'rifat');
-      expect(await repo.connectionCount('ayan'), 0);
-    });
+        await repo.sendRequest(from: 'ayan', to: 'rifat');
+        await repo.acceptRequest(me: 'rifat', from: 'ayan');
+        await repo.removeConnection(me: 'ayan', other: 'rifat');
+        expect(await repo.connectionCount('ayan'), 0);
+      },
+    );
 
     test('pending requests list only what is waiting on you', () async {
       await repo.sendRequest(from: 'rifat', to: 'ayan');

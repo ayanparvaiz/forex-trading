@@ -15,11 +15,9 @@ import 'username_suggestions.dart';
 /// field. The username itself is the identity, and Firestore enforces that it
 /// is unique.
 class FirebaseAuthRepository implements AuthRepository {
-  FirebaseAuthRepository({
-    fb.FirebaseAuth? auth,
-    FirebaseFirestore? firestore,
-  })  : _auth = auth ?? fb.FirebaseAuth.instance,
-        _db = firestore ?? FirebaseFirestore.instance;
+  FirebaseAuthRepository({fb.FirebaseAuth? auth, FirebaseFirestore? firestore})
+    : _auth = auth ?? fb.FirebaseAuth.instance,
+      _db = firestore ?? FirebaseFirestore.instance;
 
   final fb.FirebaseAuth _auth;
   final FirebaseFirestore _db;
@@ -30,7 +28,8 @@ class FirebaseAuthRepository implements AuthRepository {
 
   static String _emailFor(String username) => '$username@$_domain';
 
-  CollectionReference<Map<String, dynamic>> get _users => _db.collection('users');
+  CollectionReference<Map<String, dynamic>> get _users =>
+      _db.collection('users');
 
   /// One document per claimed username, keyed by the username itself.
   ///
@@ -207,10 +206,10 @@ class FirebaseAuthRepository implements AuthRepository {
   }
 
   AuthError _mapError(String code) => switch (code) {
-        'email-already-in-use' || 'username-already-in-use' =>
-          AuthError.usernameTaken,
-        'weak-password' => AuthError.weakPassword,
-        'invalid-email' => AuthError.invalidUsername,
-        _ => AuthError.unknown,
-      };
+    'email-already-in-use' ||
+    'username-already-in-use' => AuthError.usernameTaken,
+    'weak-password' => AuthError.weakPassword,
+    'invalid-email' => AuthError.invalidUsername,
+    _ => AuthError.unknown,
+  };
 }

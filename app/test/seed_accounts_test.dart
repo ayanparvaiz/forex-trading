@@ -19,8 +19,11 @@ void main() {
     test('every username is unique and passes the real validation rules', () {
       final seen = <String>{};
       for (final account in SeedAccounts.all) {
-        expect(seen.add(account.username), isTrue,
-            reason: '${account.username} appears twice');
+        expect(
+          seen.add(account.username),
+          isTrue,
+          reason: '${account.username} appears twice',
+        );
         expect(
           AuthRepository.usernamePattern.hasMatch(account.username),
           isTrue,
@@ -143,8 +146,11 @@ void main() {
           username: account.username,
           password: SeedAccounts.password,
         );
-        expect(result, isA<AuthSuccess>(),
-            reason: '${account.username} could not log in');
+        expect(
+          result,
+          isA<AuthSuccess>(),
+          reason: '${account.username} could not log in',
+        );
       }
     });
   });
@@ -161,14 +167,14 @@ void main() {
       }
 
       // The biggest badge is nowhere near the top of the list.
-      final topBadgeRow =
-          ranked.indexWhere((t) => t.id == 'imran');
+      final topBadgeRow = ranked.indexWhere((t) => t.id == 'imran');
       expect(topBadgeRow, greaterThan(ranked.length ~/ 2));
     });
 
     test('swaps the signed-in trader in for their seed row', () {
-      final you = SeedAccounts.byUsername('ayan')!
-          .toTrader(isYou: true, cohort: 'test');
+      final you = SeedAccounts.byUsername(
+        'ayan',
+      )!.toTrader(isYou: true, cohort: 'test');
 
       final list = MockCommunity.withYou(AppLanguage.bn, you);
 
@@ -178,8 +184,10 @@ void main() {
     });
 
     test('a trader with no seed row is appended', () {
-      final stranger = SeedAccounts.all.first
-          .toTrader(isYou: true, cohort: 'test');
+      final stranger = SeedAccounts.all.first.toTrader(
+        isYou: true,
+        cohort: 'test',
+      );
       final list = MockCommunity.withYou(AppLanguage.bn, stranger);
 
       expect(list, hasLength(SeedAccounts.all.length));
@@ -207,8 +215,11 @@ void main() {
 
     test('every post is written by a real account', () {
       for (final post in MockCommunity.liveFeed(AppLanguage.bn)) {
-        expect(SeedAccounts.byUsername(post.author.id), isNotNull,
-            reason: '${post.id} has no matching account');
+        expect(
+          SeedAccounts.byUsername(post.author.id),
+          isNotNull,
+          reason: '${post.id} has no matching account',
+        );
       }
     });
   });

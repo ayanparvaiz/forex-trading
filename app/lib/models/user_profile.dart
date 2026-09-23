@@ -16,9 +16,9 @@ enum Gender {
   String label(bool bangla) => bangla ? bn : en;
 
   static Gender fromCode(String? code) => Gender.values.firstWhere(
-        (g) => g.name == code,
-        orElse: () => Gender.private,
-      );
+    (g) => g.name == code,
+    orElse: () => Gender.private,
+  );
 }
 
 /// A signed-in learner.
@@ -68,36 +68,56 @@ class UserProfile {
   }
 
   Map<String, dynamic> toJson() => {
-        'username': username,
-        'displayName': displayName,
-        'gender': gender.name,
-        'language': language.code,
-        'avatarId': avatarId,
-        'createdAt': createdAt.toIso8601String(),
-        'cohort': cohort,
-      };
+    'username': username,
+    'displayName': displayName,
+    'gender': gender.name,
+    'language': language.code,
+    'avatarId': avatarId,
+    'createdAt': createdAt.toIso8601String(),
+    'cohort': cohort,
+  };
 
   factory UserProfile.fromJson(Map<String, dynamic> json) => UserProfile(
-        username: json['username'] as String,
-        displayName: json['displayName'] as String,
-        gender: Gender.fromCode(json['gender'] as String?),
-        language: AppLanguage.fromCode(json['language'] as String?),
-        // Accepts the old slug form too, so accounts created before
-        // avatars were numbered keep the face they picked.
-        avatarId: Avatars.from(json['avatarId']).id,
-        createdAt: DateTime.parse(json['createdAt'] as String),
-        cohort: json['cohort'] as String? ?? '',
-      );
+    username: json['username'] as String,
+    displayName: json['displayName'] as String,
+    gender: Gender.fromCode(json['gender'] as String?),
+    language: AppLanguage.fromCode(json['language'] as String?),
+    // Accepts the old slug form too, so accounts created before
+    // avatars were numbered keep the face they picked.
+    avatarId: Avatars.from(json['avatarId']).id,
+    createdAt: DateTime.parse(json['createdAt'] as String),
+    cohort: json['cohort'] as String? ?? '',
+  );
 
   /// Label for the batch someone joined in, e.g. `সেপ্টেম্বর ব্যাচ`.
   static String cohortFor(DateTime date, AppLanguage language) {
     const bnMonths = [
-      'জানুয়ারি', 'ফেব্রুয়ারি', 'মার্চ', 'এপ্রিল', 'মে', 'জুন',
-      'জুলাই', 'আগস্ট', 'সেপ্টেম্বর', 'অক্টোবর', 'নভেম্বর', 'ডিসেম্বর',
+      'জানুয়ারি',
+      'ফেব্রুয়ারি',
+      'মার্চ',
+      'এপ্রিল',
+      'মে',
+      'জুন',
+      'জুলাই',
+      'আগস্ট',
+      'সেপ্টেম্বর',
+      'অক্টোবর',
+      'নভেম্বর',
+      'ডিসেম্বর',
     ];
     const enMonths = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December',
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
 
     return language == AppLanguage.bn

@@ -120,6 +120,18 @@ abstract class CommunityRepository {
     required String lesson,
     required bool followedRules,
   });
+
+  /// Publishes a leaderboard position to the feed. Returns the new post's id.
+  ///
+  /// [rank] and [score] are what the board showed at this moment, written into
+  /// the post rather than recomputed later.
+  Future<String?> createRankPost({
+    required String uid,
+    required String username,
+    required int rank,
+    required double score,
+    required String lesson,
+  });
 }
 
 /// On-device implementation over the seeded accounts.
@@ -128,10 +140,8 @@ abstract class CommunityRepository {
 /// the seed data. The Firestore version keeps this interface exactly, which is
 /// why the cursor is opaque.
 class LocalCommunityRepository implements CommunityRepository {
-  LocalCommunityRepository({
-    required this.language,
-    SharedPreferences? prefs,
-  }) : _injected = prefs;
+  LocalCommunityRepository({required this.language, SharedPreferences? prefs})
+    : _injected = prefs;
 
   final AppLanguage language;
   final SharedPreferences? _injected;
@@ -202,7 +212,10 @@ class LocalCommunityRepository implements CommunityRepository {
   // --- Leaderboard and feed ------------------------------------------------
 
   @override
-  Future<ResultPage<Trader>> leaderboard({Object? cursor, int limit = 12}) async {
+  Future<ResultPage<Trader>> leaderboard({
+    Object? cursor,
+    int limit = 12,
+  }) async {
     final ranked = MockCommunity.rank(MockCommunity.traders(language));
     return _slice(ranked, cursor, limit);
   }
@@ -266,6 +279,15 @@ class LocalCommunityRepository implements CommunityRepository {
     required String reason,
     required String lesson,
     required bool followedRules,
+  }) async => null;
+
+  @override
+  Future<String?> createRankPost({
+    required String uid,
+    required String username,
+    required int rank,
+    required double score,
+    required String lesson,
   }) async => null;
 
   @override
@@ -342,11 +364,15 @@ class LocalCommunityRepository implements CommunityRepository {
     Object? cursor,
     int limit = 12,
   }) async {
-    final connections = (await _connections())
-        .where((c) => c.accepted && c.involves(username))
-        .toList()
-      ..sort((a, b) => (b.respondedAt ?? b.requestedAt)
-          .compareTo(a.respondedAt ?? a.requestedAt));
+    final connections =
+        (await _connections())
+            .where((c) => c.accepted && c.involves(username))
+            .toList()
+          ..sort(
+            (a, b) => (b.respondedAt ?? b.requestedAt).compareTo(
+              a.respondedAt ?? a.requestedAt,
+            ),
+          );
 
     final traders = <Trader>[];
     for (final c in connections) {
@@ -362,10 +388,11 @@ class LocalCommunityRepository implements CommunityRepository {
     Object? cursor,
     int limit = 12,
   }) async {
-    final incoming = (await _connections())
-        .where((c) => !c.accepted && c.to == username)
-        .toList()
-      ..sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
+    final incoming =
+        (await _connections())
+            .where((c) => !c.accepted && c.to == username)
+            .toList()
+          ..sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
 
     final traders = <Trader>[];
     for (final c in incoming) {
@@ -399,8 +426,9 @@ class LocalCommunityRepository implements CommunityRepository {
     );
 
     views.sort((a, b) => b.viewedAt.compareTo(a.viewedAt));
-    final trimmed =
-        views.length > _maxStoredViews ? views.sublist(0, _maxStoredViews) : views;
+    final trimmed = views.length > _maxStoredViews
+        ? views.sublist(0, _maxStoredViews)
+        : views;
 
     await (await _prefs).setString(
       _viewsKey,
@@ -418,10 +446,9 @@ class LocalCommunityRepository implements CommunityRepository {
     Object? cursor,
     int limit = 12,
   }) async {
-    final views = (await _views())
-        .where((v) => v.profileId == username)
-        .toList()
-      ..sort((a, b) => b.viewedAt.compareTo(a.viewedAt));
+    final views =
+        (await _views()).where((v) => v.profileId == username).toList()
+          ..sort((a, b) => b.viewedAt.compareTo(a.viewedAt));
 
     return _slice(views, cursor, limit);
   }

@@ -47,18 +47,18 @@ class SeedAccount {
   final int journalStreak;
 
   Trader toTrader({bool isYou = false, required String cohort}) => Trader(
-        id: username,
-        name: name,
-        avatarEmoji: Avatars.byId(avatarId).emoji,
-        disciplineScore: disciplineScore,
-        badgePoints: badgePoints,
-        totalR: totalR,
-        tradeCount: tradeCount,
-        winRate: winRate,
-        journalStreak: journalStreak,
-        cohort: cohort,
-        isYou: isYou,
-      );
+    id: username,
+    name: name,
+    avatarEmoji: Avatars.byId(avatarId).emoji,
+    disciplineScore: disciplineScore,
+    badgePoints: badgePoints,
+    totalR: totalR,
+    tradeCount: tradeCount,
+    winRate: winRate,
+    journalStreak: journalStreak,
+    cohort: cohort,
+    isYou: isYou,
+  );
 }
 
 /// The twenty accounts that populate a fresh install.

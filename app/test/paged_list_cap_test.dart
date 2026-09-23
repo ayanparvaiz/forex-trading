@@ -76,16 +76,20 @@ void main() {
     expect(s.limits.fold<int>(0, (a, b) => a + b), lessThanOrEqualTo(50));
   });
 
-  testWidgets('a cap that is not a multiple of the page size is exact',
-      (tester) async {
+  testWidgets('a cap that is not a multiple of the page size is exact', (
+    tester,
+  ) async {
     final s = source(200);
 
     await drain(tester, fetch: s.fetch, pageSize: 20, maxItems: 50);
 
     // The last page asks for the 10 that are left, not another 20.
     expect(s.limits.fold<int>(0, (a, b) => a + b), lessThanOrEqualTo(50));
-    expect(s.limits.any((l) => l < 20), isTrue,
-        reason: 'the final page should ask only for the remaining rows');
+    expect(
+      s.limits.any((l) => l < 20),
+      isTrue,
+      reason: 'the final page should ask only for the remaining rows',
+    );
   });
 
   testWidgets('a short source finishes before the cap', (tester) async {

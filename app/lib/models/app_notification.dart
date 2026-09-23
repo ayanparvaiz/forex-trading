@@ -44,9 +44,9 @@ enum NotificationKind {
   /// Unknown names fall back rather than throw: a notification written by a
   /// newer build should show as something generic, not crash the list.
   static NotificationKind fromName(String? name) => values.firstWhere(
-        (k) => k.name == name,
-        orElse: () => NotificationKind.profileView,
-      );
+    (k) => k.name == name,
+    orElse: () => NotificationKind.profileView,
+  );
 }
 
 /// One thing that happened, addressed to one person.
@@ -85,13 +85,13 @@ class AppNotification {
   static const lifetime = Duration(hours: 48);
 
   AppNotification copyWith({bool? read}) => AppNotification(
-        id: id,
-        kind: kind,
-        actorUsername: actorUsername,
-        actorName: actorName,
-        actorAvatarId: actorAvatarId,
-        createdAt: createdAt,
-        read: read ?? this.read,
-        postId: postId,
-      );
+    id: id,
+    kind: kind,
+    actorUsername: actorUsername,
+    actorName: actorName,
+    actorAvatarId: actorAvatarId,
+    createdAt: createdAt,
+    read: read ?? this.read,
+    postId: postId,
+  );
 }

@@ -31,8 +31,12 @@ class JournalScreen extends StatelessWidget {
       body: closed.isEmpty
           ? _EmptyJournal(s: s)
           : ListView(
-              padding:
-                  const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.xxl),
+              padding: const EdgeInsets.fromLTRB(
+                Gap.lg,
+                Gap.md,
+                Gap.lg,
+                Gap.xxl,
+              ),
               children: [
                 _PerformanceCard(stats: stats, s: s),
                 Gap.h12,
@@ -188,8 +192,9 @@ class _DrawdownCard extends StatelessWidget {
               Expanded(
                 child: StatTile(
                   label: s.recoveryNeeded,
-                  value:
-                      recovery.isFinite ? '${recovery.toStringAsFixed(1)}%' : '∞',
+                  value: recovery.isFinite
+                      ? '${recovery.toStringAsFixed(1)}%'
+                      : '∞',
                   valueColor: AppColors.warning,
                 ),
               ),
@@ -220,8 +225,11 @@ class _DrawdownCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const Icon(Icons.arrow_right_alt,
-                      size: 15, color: AppColors.textMuted),
+                  const Icon(
+                    Icons.arrow_right_alt,
+                    size: 15,
+                    color: AppColors.textMuted,
+                  ),
                   Gap.w8,
                   Expanded(
                     child: Text(
@@ -246,11 +254,7 @@ class _DrawdownCard extends StatelessWidget {
 }
 
 class _TradeCard extends StatelessWidget {
-  const _TradeCard({
-    required this.trade,
-    required this.store,
-    required this.s,
-  });
+  const _TradeCard({required this.trade, required this.store, required this.s});
 
   final Trade trade;
   final AccountStore store;
@@ -322,8 +326,11 @@ class _TradeCard extends StatelessWidget {
                 ),
               ),
               if (trade.isShared)
-                const Icon(Icons.people_outline,
-                    size: 16, color: AppColors.textMuted),
+                const Icon(
+                  Icons.people_outline,
+                  size: 16,
+                  color: AppColors.textMuted,
+                ),
             ],
           ),
           Gap.h12,

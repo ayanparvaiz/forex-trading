@@ -201,8 +201,7 @@ class Trade {
   double netPnlAt(double price) => grossPnlAt(price) - spreadCost + swapCost;
 
   /// Realised profit, or null while the trade is still open.
-  double? get realisedPnl =>
-      exitPrice == null ? null : netPnlAt(exitPrice!);
+  double? get realisedPnl => exitPrice == null ? null : netPnlAt(exitPrice!);
 
   /// Result in R — the only unit that compares trades of different sizes.
   ///
@@ -218,12 +217,10 @@ class Trade {
 
   /// Price at which the position would be flat, accounting for the spread.
   double get breakEvenPrice {
-    final pipsToRecover =
-        lots == 0 ? 0.0 : spreadCost / (instrument.pipValuePerLot * lots);
-    return instrument.shiftByPips(
-      entryPrice,
-      pipsToRecover * direction.sign,
-    );
+    final pipsToRecover = lots == 0
+        ? 0.0
+        : spreadCost / (instrument.pipValuePerLot * lots);
+    return instrument.shiftByPips(entryPrice, pipsToRecover * direction.sign);
   }
 
   Trade copyWith({

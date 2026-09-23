@@ -12,8 +12,7 @@ enum ConnectionStatus {
   /// Both agreed.
   connected;
 
-  bool get isPending =>
-      this == pendingOutgoing || this == pendingIncoming;
+  bool get isPending => this == pendingOutgoing || this == pendingIncoming;
 }
 
 /// A connection request, in whatever state it has reached.
@@ -54,30 +53,30 @@ class Connection {
   }
 
   Connection accept() => Connection(
-        from: from,
-        to: to,
-        accepted: true,
-        requestedAt: requestedAt,
-        respondedAt: DateTime.now(),
-      );
+    from: from,
+    to: to,
+    accepted: true,
+    requestedAt: requestedAt,
+    respondedAt: DateTime.now(),
+  );
 
   Map<String, dynamic> toJson() => {
-        'from': from,
-        'to': to,
-        'accepted': accepted,
-        'requestedAt': requestedAt.toIso8601String(),
-        if (respondedAt != null) 'respondedAt': respondedAt!.toIso8601String(),
-      };
+    'from': from,
+    'to': to,
+    'accepted': accepted,
+    'requestedAt': requestedAt.toIso8601String(),
+    if (respondedAt != null) 'respondedAt': respondedAt!.toIso8601String(),
+  };
 
   factory Connection.fromJson(Map<String, dynamic> json) => Connection(
-        from: json['from'] as String,
-        to: json['to'] as String,
-        accepted: json['accepted'] as bool? ?? false,
-        requestedAt: DateTime.parse(json['requestedAt'] as String),
-        respondedAt: json['respondedAt'] == null
-            ? null
-            : DateTime.parse(json['respondedAt'] as String),
-      );
+    from: json['from'] as String,
+    to: json['to'] as String,
+    accepted: json['accepted'] as bool? ?? false,
+    requestedAt: DateTime.parse(json['requestedAt'] as String),
+    respondedAt: json['respondedAt'] == null
+        ? null
+        : DateTime.parse(json['respondedAt'] as String),
+  );
 }
 
 /// A record that someone opened someone else's profile.
@@ -97,14 +96,14 @@ class ProfileView {
   final DateTime viewedAt;
 
   Map<String, dynamic> toJson() => {
-        'viewer': viewer,
-        'profileId': profileId,
-        'viewedAt': viewedAt.toIso8601String(),
-      };
+    'viewer': viewer,
+    'profileId': profileId,
+    'viewedAt': viewedAt.toIso8601String(),
+  };
 
   factory ProfileView.fromJson(Map<String, dynamic> json) => ProfileView(
-        viewer: json['viewer'] as String,
-        profileId: json['profileId'] as String,
-        viewedAt: DateTime.parse(json['viewedAt'] as String),
-      );
+    viewer: json['viewer'] as String,
+    profileId: json['profileId'] as String,
+    viewedAt: DateTime.parse(json['viewedAt'] as String),
+  );
 }

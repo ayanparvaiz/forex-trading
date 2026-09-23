@@ -519,21 +519,13 @@ class FirestoreCommunityRepository implements CommunityRepository {
     final now = DateTime.now();
     try {
       final doc = await _posts.add({
-        'authorUid': uid,
-        'authorUsername': username,
+        ..._envelope(uid, username, now),
+        'kind': 'trade',
         'symbol': symbol,
         'rMultiple': rMultiple,
         'reason': reason.trim(),
         'lesson': lesson.trim(),
         'followedRules': followedRules,
-        'claps': 0,
-        'commentCount': 0,
-        // Written explicitly, not left to default on read. Firestore's orderBy
-        // skips documents missing the field entirely, so a post without reach
-        // is a post the feed cannot see.
-        'reach': 0,
-        'postedAt': Timestamp.fromDate(now),
-        'expiresAt': Timestamp.fromDate(now.add(const Duration(days: 7))),
       });
       return doc.id;
     } on FirebaseException catch (error) {
@@ -541,6 +533,52 @@ class FirestoreCommunityRepository implements CommunityRepository {
       return null;
     }
   }
+
+  @override
+  Future<String?> createRankPost({
+    required String uid,
+    required String username,
+    required int rank,
+    required double score,
+    required String lesson,
+  }) async {
+    final now = DateTime.now();
+    try {
+      final doc = await _posts.add({
+        ..._envelope(uid, username, now),
+        'kind': 'rank',
+        // Both are what the board showed when the post was written, and both
+        // are taken from this device's own numbers.
+        //
+        // Nothing server-side can check them yet, because discipline still
+        // lives in the app rather than in Firestore — which makes this the
+        // first screen where an on-device number becomes a public claim. Once
+        // trades move to Firestore the rule can pin the score to the user
+        // document, the way followedRules is pinned to the trade record.
+        'rank': rank,
+        'disciplineScore': score,
+        'lesson': lesson.trim(),
+      });
+      return doc.id;
+    } on FirebaseException catch (error) {
+      debugPrint('create rank post failed: ${error.code}');
+      return null;
+    }
+  }
+
+  /// The fields every post carries whatever it is about.
+  Map<String, Object?> _envelope(String uid, String username, DateTime now) => {
+    'authorUid': uid,
+    'authorUsername': username,
+    'claps': 0,
+    'commentCount': 0,
+    // Written explicitly, not left to default on read. Firestore's orderBy
+    // skips documents missing the field entirely, so a post without reach is a
+    // post the feed cannot see.
+    'reach': 0,
+    'postedAt': Timestamp.fromDate(now),
+    'expiresAt': Timestamp.fromDate(now.add(const Duration(days: 7))),
+  };
 
   /// Turns post documents into cards, attaching each author's current profile.
   ///
@@ -870,6 +908,23 @@ class FirestoreCommunityRepository implements CommunityRepository {
     Trader author,
   ) {
     final data = doc.data();
+
+    // Posts written before rank sharing existed carry no kind at all, so the
+    // absence of the field means "trade" rather than meaning nothing.
+    if (data['kind'] == 'rank') {
+      return FeedPost.rank(
+        id: doc.id,
+        author: author,
+        postedAt: (data['postedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        rank: (data['rank'] as num?)?.toInt() ?? 0,
+        disciplineScore: (data['disciplineScore'] as num?)?.toDouble() ?? 0,
+        lesson: data['lesson'] as String? ?? '',
+        claps: (data['claps'] as num?)?.toInt() ?? 0,
+        commentCount: (data['commentCount'] as num?)?.toInt() ?? 0,
+        reach: (data['reach'] as num?)?.toInt() ?? 0,
+      );
+    }
+
     return FeedPost(
       id: doc.id,
       author: author,

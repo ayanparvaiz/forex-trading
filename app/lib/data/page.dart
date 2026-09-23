@@ -10,10 +10,7 @@ class ResultPage<T> {
     required this.hasMore,
   });
 
-  const ResultPage.empty()
-      : items = const [],
-        cursor = null,
-        hasMore = false;
+  const ResultPage.empty() : items = const [], cursor = null, hasMore = false;
 
   final List<T> items;
   final Object? cursor;
@@ -23,7 +20,5 @@ class ResultPage<T> {
 }
 
 /// Fetches one page starting from [cursor].
-typedef PageFetcher<T> = Future<ResultPage<T>> Function({
-  Object? cursor,
-  int limit,
-});
+typedef PageFetcher<T> =
+    Future<ResultPage<T>> Function({Object? cursor, int limit});

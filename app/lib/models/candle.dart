@@ -27,20 +27,20 @@ class Candle {
   double get range => high - low;
 
   factory Candle.fromTwelveData(Map<String, dynamic> json) => Candle(
-        time: DateTime.parse(json['datetime'] as String),
-        open: double.parse(json['open'] as String),
-        high: double.parse(json['high'] as String),
-        low: double.parse(json['low'] as String),
-        close: double.parse(json['close'] as String),
-      );
+    time: DateTime.parse(json['datetime'] as String),
+    open: double.parse(json['open'] as String),
+    high: double.parse(json['high'] as String),
+    low: double.parse(json['low'] as String),
+    close: double.parse(json['close'] as String),
+  );
 
   Map<String, dynamic> toJson() => {
-        'datetime': time.toIso8601String(),
-        'open': open.toString(),
-        'high': high.toString(),
-        'low': low.toString(),
-        'close': close.toString(),
-      };
+    'datetime': time.toIso8601String(),
+    'open': open.toString(),
+    'high': high.toString(),
+    'low': low.toString(),
+    'close': close.toString(),
+  };
 }
 
 /// Chart timeframes, matching Twelve Data's `interval` parameter.

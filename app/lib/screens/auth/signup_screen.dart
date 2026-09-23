@@ -80,8 +80,9 @@ class _SignupScreenState extends State<SignupScreen> {
     _debounce = Timer(const Duration(milliseconds: 350), () async {
       final session = context.session;
       final free = await session.isUsernameAvailable(value);
-      final suggestions =
-          free ? const <String>[] : await session.suggestUsernames(value);
+      final suggestions = free
+          ? const <String>[]
+          : await session.suggestUsernames(value);
 
       if (!mounted || AuthRepository.normalise(_username.text) != value) return;
       setState(() {
@@ -94,14 +95,15 @@ class _SignupScreenState extends State<SignupScreen> {
   // --- Navigation ----------------------------------------------------------
 
   bool get _canAdvance => switch (_page) {
-        0 => true,
-        1 => _name.text.trim().isNotEmpty &&
-            _nameStatus == _NameStatus.available &&
-            _password.text.length >= AuthRepository.minPasswordLength,
-        2 => _gender != null,
-        3 => _avatarId != null,
-        _ => false,
-      };
+    0 => true,
+    1 =>
+      _name.text.trim().isNotEmpty &&
+          _nameStatus == _NameStatus.available &&
+          _password.text.length >= AuthRepository.minPasswordLength,
+    2 => _gender != null,
+    3 => _avatarId != null,
+    _ => false,
+  };
 
   void _next() {
     if (_page == _stepCount - 1) {
@@ -211,7 +213,8 @@ class _SignupScreenState extends State<SignupScreen> {
             child: _ChoiceCard(
               selected: context.session.language == language,
               // Changing this rebuilds the whole flow in the new language.
-              onTap: () => setState(() => context.session.setLanguage(language)),
+              onTap: () =>
+                  setState(() => context.session.setLanguage(language)),
               child: Row(
                 children: [
                   Text(language.flag, style: const TextStyle(fontSize: 26)),
@@ -257,7 +260,10 @@ class _SignupScreenState extends State<SignupScreen> {
           decoration: InputDecoration(
             labelText: s.username,
             helperText: s.usernameHint,
-            helperStyle: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+            helperStyle: const TextStyle(
+              fontSize: 11,
+              color: AppColors.textMuted,
+            ),
             prefixIcon: const Icon(Icons.alternate_email, size: 19),
             suffixIcon: _usernameStatusIcon(),
           ),
@@ -271,7 +277,10 @@ class _SignupScreenState extends State<SignupScreen> {
           Gap.h12,
           Text(
             s.usernameSuggestions,
-            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
           ),
           Gap.h8,
           Wrap(
@@ -303,7 +312,10 @@ class _SignupScreenState extends State<SignupScreen> {
           decoration: InputDecoration(
             labelText: s.password,
             helperText: s.passwordTooShort,
-            helperStyle: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+            helperStyle: const TextStyle(
+              fontSize: 11,
+              color: AppColors.textMuted,
+            ),
             prefixIcon: const Icon(Icons.lock_outline, size: 19),
             suffixIcon: IconButton(
               icon: Icon(
@@ -320,23 +332,29 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Widget? _usernameStatusIcon() => switch (_nameStatus) {
-        _NameStatus.checking => const Padding(
-            padding: EdgeInsets.all(14),
-            child: SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: AppColors.textMuted,
-              ),
-            ),
-          ),
-        _NameStatus.available =>
-          const Icon(Icons.check_circle, size: 19, color: AppColors.profit),
-        _NameStatus.taken || _NameStatus.invalid =>
-          const Icon(Icons.cancel, size: 19, color: AppColors.loss),
-        _NameStatus.empty => null,
-      };
+    _NameStatus.checking => const Padding(
+      padding: EdgeInsets.all(14),
+      child: SizedBox(
+        width: 16,
+        height: 16,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          color: AppColors.textMuted,
+        ),
+      ),
+    ),
+    _NameStatus.available => const Icon(
+      Icons.check_circle,
+      size: 19,
+      color: AppColors.profit,
+    ),
+    _NameStatus.taken || _NameStatus.invalid => const Icon(
+      Icons.cancel,
+      size: 19,
+      color: AppColors.loss,
+    ),
+    _NameStatus.empty => null,
+  };
 
   Widget _usernameStatusLine(Strings s) {
     final (text, color) = switch (_nameStatus) {
@@ -344,17 +362,21 @@ class _SignupScreenState extends State<SignupScreen> {
       _NameStatus.available => (s.usernameAvailable, AppColors.profit),
       _NameStatus.taken => (s.usernameTaken, AppColors.loss),
       _NameStatus.invalid => (
-          _username.text.trim().length < 3
-              ? s.usernameTooShort
-              : s.usernameBadChars,
-          AppColors.loss
-        ),
+        _username.text.trim().length < 3
+            ? s.usernameTooShort
+            : s.usernameBadChars,
+        AppColors.loss,
+      ),
       _NameStatus.empty => ('', AppColors.textMuted),
     };
 
     return Text(
       text,
-      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: color),
+      style: TextStyle(
+        fontSize: 12.5,
+        fontWeight: FontWeight.w600,
+        color: color,
+      ),
     );
   }
 
@@ -459,8 +481,11 @@ class _SignupScreenState extends State<SignupScreen> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.savings_outlined,
-                  size: 17, color: AppColors.brand),
+              const Icon(
+                Icons.savings_outlined,
+                size: 17,
+                color: AppColors.brand,
+              ),
               Gap.w8,
               Expanded(
                 child: Text(
@@ -506,11 +531,7 @@ class _StepDots extends StatelessWidget {
 
 /// Title, optional subtitle, then the step's own content.
 class _StepBody extends StatelessWidget {
-  const _StepBody({
-    required this.title,
-    this.subtitle,
-    required this.children,
-  });
+  const _StepBody({required this.title, this.subtitle, required this.children});
 
   final String title;
   final String? subtitle;

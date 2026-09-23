@@ -11,8 +11,8 @@ import '../models/app_notification.dart';
 /// re-open those listeners constantly — which costs a full re-read each time.
 NotificationRepository get notificationRepository =>
     _instance ??= FirebaseBootstrap.isReady
-        ? FirestoreNotificationRepository()
-        : const NullNotificationRepository();
+    ? FirestoreNotificationRepository()
+    : const NullNotificationRepository();
 
 NotificationRepository? _instance;
 
@@ -50,7 +50,7 @@ abstract class NotificationRepository {
 
 class FirestoreNotificationRepository implements NotificationRepository {
   FirestoreNotificationRepository({FirebaseFirestore? firestore})
-      : _db = firestore ?? FirebaseFirestore.instance;
+    : _db = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _db;
 
@@ -70,9 +70,10 @@ class FirestoreNotificationRepository implements NotificationRepository {
 
   @override
   Stream<List<AppNotification>> watch(String uid, {int limit = 50}) {
-    return _live(uid).limit(limit).snapshots().map(
-          (snapshot) => snapshot.docs.map(_fromDoc).toList(),
-        );
+    return _live(uid)
+        .limit(limit)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map(_fromDoc).toList());
   }
 
   @override

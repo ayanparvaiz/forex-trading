@@ -92,10 +92,9 @@ void main() {
       await signUp(username: 'nusrat', password: 'samepassword');
 
       final dump = prefs.getString('auth.accounts')!;
-      final hashes = RegExp(r'"hash":"([^"]+)"')
-          .allMatches(dump)
-          .map((m) => m.group(1))
-          .toList();
+      final hashes = RegExp(
+        r'"hash":"([^"]+)"',
+      ).allMatches(dump).map((m) => m.group(1)).toList();
 
       expect(hashes, hasLength(2));
       expect(hashes[0], isNot(hashes[1]));
@@ -120,18 +119,26 @@ void main() {
       expect((result as AuthFailure).error, AuthError.wrongCredentials);
     });
 
-    test('gives the same error for an unknown user, to avoid leaking who exists',
-        () async {
-      await signUp();
+    test(
+      'gives the same error for an unknown user, to avoid leaking who exists',
+      () async {
+        await signUp();
 
-      final unknown =
-          await auth.logIn(username: 'nobody', password: 'secret123');
-      final wrongPassword =
-          await auth.logIn(username: 'rifat', password: 'nope12345');
+        final unknown = await auth.logIn(
+          username: 'nobody',
+          password: 'secret123',
+        );
+        final wrongPassword = await auth.logIn(
+          username: 'rifat',
+          password: 'nope12345',
+        );
 
-      expect((unknown as AuthFailure).error,
-          (wrongPassword as AuthFailure).error);
-    });
+        expect(
+          (unknown as AuthFailure).error,
+          (wrongPassword as AuthFailure).error,
+        );
+      },
+    );
   });
 
   group('usernames', () {
@@ -152,8 +159,11 @@ void main() {
       expect(suggestions, isNotEmpty);
       expect(suggestions, isNot(contains('rifatfx')));
       for (final s in suggestions) {
-        expect(AuthRepository.usernamePattern.hasMatch(s), isTrue,
-            reason: '$s should be a valid username');
+        expect(
+          AuthRepository.usernamePattern.hasMatch(s),
+          isTrue,
+          reason: '$s should be a valid username',
+        );
         expect(await auth.isUsernameAvailable(s), isTrue);
       }
     });

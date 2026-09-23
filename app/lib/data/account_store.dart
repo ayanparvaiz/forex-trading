@@ -58,14 +58,16 @@ class AccountStore extends ChangeNotifier {
   }
 
   /// Trades closed since the last reset. Only these move today's balance.
-  List<Trade> get todaysClosedTrades => closedTrades
-      .where((t) => !t.closedAt!.isBefore(dayStart))
-      .toList();
+  List<Trade> get todaysClosedTrades =>
+      closedTrades.where((t) => !t.closedAt!.isBefore(dayStart)).toList();
 
   /// Today's points: the allowance plus whatever today's closed trades did.
   double get balance =>
       dailyAllowance +
-      todaysClosedTrades.fold<double>(0, (sum, t) => sum + (t.realisedPnl ?? 0));
+      todaysClosedTrades.fold<double>(
+        0,
+        (sum, t) => sum + (t.realisedPnl ?? 0),
+      );
 
   /// Balance plus the floating result of anything still open.
   double get equity =>
@@ -237,10 +239,12 @@ class AccountStore extends ChangeNotifier {
       final price = market.price(trade.instrument);
       final isLong = trade.direction == TradeDirection.buy;
 
-      final stopHit =
-          isLong ? price <= trade.stopPrice : price >= trade.stopPrice;
-      final targetHit =
-          isLong ? price >= trade.targetPrice : price <= trade.targetPrice;
+      final stopHit = isLong
+          ? price <= trade.stopPrice
+          : price >= trade.stopPrice;
+      final targetHit = isLong
+          ? price >= trade.targetPrice
+          : price <= trade.targetPrice;
 
       if (stopHit) {
         _trades[i] = _closeWith(
@@ -290,7 +294,8 @@ class AccountStore extends ChangeNotifier {
         'exit': 1.08820,
         'daysAgo': 9,
         'reason': 'H4 সাপোর্টে বুলিশ এনগাল্ফিং, লন্ডন সেশনের শুরুতে',
-        'lesson': 'প্ল্যান মতো চলেছে। টার্গেটে বসে থেকেছি, তাড়াতাড়ি বের হইনি।',
+        'lesson':
+            'প্ল্যান মতো চলেছে। টার্গেটে বসে থেকেছি, তাড়াতাড়ি বের হইনি।',
         'v': <RuleViolation>{},
       },
       {
@@ -302,7 +307,8 @@ class AccountStore extends ChangeNotifier {
         'exit': 1.27000,
         'daysAgo': 8,
         'reason': 'রেজিস্ট্যান্স রিজেকশন, ডেইলি ডাউনট্রেন্ড',
-        'lesson': 'স্টপ লেগেছে, ঠিক আছে। সেটআপ ভালো ছিল, ফল খারাপ — এটাই ট্রেডিং।',
+        'lesson':
+            'স্টপ লেগেছে, ঠিক আছে। সেটআপ ভালো ছিল, ফল খারাপ — এটাই ট্রেডিং।',
         'v': <RuleViolation>{},
       },
       {
@@ -330,7 +336,8 @@ class AccountStore extends ChangeNotifier {
         'exit': 150.800,
         'daysAgo': 5,
         'reason': 'ডেইলি ব্রেকআউট রিটেস্ট, ভলিউম কনফার্ম করেছে',
-        'lesson': 'রিটেস্টের জন্য অপেক্ষা করাটা কাজে দিয়েছে। ব্রেকআউটে ঝাঁপ দিইনি।',
+        'lesson':
+            'রিটেস্টের জন্য অপেক্ষা করাটা কাজে দিয়েছে। ব্রেকআউটে ঝাঁপ দিইনি।',
         'v': <RuleViolation>{},
       },
       {
@@ -357,7 +364,8 @@ class AccountStore extends ChangeNotifier {
         'exit': 1.26750,
         'daysAgo': 1,
         'reason': 'ডেইলি ডিমান্ড জোন, ১৫মি তে কনফার্মেশন ক্যান্ডেল',
-        'lesson': 'রিস্ক ১% এর নিচে রেখেছি, সাইজ ঠিক ছিল। এভাবেই চালিয়ে যেতে হবে।',
+        'lesson':
+            'রিস্ক ১% এর নিচে রেখেছি, সাইজ ঠিক ছিল। এভাবেই চালিয়ে যেতে হবে।',
         'v': <RuleViolation>{},
       },
     ];
@@ -377,8 +385,9 @@ class AccountStore extends ChangeNotifier {
         stopPrice: stop,
         instrument: instrument,
       );
-      final lots =
-          sized.lots >= Instrument.minLot ? sized.lots : Instrument.minLot;
+      final lots = sized.lots >= Instrument.minLot
+          ? sized.lots
+          : Instrument.minLot;
 
       final opened = now.subtract(Duration(days: s['daysAgo'] as int));
       _trades.add(

@@ -44,6 +44,20 @@ class Trader {
   final bool isYou;
 }
 
+/// What a feed post is about.
+enum PostKind {
+  /// A closed trade: pair, result, reasoning and lesson.
+  trade,
+
+  /// A leaderboard position, with a line about how it was reached.
+  ///
+  /// The rank and the score are frozen at the moment of posting rather than
+  /// recomputed on read. A post is a record of a moment; a number that quietly
+  /// restated itself every time somebody scrolled past would be making a claim
+  /// nobody ever wrote.
+  rank,
+}
+
 /// A shared journal entry in the community feed.
 ///
 /// Note what a post carries: the reasoning, the rule check and the lesson.
@@ -61,7 +75,37 @@ class FeedPost {
     required this.claps,
     required this.commentCount,
     this.reach = 0,
-  });
+  }) : kind = PostKind.trade,
+       rank = null,
+       disciplineScore = null;
+
+  /// A leaderboard position shared to the feed.
+  ///
+  /// Carries no pair and no R, because it is not about one trade — [lesson]
+  /// here is what got the author to that position.
+  const FeedPost.rank({
+    required this.id,
+    required this.author,
+    required this.postedAt,
+    required this.rank,
+    required this.disciplineScore,
+    required this.lesson,
+    required this.claps,
+    required this.commentCount,
+    this.reach = 0,
+  }) : kind = PostKind.rank,
+       symbol = '',
+       rMultiple = 0,
+       reason = '',
+       followedRules = true;
+
+  final PostKind kind;
+
+  /// Position on the leaderboard when the post was written. Rank posts only.
+  final int? rank;
+
+  /// Discipline score when the post was written. Rank posts only.
+  final double? disciplineScore;
 
   final String id;
   final Trader author;
