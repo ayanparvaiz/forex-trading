@@ -42,6 +42,55 @@ class FirestoreCommunityRepository implements CommunityRepository {
       _db.collection('users');
   CollectionReference<Map<String, dynamic>> get _usernames =>
       _db.collection('usernames');
+  CollectionReference<Map<String, dynamic>> get _connections =>
+      _db.collection('connections');
+  CollectionReference<Map<String, dynamic>> get _profileViews =>
+      _db.collection('profileViews');
+
+  /// username -> uid, remembered for the life of the repository.
+  ///
+  /// Usernames are never reassigned, so a claim read once is good forever.
+  /// Without this, drawing one connection list would re-read the same handful
+  /// of claim documents on every row.
+  final Map<String, String> _uidCache = {};
+
+  Future<String?> _uidFor(String username) async {
+    final cached = _uidCache[username];
+    if (cached != null) return cached;
+
+    final claim = await _usernames.doc(username).get();
+    final uid = claim.data()?['uid'] as String?;
+    if (uid != null) _uidCache[username] = uid;
+    return uid;
+  }
+
+  /// Document id for a relationship: both usernames, sorted, hyphen-joined.
+  ///
+  /// Sorting makes the id identical whichever side asks, so a relationship can
+  /// never be stored twice. The hyphen is safe because usernames are limited to
+  /// letters, digits and underscore — a separator that could appear inside a
+  /// name would make `a_-b` and `a-_b` the same id.
+  static String pairId(String a, String b) {
+    final pair = [a, b]..sort();
+    return '${pair[0]}-${pair[1]}';
+  }
+
+  /// Fetches profiles for a page of uids in one query rather than one each.
+  Future<List<Trader>> _tradersByUid(List<String> uids) async {
+    if (uids.isEmpty) return [];
+
+    final snapshot = await _users
+        .where(FieldPath.documentId, whereIn: uids.take(30).toList())
+        .get();
+
+    // whereIn does not preserve the order it was given, and the caller's order
+    // is the meaningful one — newest first.
+    final byUid = {for (final d in snapshot.docs) d.id: _traderFrom(d.data())};
+    return [
+      for (final uid in uids)
+        if (byUid[uid] != null) byUid[uid]!,
+    ];
+  }
 
   /// Builds a leaderboard row out of a profile document.
   ///
@@ -110,56 +159,223 @@ class FirestoreCommunityRepository implements CommunityRepository {
     return data == null ? null : _traderFrom(data);
   }
 
-  // --- Not yet migrated ----------------------------------------------------
-
-  @override
-  Future<ResultPage<FeedPost>> feed({Object? cursor, int limit = 8}) =>
-      fallback.feed(cursor: cursor, limit: limit);
-
-  @override
-  Future<ResultPage<ProfileView>> viewersOf(
-    String username, {
-    Object? cursor,
-    int limit = 12,
-  }) => fallback.viewersOf(username, cursor: cursor, limit: limit);
+  // --- Connections ---------------------------------------------------------
 
   @override
   Future<ResultPage<Trader>> connectionsOf(
     String username, {
     Object? cursor,
     int limit = 12,
-  }) => fallback.connectionsOf(username, cursor: cursor, limit: limit);
+  }) async {
+    final uid = await _uidFor(username);
+    if (uid == null) return const ResultPage.empty();
+
+    var query = _connections
+        .where('uids', arrayContains: uid)
+        .where('accepted', isEqualTo: true)
+        .orderBy('requestedAt', descending: true)
+        .limit(limit);
+    if (cursor is DocumentSnapshot) query = query.startAfterDocument(cursor);
+
+    final snapshot = await query.get();
+    if (snapshot.docs.isEmpty) return const ResultPage.empty();
+
+    final others = [
+      for (final doc in snapshot.docs)
+        (doc.data()['uids'] as List)
+            .cast<String>()
+            .firstWhere((u) => u != uid, orElse: () => uid),
+    ];
+
+    return ResultPage(
+      items: await _tradersByUid(others),
+      cursor: snapshot.docs.last,
+      hasMore: snapshot.docs.length == limit,
+    );
+  }
 
   @override
   Future<ResultPage<Trader>> pendingRequestsFor(
     String username, {
     Object? cursor,
     int limit = 12,
-  }) => fallback.pendingRequestsFor(username, cursor: cursor, limit: limit);
+  }) async {
+    final uid = await _uidFor(username);
+    if (uid == null) return const ResultPage.empty();
+
+    var query = _connections
+        .where('toUid', isEqualTo: uid)
+        .where('accepted', isEqualTo: false)
+        .orderBy('requestedAt', descending: true)
+        .limit(limit);
+    if (cursor is DocumentSnapshot) query = query.startAfterDocument(cursor);
+
+    final snapshot = await query.get();
+    if (snapshot.docs.isEmpty) return const ResultPage.empty();
+
+    final senders = [
+      for (final doc in snapshot.docs) doc.data()['fromUid'] as String,
+    ];
+
+    return ResultPage(
+      items: await _tradersByUid(senders),
+      cursor: snapshot.docs.last,
+      hasMore: snapshot.docs.length == limit,
+    );
+  }
 
   @override
-  Future<ConnectionStatus> statusBetween(String me, String other) =>
-      fallback.statusBetween(me, other);
+  Future<ConnectionStatus> statusBetween(String me, String other) async {
+    if (me == other) return ConnectionStatus.none;
+
+    // A single key lookup. The sorted id means finding the relationship between
+    // two specific people needs no query at all.
+    final data = (await _connections.doc(pairId(me, other)).get()).data();
+    if (data == null) return ConnectionStatus.none;
+
+    if (data['accepted'] == true) return ConnectionStatus.connected;
+    return data['fromUser'] == me
+        ? ConnectionStatus.pendingOutgoing
+        : ConnectionStatus.pendingIncoming;
+  }
 
   @override
-  Future<int> connectionCount(String username) =>
-      fallback.connectionCount(username);
+  Future<int> connectionCount(String username) async {
+    final uid = await _uidFor(username);
+    if (uid == null) return 0;
+
+    // An aggregate, so the count costs one read rather than one per connection.
+    final result = await _connections
+        .where('uids', arrayContains: uid)
+        .where('accepted', isEqualTo: true)
+        .count()
+        .get();
+    return result.count ?? 0;
+  }
 
   @override
-  Future<void> sendRequest({required String from, required String to}) =>
-      fallback.sendRequest(from: from, to: to);
+  Future<void> sendRequest({required String from, required String to}) async {
+    if (from == to) return;
+
+    final fromUid = await _uidFor(from);
+    final toUid = await _uidFor(to);
+    if (fromUid == null || toUid == null) return;
+
+    final doc = _connections.doc(pairId(from, to));
+
+    // Checked rather than blindly written: set() would overwrite an accepted
+    // connection back to pending, which is a way to silently un-friend someone.
+    if ((await doc.get()).exists) return;
+
+    try {
+      await doc.set({
+        'users': [from, to]..sort(),
+        'uids': [fromUid, toUid],
+        'fromUser': from,
+        'toUser': to,
+        'fromUid': fromUid,
+        'toUid': toUid,
+        'accepted': false,
+        'requestedAt': FieldValue.serverTimestamp(),
+      });
+    } on FirebaseException {
+      // Lost a race with the other side asking first. Already related either
+      // way, so there is nothing left to do.
+    }
+  }
 
   @override
-  Future<void> acceptRequest({required String me, required String from}) =>
-      fallback.acceptRequest(me: me, from: from);
+  Future<void> acceptRequest({required String me, required String from}) async {
+    // The rules enforce that only the recipient may do this; the client only
+    // has to ask correctly.
+    try {
+      await _connections.doc(pairId(me, from)).update({
+        'accepted': true,
+        'respondedAt': FieldValue.serverTimestamp(),
+      });
+    } on FirebaseException {
+      // No such request, or not ours to accept.
+    }
+  }
 
   @override
-  Future<void> removeConnection({required String me, required String other}) =>
-      fallback.removeConnection(me: me, other: other);
+  Future<void> removeConnection({
+    required String me,
+    required String other,
+  }) async {
+    try {
+      await _connections.doc(pairId(me, other)).delete();
+    } on FirebaseException {
+      // Already gone.
+    }
+  }
+
+  // --- Profile views -------------------------------------------------------
+
+  @override
+  Future<ResultPage<ProfileView>> viewersOf(
+    String username, {
+    Object? cursor,
+    int limit = 12,
+  }) async {
+    final uid = await _uidFor(username);
+    if (uid == null) return const ResultPage.empty();
+
+    var query = _profileViews
+        .where('profileUid', isEqualTo: uid)
+        .orderBy('viewedAt', descending: true)
+        .limit(limit);
+    if (cursor is DocumentSnapshot) query = query.startAfterDocument(cursor);
+
+    final snapshot = await query.get();
+    if (snapshot.docs.isEmpty) return const ResultPage.empty();
+
+    return ResultPage(
+      items: [
+        for (final doc in snapshot.docs)
+          ProfileView(
+            viewer: doc.data()['viewerUsername'] as String? ?? '',
+            profileId: username,
+            viewedAt:
+                (doc.data()['viewedAt'] as Timestamp?)?.toDate() ??
+                DateTime.now(),
+          ),
+      ],
+      cursor: snapshot.docs.last,
+      hasMore: snapshot.docs.length == limit,
+    );
+  }
 
   @override
   Future<void> recordView({
     required String viewer,
     required String profileId,
-  }) => fallback.recordView(viewer: viewer, profileId: profileId);
+  }) async {
+    // Looking at your own profile is not a visit.
+    if (viewer == profileId) return;
+
+    final viewerUid = await _uidFor(viewer);
+    final profileUid = await _uidFor(profileId);
+    if (viewerUid == null || profileUid == null) return;
+
+    // The id is the pair, so a repeat visit overwrites rather than adding a
+    // row. The list answers who looked, not who refreshed most.
+    try {
+      await _profileViews.doc('${viewerUid}_$profileUid').set({
+        'viewerUid': viewerUid,
+        'profileUid': profileUid,
+        'viewerUsername': viewer,
+        'profileUsername': profileId,
+        'viewedAt': FieldValue.serverTimestamp(),
+      });
+    } on FirebaseException {
+      // A failed visit record is not worth interrupting anyone's browsing.
+    }
+  }
+
+  // --- Not yet migrated ----------------------------------------------------
+
+  @override
+  Future<ResultPage<FeedPost>> feed({Object? cursor, int limit = 8}) =>
+      fallback.feed(cursor: cursor, limit: limit);
 }
