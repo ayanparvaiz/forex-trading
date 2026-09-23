@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 import '../i18n/strings.dart';
 import '../models/connection.dart';
@@ -250,7 +251,17 @@ class FirestoreCommunityRepository implements CommunityRepository {
 
     // A single key lookup. The sorted id means finding the relationship between
     // two specific people needs no query at all.
-    final data = (await _connections.doc(pairId(me, other)).get()).data();
+    //
+    // "No relationship" is the common answer here, and it must not be able to
+    // take the profile screen down with it: a refused or failed read means the
+    // Connect button shows, which is the right default either way.
+    Map<String, dynamic>? data;
+    try {
+      data = (await _connections.doc(pairId(me, other)).get()).data();
+    } on FirebaseException catch (error) {
+      debugPrint('connection status unavailable: ${error.code}');
+      return ConnectionStatus.none;
+    }
     if (data == null) return ConnectionStatus.none;
 
     if (data['accepted'] == true) return ConnectionStatus.connected;

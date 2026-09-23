@@ -189,7 +189,22 @@ service cloud.firestore {
       //
       // Drop a clause and the matching query is refused outright, even when
       // every document it would return is one this user may read.
-      allow read: if isSignedIn()
+      // get and list are split because they fail differently.
+      //
+      // Asking for a connection that does not exist is the normal case — it is
+      // how the app decides whether to show a Connect button. On a missing
+      // document `resource` is null, so every clause below would be reading a
+      // field off nothing and the read is refused. A refusal for "no such
+      // relationship" is wrong and, worse, indistinguishable from a real
+      // permission problem, which is exactly how it broke every profile.
+      allow get: if isSignedIn()
+        && (resource == null
+            || resource.data.accepted == true
+            || request.auth.uid in resource.data.uids
+            || request.auth.uid == resource.data.toUid
+            || request.auth.uid == resource.data.fromUid);
+
+      allow list: if isSignedIn()
         && (resource.data.accepted == true
             || request.auth.uid in resource.data.uids
             || request.auth.uid == resource.data.toUid
