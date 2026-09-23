@@ -4,7 +4,7 @@ import '../core/calculations.dart';
 import '../data/account_scope.dart';
 import '../data/account_store.dart';
 import '../data/avatars.dart';
-import '../data/community_repository.dart';
+import '../data/firestore_community_repository.dart';
 import '../data/session_controller.dart';
 import '../i18n/strings.dart';
 import '../models/trade.dart';
@@ -186,7 +186,7 @@ class _ProfileButton extends StatelessWidget {
                   openProfile(
                     context,
                     username,
-                    LocalCommunityRepository(language: session.language),
+                    buildCommunityRepository(session.language),
                   );
                 },
                 icon: const Icon(Icons.person_outline, size: 18),

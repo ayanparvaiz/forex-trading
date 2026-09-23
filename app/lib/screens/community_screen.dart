@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/account_scope.dart';
 import '../data/avatars.dart';
 import '../data/community_repository.dart';
+import '../data/firestore_community_repository.dart';
 import '../data/page.dart';
 import '../data/session_controller.dart';
 import '../i18n/strings.dart';
@@ -50,7 +51,7 @@ class CommunityScreen extends StatelessWidget {
     final s = context.s;
     final language = context.session.language;
 
-    final repository = LocalCommunityRepository(language: language);
+    final repository = buildCommunityRepository(language);
     final you = _you(context);
 
     return DefaultTabController(

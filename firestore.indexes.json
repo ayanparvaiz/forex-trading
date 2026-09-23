@@ -6,21 +6,18 @@
   ],
   "indexes": [
     {
-      "comment": "Leaderboard: ranked by discipline, never by profit.",
-      "collectionGroup": "leaderboard",
+      "comment": "Leaderboard reads profiles directly: discipline first, trade count as the tiebreak.",
+      "collectionGroup": "users",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "disciplineScore", "order": "DESCENDING" },
-        { "fieldPath": "tradeCount", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "comment": "Leaderboard filtered to a single learning cohort.",
-      "collectionGroup": "leaderboard",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "cohort", "order": "ASCENDING" },
-        { "fieldPath": "disciplineScore", "order": "DESCENDING" }
+        {
+          "fieldPath": "disciplineScore",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "tradeCount",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
@@ -28,8 +25,14 @@
       "collectionGroup": "posts",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "symbol", "order": "ASCENDING" },
-        { "fieldPath": "postedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "symbol",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "postedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
@@ -37,8 +40,14 @@
       "collectionGroup": "posts",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "expiresAt", "order": "ASCENDING" },
-        { "fieldPath": "postedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "expiresAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "postedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
@@ -46,8 +55,14 @@
       "collectionGroup": "trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "openedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "openedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
@@ -55,8 +70,14 @@
       "collectionGroup": "connections",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "requestedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "requestedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
@@ -64,8 +85,14 @@
       "collectionGroup": "profileViews",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "profileId", "order": "ASCENDING" },
-        { "fieldPath": "viewedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "profileId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "viewedAt",
+          "order": "DESCENDING"
+        }
       ]
     }
   ],
