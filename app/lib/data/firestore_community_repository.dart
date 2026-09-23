@@ -578,7 +578,21 @@ class FirestoreCommunityRepository implements CommunityRepository {
       query = query.startAfterDocument(state.inner!);
     }
 
-    final snapshot = await query.get();
+    var snapshot = await query.get();
+
+    // Firestore's orderBy silently skips documents that do not carry the field
+    // at all — so a single post written without a reach value is invisible to
+    // this query, and a whole collection without one makes the feed look
+    // empty. Every write path sets reach, but an empty first page is cheap to
+    // check and an empty feed is not a failure anyone should have to debug.
+    if (snapshot.docs.isEmpty && state.inner == null) {
+      snapshot = await _posts
+          .where('expiresAt', isGreaterThan: Timestamp.now())
+          .orderBy('expiresAt', descending: true)
+          .limit(limit)
+          .get();
+    }
+
     if (snapshot.docs.isEmpty) return const ResultPage.empty();
 
     final now = Timestamp.now();
