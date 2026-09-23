@@ -170,7 +170,21 @@ service cloud.firestore {
     // key off request.auth.uid, and a username is not proof of anything.
 
     match /connections/{pair} {
-      allow read: if isSignedIn() && request.auth.uid in resource.data.uids;
+      // Both branches exist because rules are matched against the *query*, not
+      // just the documents it returns. Firestore has to prove up front that a
+      // query can only return readable documents, and it can only do that when
+      // a filter lines up with a clause here:
+      //
+      //   where('uids', arrayContains: me)  ->  me in resource.data.uids
+      //   where('toUid', isEqualTo: me)     ->  me == resource.data.toUid
+      //
+      // With only the first clause, listing incoming requests by toUid is
+      // rejected outright even though every document it would return is one
+      // this user is allowed to read.
+      allow read: if isSignedIn()
+        && (request.auth.uid in resource.data.uids
+            || request.auth.uid == resource.data.toUid
+            || request.auth.uid == resource.data.fromUid);
 
       // You may only send a request as yourself, and it starts unaccepted —
       // otherwise anyone could write themselves into someone's network.

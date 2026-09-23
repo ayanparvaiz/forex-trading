@@ -8,6 +8,7 @@ import '../models/connection.dart';
 import '../models/trader.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
+import '../widgets/paged_list.dart';
 
 /// Opens [username]'s profile.
 ///
@@ -515,13 +516,11 @@ class _BadgeCard extends StatelessWidget {
 class _PeopleCard extends StatelessWidget {
   const _PeopleCard({
     required this.title,
-    this.subtitle,
     required this.emptyLabel,
     required this.child,
   });
 
   final String title;
-  final String? subtitle;
   final String emptyLabel;
   final Widget child;
 
@@ -531,19 +530,7 @@ class _PeopleCard extends StatelessWidget {
       title: title,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (subtitle != null) ...[
-            Text(
-              subtitle!,
-              style: const TextStyle(
-                fontSize: 11.5,
-                color: AppColors.textMuted,
-              ),
-            ),
-            Gap.h12,
-          ],
-          child,
-        ],
+        children: [child],
       ),
     );
   }
@@ -573,6 +560,7 @@ class _PeopleListState<T> extends State<_PeopleList<T>> {
   Object? _cursor;
   bool _hasMore = true;
   bool _loading = true;
+  bool _failed = false;
 
   @override
   void initState() {
@@ -581,15 +569,31 @@ class _PeopleListState<T> extends State<_PeopleList<T>> {
   }
 
   Future<void> _more() async {
-    setState(() => _loading = true);
-    final page = await widget.fetch(cursor: _cursor, limit: widget.pageSize);
-    if (!mounted) return;
     setState(() {
-      _items.addAll(page.items);
-      _cursor = page.cursor;
-      _hasMore = page.hasMore;
-      _loading = false;
+      _loading = true;
+      _failed = false;
     });
+
+    try {
+      final page = await widget.fetch(cursor: _cursor, limit: widget.pageSize);
+      if (!mounted) return;
+      setState(() {
+        _items.addAll(page.items);
+        _cursor = page.cursor;
+        _hasMore = page.hasMore;
+        _loading = false;
+      });
+    } catch (error) {
+      // Without this the spinner runs forever on any failure — a denied query,
+      // a dropped connection — and the screen looks like it is still working
+      // when it has already given up.
+      debugPrint('people list failed: $error');
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _failed = true;
+      });
+    }
   }
 
   @override
@@ -606,6 +610,36 @@ class _PeopleListState<T> extends State<_PeopleList<T>> {
               color: AppColors.textMuted,
             ),
           ),
+        ),
+      );
+    }
+
+    if (_failed && _items.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: Gap.sm),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.cloud_off_outlined,
+              size: 16,
+              color: AppColors.textMuted,
+            ),
+            Gap.w8,
+            Expanded(
+              child: Text(
+                context.s.couldNotLoad,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: _more,
+              style: TextButton.styleFrom(foregroundColor: AppColors.brand),
+              child: Text(context.s.retry),
+            ),
+          ],
         ),
       );
     }
@@ -761,7 +795,12 @@ class _PendingRequests extends StatelessWidget {
   }
 }
 
-class _Viewers extends StatelessWidget {
+/// Summary row for the visitor list: a count, and a tap to open it.
+///
+/// The list itself lives on its own screen. Inlining it would push the rest of
+/// the profile off the page once anyone has more than a handful of visitors,
+/// and the number is what people actually check.
+class _Viewers extends StatefulWidget {
   const _Viewers({
     super.key,
     required this.username,
@@ -774,24 +813,160 @@ class _Viewers extends StatelessWidget {
   final Strings s;
 
   @override
+  State<_Viewers> createState() => _ViewersState();
+}
+
+class _ViewersState extends State<_Viewers> {
+  int? _count;
+  bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _failed = false);
+    try {
+      final count = await widget.repository.viewerCount(widget.username);
+      if (mounted) setState(() => _count = count);
+    } catch (error) {
+      debugPrint('viewer count failed: $error');
+      if (mounted) setState(() => _failed = true);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return _PeopleCard(
-      title: s.profileViewers,
-      subtitle: s.viewersArePrivate,
-      emptyLabel: s.noViewersYet,
-      child: _PeopleList<ProfileView>(
-        fetch: ({Object? cursor, int limit = 5}) =>
-            repository.viewersOf(username, cursor: cursor, limit: limit),
+    final s = widget.s;
+    final count = _count;
+
+    return SectionCard(
+      padding: EdgeInsets.zero,
+      child: InkWell(
+        onTap: count == null || count == 0
+            ? null
+            : () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => ProfileViewersScreen(
+                    username: widget.username,
+                    repository: widget.repository,
+                  ),
+                ),
+              ),
+        borderRadius: Radii.card,
+        child: Padding(
+          padding: const EdgeInsets.all(Gap.lg),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.visibility_outlined,
+                size: 20,
+                color: AppColors.discipline,
+              ),
+              Gap.w12,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      s.profileViewers,
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    Text(
+                      s.viewersArePrivate,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_failed)
+                TextButton(
+                  onPressed: _load,
+                  style: TextButton.styleFrom(foregroundColor: AppColors.brand),
+                  child: Text(s.retry),
+                )
+              else if (count == null)
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.textMuted,
+                  ),
+                )
+              else ...[
+                Text(
+                  '$count',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    fontFeatures: tabularFigures,
+                    color: AppColors.discipline,
+                  ),
+                ),
+                if (count > 0) ...[
+                  Gap.w4,
+                  const Icon(
+                    Icons.chevron_right,
+                    size: 20,
+                    color: AppColors.textMuted,
+                  ),
+                ],
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The full visitor list, paged.
+class ProfileViewersScreen extends StatelessWidget {
+  const ProfileViewersScreen({
+    super.key,
+    required this.username,
+    required this.repository,
+  });
+
+  final String username;
+  final CommunityRepository repository;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.s;
+
+    return Scaffold(
+      appBar: AppBar(title: Text(s.profileViewers)),
+      body: PagedListView<ProfileView>(
+        padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.xxl),
+        pageSize: 15,
         emptyLabel: s.noViewersYet,
-        rowBuilder: (context, view) => FutureBuilder<Trader?>(
+        fetch: ({Object? cursor, int limit = 15}) =>
+            repository.viewersOf(username, cursor: cursor, limit: limit),
+        itemBuilder: (context, view, _) => FutureBuilder<Trader?>(
           future: repository.trader(view.viewer),
           builder: (context, snapshot) {
             final trader = snapshot.data;
-            if (trader == null) return const SizedBox(height: 44);
-            return _PersonRow(
-              trader: trader,
-              repository: repository,
-              subtitle: s.timeAgo(view.viewedAt),
+            if (trader == null) return const SizedBox(height: 52);
+
+            return Container(
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: Radii.tile,
+                border: Border.all(color: AppColors.border),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+              child: _PersonRow(
+                trader: trader,
+                repository: repository,
+                subtitle: s.timeAgo(view.viewedAt),
+              ),
             );
           },
         ),

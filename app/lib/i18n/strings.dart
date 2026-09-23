@@ -371,6 +371,10 @@ class Strings {
         'No connections yet.\nOpen someone from the leaderboard and send a request.',
       );
 
+  String get couldNotLoad => _t('আনা গেল না।', 'Could not load.');
+  String get retry => _t('আবার', 'Retry');
+  String get showAll => _t('সব দেখুন', 'See all');
+
   String get profileViewers => _t('কে দেখেছে', 'Who viewed you');
   String get viewedYourProfile =>
       _t('আপনার প্রোফাইল দেখেছে', 'viewed your profile');

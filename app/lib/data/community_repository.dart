@@ -22,6 +22,9 @@ abstract class CommunityRepository {
 
   Future<Trader?> trader(String username);
 
+  /// How many distinct people have opened [username]'s profile.
+  Future<int> viewerCount(String username);
+
   /// Who opened [username]'s profile, most recent first.
   Future<ResultPage<ProfileView>> viewersOf(
     String username, {
@@ -287,6 +290,10 @@ class LocalCommunityRepository implements CommunityRepository {
       jsonEncode(trimmed.map((v) => v.toJson()).toList()),
     );
   }
+
+  @override
+  Future<int> viewerCount(String username) async =>
+      (await _views()).where((v) => v.profileId == username).length;
 
   @override
   Future<ResultPage<ProfileView>> viewersOf(

@@ -313,6 +313,17 @@ class FirestoreCommunityRepository implements CommunityRepository {
   // --- Profile views -------------------------------------------------------
 
   @override
+  Future<int> viewerCount(String username) async {
+    final uid = await _uidFor(username);
+    if (uid == null) return 0;
+
+    // An aggregate: the count costs one read rather than one per visitor.
+    final result =
+        await _profileViews.where('profileUid', isEqualTo: uid).count().get();
+    return result.count ?? 0;
+  }
+
+  @override
   Future<ResultPage<ProfileView>> viewersOf(
     String username, {
     Object? cursor,
