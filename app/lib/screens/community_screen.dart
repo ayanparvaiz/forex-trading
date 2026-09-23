@@ -99,33 +99,183 @@ class _Leaderboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PagedListView<Trader>(
-      // Rebuild from scratch when the language changes, since the rows and the
-      // cohort labels come back translated.
-      key: ValueKey(s.lang),
-      padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.xxl),
-      pageSize: 10,
-      fetch: ({Object? cursor, int limit = 10}) async {
-        final page = await repository.leaderboard(cursor: cursor, limit: limit);
-        final me = you;
-        if (me == null) return page;
+    return Column(
+      children: [
+        Expanded(
+          child: PagedListView<Trader>(
+            // Rebuild from scratch when the language changes, since the rows
+            // and the cohort labels come back translated.
+            key: ValueKey(s.lang),
+            padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.lg),
+            pageSize: 10,
+            maxItems: CommunityRepository.leaderboardLimit,
+            fetch: ({Object? cursor, int limit = 10}) async {
+              final page = await repository.leaderboard(
+                cursor: cursor,
+                limit: limit,
+              );
+              final me = you;
+              if (me == null) return page;
 
-        // Swap the signed-in trader's live numbers in wherever their row lands.
-        return ResultPage(
-          items: [
-            for (final t in page.items)
-              if (t.id == me.id) me else t,
-          ],
-          cursor: page.cursor,
-          hasMore: page.hasMore,
-        );
-      },
-      header: _RankingExplainer(s: s),
-      itemBuilder: (context, trader, index) => _LeaderboardRow(
-        rank: index + 1,
-        trader: trader,
-        s: s,
-        repository: repository,
+              // Swap the signed-in trader's live numbers in wherever their row
+              // lands.
+              return ResultPage(
+                items: [
+                  for (final t in page.items)
+                    if (t.id == me.id) me else t,
+                ],
+                cursor: page.cursor,
+                hasMore: page.hasMore,
+              );
+            },
+            header: _RankingExplainer(s: s),
+            itemBuilder: (context, trader, index) => _LeaderboardRow(
+              rank: index + 1,
+              trader: trader,
+              s: s,
+              repository: repository,
+            ),
+          ),
+        ),
+        if (you != null)
+          _YourRankBar(you: you!, s: s, repository: repository),
+      ],
+    );
+  }
+}
+
+/// The signed-in trader's own position, pinned below the list.
+///
+/// The board stops at fifty, so most people will never scroll to their own row
+/// — and the one position anybody actually cares about is their own. Keeping it
+/// fixed means it is answered before the list is even read.
+class _YourRankBar extends StatefulWidget {
+  const _YourRankBar({
+    required this.you,
+    required this.s,
+    required this.repository,
+  });
+
+  final Trader you;
+  final Strings s;
+  final CommunityRepository repository;
+
+  @override
+  State<_YourRankBar> createState() => _YourRankBarState();
+}
+
+class _YourRankBarState extends State<_YourRankBar> {
+  int? _rank;
+  bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(_YourRankBar old) {
+    super.didUpdateWidget(old);
+    // A trade just closed and the score moved — the position may have too.
+    if (old.you.disciplineScore != widget.you.disciplineScore) _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final rank = await widget.repository.rankOf(widget.you.id);
+      if (mounted) setState(() => _rank = rank);
+    } catch (error) {
+      debugPrint('rank lookup failed: $error');
+      if (mounted) setState(() => _failed = true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.s;
+    final rank = _rank;
+    final inList =
+        rank != null && rank <= CommunityRepository.leaderboardLimit;
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(top: BorderSide(color: AppColors.border)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.md),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 46,
+                child: _failed
+                    ? const Icon(
+                        Icons.cloud_off_outlined,
+                        size: 16,
+                        color: AppColors.textMuted,
+                      )
+                    : rank == null
+                    ? const SizedBox(
+                        width: 15,
+                        height: 15,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.textMuted,
+                        ),
+                      )
+                    : Text(
+                        '#$rank',
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          fontFeatures: tabularFigures,
+                          color: AppColors.brand,
+                        ),
+                      ),
+              ),
+              Text(widget.you.avatarEmoji, style: const TextStyle(fontSize: 22)),
+              Gap.w12,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      s.yourPosition,
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      // Only say "outside the list" once the rank is known —
+                      // guessing while it loads would flash the wrong message.
+                      rank == null || inList
+                          ? s.topN(CommunityRepository.leaderboardLimit)
+                          : s.outsideTop,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                '${widget.you.badge.tier.emoji} '
+                '${widget.you.disciplineScore.toStringAsFixed(0)}',
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  fontFeatures: tabularFigures,
+                  color: AppColors.discipline,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

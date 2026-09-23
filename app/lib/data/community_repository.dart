@@ -22,6 +22,19 @@ abstract class CommunityRepository {
 
   Future<Trader?> trader(String username);
 
+  /// Where [username] sits on the leaderboard, 1-based, or null if unranked.
+  ///
+  /// Asked separately from the list because the list stops at
+  /// [leaderboardLimit]. Someone in 300th place still has to be told where
+  /// they stand, and paging 300 rows to find out would be absurd.
+  Future<int?> rankOf(String username);
+
+  /// How many rows the leaderboard shows.
+  ///
+  /// A cap rather than endless scrolling: past the first page or two nobody is
+  /// reading names, and a trader's own position is pinned on screen anyway.
+  static const leaderboardLimit = 50;
+
   /// How many distinct people have opened [username]'s profile.
   Future<int> viewerCount(String username);
 
@@ -156,6 +169,13 @@ class LocalCommunityRepository implements CommunityRepository {
       if (t.id == username) return t;
     }
     return null;
+  }
+
+  @override
+  Future<int?> rankOf(String username) async {
+    final ranked = MockCommunity.rank(MockCommunity.traders(language));
+    final index = ranked.indexWhere((t) => t.id == username);
+    return index < 0 ? null : index + 1;
   }
 
   // --- Connections ---------------------------------------------------------

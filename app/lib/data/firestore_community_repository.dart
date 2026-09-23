@@ -159,6 +159,26 @@ class FirestoreCommunityRepository implements CommunityRepository {
     return data == null ? null : _traderFrom(data);
   }
 
+  @override
+  Future<int?> rankOf(String username) async {
+    final me = await trader(username);
+    if (me == null) return null;
+
+    // Counting who is ahead is one aggregate read, whatever the size of the
+    // board. Walking the list to find a position would cost a read per row and
+    // get slower as the app succeeds.
+    //
+    // Ties are resolved by trade count in the list order, but not here: two
+    // people on the same score are both told the better of the two positions,
+    // which is the kinder and cheaper answer.
+    final ahead = await _users
+        .where('disciplineScore', isGreaterThan: me.disciplineScore)
+        .count()
+        .get();
+
+    return (ahead.count ?? 0) + 1;
+  }
+
   // --- Connections ---------------------------------------------------------
 
   @override

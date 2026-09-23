@@ -349,6 +349,14 @@ class Strings {
   String get profile => _t('প্রোফাইল', 'Profile');
   String get journalStreakLabel => _t('জার্নাল স্ট্রিক', 'Journal streak');
   String get rank => _t('র‍্যাংক', 'Rank');
+  String get yourPosition => _t('আপনার অবস্থান', 'Your position');
+  String topN(int n) => _t('শীর্ষ $n', 'Top $n');
+  String get unranked =>
+      _t('এখনো র‍্যাংক হয়নি', 'Not ranked yet');
+  String get outsideTop => _t(
+        'আপনি তালিকার বাইরে — উপরে উঠতে নিয়ম মেনে ট্রেড করুন।',
+        'You are outside the list. Follow your rules to climb.',
+      );
   String get cohort => _t('ব্যাচ', 'Batch');
 
   String get connections => _t('কানেকশন', 'Connections');

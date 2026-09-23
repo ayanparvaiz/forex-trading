@@ -17,6 +17,7 @@ class PagedListView<T> extends StatefulWidget {
     this.header,
     this.emptyLabel,
     this.pageSize = 12,
+    this.maxItems,
     this.padding = const EdgeInsets.all(Gap.lg),
     this.separator = Gap.h8,
   });
@@ -29,6 +30,13 @@ class PagedListView<T> extends StatefulWidget {
 
   final String? emptyLabel;
   final int pageSize;
+
+  /// Hard stop on how many rows the list will ever show.
+  ///
+  /// Not a page size — a ceiling. Past it the list stops asking for more, so a
+  /// capped leaderboard costs the same whether there are sixty accounts or
+  /// sixty thousand.
+  final int? maxItems;
   final EdgeInsets padding;
   final Widget separator;
 
@@ -78,15 +86,22 @@ class PagedListViewState<T> extends State<PagedListView<T>> {
     });
 
     try {
+      final cap = widget.maxItems;
+      // Ask for only what is left under the cap, so the last page does not
+      // fetch rows that are about to be thrown away.
+      final room = cap == null ? widget.pageSize : cap - _items.length;
+
       final page = await widget.fetch(
         cursor: _cursor,
-        limit: widget.pageSize,
+        limit: room < widget.pageSize ? room : widget.pageSize,
       );
       if (!mounted) return;
       setState(() {
         _items.addAll(page.items);
         _cursor = page.cursor;
-        _hasMore = page.hasMore;
+        // addAll already counted the new rows; adding them again here would
+        // stop the list a page early.
+        _hasMore = page.hasMore && (cap == null || _items.length < cap);
         _loading = false;
         _firstLoadDone = true;
       });
