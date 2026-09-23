@@ -344,6 +344,18 @@ class Strings {
   String get brokeRules => _t('নিয়ম ভেঙেছে', 'Broke the rules');
   String get you => _t('আপনি', 'You');
 
+  // --- Reactions ----------------------------------------------------------
+
+  String get comments => _t('মন্তব্য', 'Comments');
+  String get writeComment => _t('কিছু লিখুন…', 'Write something…');
+  String get send => _t('পাঠান', 'Send');
+  String get noComments =>
+      _t('এখনো কোনো মন্তব্য নেই।', 'No comments yet.');
+  String get commentGuideline => _t(
+        'সিগন্যাল চাইবেন না, দেবেন না। কী শিখলেন সেটা নিয়ে লিখুন।',
+        'No signals asked for or given. Write about what was learned.',
+      );
+
   // --- Profile and connections --------------------------------------------
 
   String get profile => _t('প্রোফাইল', 'Profile');

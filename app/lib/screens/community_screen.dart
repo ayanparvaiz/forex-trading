@@ -4,13 +4,17 @@ import '../data/account_scope.dart';
 import '../data/avatars.dart';
 import '../data/community_repository.dart';
 import '../data/firestore_community_repository.dart';
+import '../data/notification_repository.dart';
 import '../data/page.dart';
 import '../data/session_controller.dart';
 import '../i18n/strings.dart';
+import '../models/app_notification.dart';
+import '../models/post_comment.dart';
 import '../models/trader.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/paged_list.dart';
+import 'post_comments_sheet.dart';
 import 'profile_screen.dart';
 
 /// Leaderboard and shared journal feed.
@@ -137,8 +141,7 @@ class _Leaderboard extends StatelessWidget {
             ),
           ),
         ),
-        if (you != null)
-          _YourRankBar(you: you!, s: s, repository: repository),
+        if (you != null) _YourRankBar(you: you!, s: s, repository: repository),
       ],
     );
   }
@@ -195,8 +198,7 @@ class _YourRankBarState extends State<_YourRankBar> {
   Widget build(BuildContext context) {
     final s = widget.s;
     final rank = _rank;
-    final inList =
-        rank != null && rank <= CommunityRepository.leaderboardLimit;
+    final inList = rank != null && rank <= CommunityRepository.leaderboardLimit;
 
     return Container(
       decoration: const BoxDecoration(
@@ -236,7 +238,10 @@ class _YourRankBarState extends State<_YourRankBar> {
                         ),
                       ),
               ),
-              Text(widget.you.avatarEmoji, style: const TextStyle(fontSize: 22)),
+              Text(
+                widget.you.avatarEmoji,
+                style: const TextStyle(fontSize: 22),
+              ),
               Gap.w12,
               Expanded(
                 child: Column(
@@ -611,39 +616,166 @@ class _FeedCard extends StatelessWidget {
                 dense: true,
               ),
               const Spacer(),
-              const Icon(
-                Icons.favorite_border,
-                size: 16,
-                color: AppColors.textMuted,
-              ),
-              Gap.w4,
-              Text(
-                '${post.claps}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textMuted,
-                  fontFeatures: tabularFigures,
-                ),
-              ),
-              Gap.w16,
-              const Icon(
-                Icons.mode_comment_outlined,
-                size: 15,
-                color: AppColors.textMuted,
-              ),
-              Gap.w4,
-              Text(
-                '${post.commentCount}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textMuted,
-                  fontFeatures: tabularFigures,
-                ),
-              ),
+              _PostActions(post: post, repository: repository),
             ],
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Like and comment, with counts that move as other people act.
+///
+/// The counts come off a listener on the post document rather than the page
+/// that loaded it, so a reaction from someone else appears without a refresh —
+/// and the card does not have to refetch the whole feed to learn about it.
+class _PostActions extends StatefulWidget {
+  const _PostActions({required this.post, required this.repository});
+
+  final FeedPost post;
+  final CommunityRepository repository;
+
+  @override
+  State<_PostActions> createState() => _PostActionsState();
+}
+
+class _PostActionsState extends State<_PostActions> {
+  bool _liked = false;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMyReaction();
+  }
+
+  Future<void> _loadMyReaction() async {
+    final uid = context.session.uid;
+    if (uid == null) return;
+
+    final liked = await widget.repository.hasClapped(widget.post.id, uid);
+    if (mounted) setState(() => _liked = liked);
+  }
+
+  Future<void> _toggle() async {
+    final session = context.session;
+    final me = session.profile;
+    final uid = session.uid;
+    if (me == null || uid == null || _busy) return;
+
+    // Flipped before the write so the button answers immediately; the counter
+    // beside it is the streamed truth and will correct this if it failed.
+    setState(() {
+      _liked = !_liked;
+      _busy = true;
+    });
+
+    final liked = await widget.repository.toggleClap(widget.post.id, uid);
+
+    // Only a new like is worth telling someone about. Un-liking is not news,
+    // and notifying on every toggle would let one person spam a bell.
+    if (liked) {
+      final authorUid = await widget.repository.postAuthorUid(widget.post.id);
+      if (authorUid != null) {
+        await notificationRepository.notify(
+          recipientUid: authorUid,
+          kind: NotificationKind.clap,
+          actorUid: uid,
+          actorUsername: me.username,
+          actorName: me.displayName,
+          actorAvatarId: me.avatarId,
+          postId: widget.post.id,
+        );
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _liked = liked;
+        _busy = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<PostCounters>(
+      stream: widget.repository.watchPost(widget.post.id),
+      builder: (context, snapshot) {
+        // Falls back to the numbers the page was loaded with, so the row never
+        // flashes zeros while the listener connects.
+        final counters =
+            snapshot.data ??
+            PostCounters(
+              claps: widget.post.claps,
+              commentCount: widget.post.commentCount,
+            );
+
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            InkWell(
+              onTap: _toggle,
+              borderRadius: Radii.pill,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _liked ? Icons.favorite : Icons.favorite_border,
+                      size: 16,
+                      color: _liked ? AppColors.loss : AppColors.textMuted,
+                    ),
+                    Gap.w4,
+                    Text(
+                      '${counters.claps}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: _liked ? FontWeight.w700 : FontWeight.w400,
+                        color: _liked ? AppColors.loss : AppColors.textMuted,
+                        fontFeatures: tabularFigures,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Gap.w8,
+            InkWell(
+              onTap: () => showPostComments(
+                context,
+                postId: widget.post.id,
+                repository: widget.repository,
+              ),
+              borderRadius: Radii.pill,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.mode_comment_outlined,
+                      size: 15,
+                      color: AppColors.textMuted,
+                    ),
+                    Gap.w4,
+                    Text(
+                      '${counters.commentCount}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                        fontFeatures: tabularFigures,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../i18n/strings.dart';
 import '../models/connection.dart';
+import '../models/post_comment.dart';
 import '../models/trader.dart';
 import 'mock_community.dart';
 import 'page.dart';
@@ -76,6 +77,31 @@ abstract class CommunityRepository {
   Future<void> removeConnection({required String me, required String other});
 
   Future<void> recordView({required String viewer, required String profileId});
+
+  // --- Post reactions ------------------------------------------------------
+
+  /// Live counts for one post.
+  Stream<PostCounters> watchPost(String postId);
+
+  /// Whether [uid] has already reacted to [postId].
+  Future<bool> hasClapped(String postId, String uid);
+
+  /// Adds or removes [uid]'s reaction. Returns the new state.
+  Future<bool> toggleClap(String postId, String uid);
+
+  Stream<List<PostComment>> watchComments(String postId, {int limit = 50});
+
+  Future<void> addComment({
+    required String postId,
+    required String uid,
+    required String username,
+    required String name,
+    required int avatarId,
+    required String body,
+  });
+
+  /// Who wrote [postId], so a reaction can notify them.
+  Future<String?> postAuthorUid(String postId);
 }
 
 /// On-device implementation over the seeded accounts.
@@ -179,6 +205,36 @@ class LocalCommunityRepository implements CommunityRepository {
 
   @override
   Future<String?> uidFor(String username) async => username;
+
+  // Reactions are a Firestore feature. Offline, a post has no live counts and
+  // nothing to react to — the empty implementations keep the UI working rather
+  // than making every card check which backend it got.
+
+  @override
+  Stream<PostCounters> watchPost(String postId) => const Stream.empty();
+
+  @override
+  Future<bool> hasClapped(String postId, String uid) async => false;
+
+  @override
+  Future<bool> toggleClap(String postId, String uid) async => false;
+
+  @override
+  Stream<List<PostComment>> watchComments(String postId, {int limit = 50}) =>
+      Stream.value(const []);
+
+  @override
+  Future<void> addComment({
+    required String postId,
+    required String uid,
+    required String username,
+    required String name,
+    required int avatarId,
+    required String body,
+  }) async {}
+
+  @override
+  Future<String?> postAuthorUid(String postId) async => null;
 
   @override
   Future<int?> rankOf(String username) async {

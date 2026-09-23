@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 
 import '../i18n/strings.dart';
 import '../models/connection.dart';
+import '../models/post_comment.dart';
 import '../models/trader.dart';
 import '../models/user_profile.dart';
 import '../firebase/firebase_bootstrap.dart';
@@ -457,6 +458,127 @@ class FirestoreCommunityRepository implements CommunityRepository {
       cursor: snapshot.docs.last,
       hasMore: snapshot.docs.length == limit,
     );
+  }
+
+  // --- Post reactions ------------------------------------------------------
+
+  @override
+  Stream<PostCounters> watchPost(String postId) {
+    // Only the counts are streamed. The text of a post never changes, so
+    // re-reading the whole document on every reaction would be waste.
+    return _posts.doc(postId).snapshots().map((doc) {
+      final data = doc.data() ?? const {};
+      return PostCounters(
+        claps: (data['claps'] as num?)?.toInt() ?? 0,
+        commentCount: (data['commentCount'] as num?)?.toInt() ?? 0,
+      );
+    });
+  }
+
+  @override
+  Future<bool> hasClapped(String postId, String uid) async {
+    try {
+      return (await _posts.doc(postId).collection('claps').doc(uid).get())
+          .exists;
+    } on FirebaseException {
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> toggleClap(String postId, String uid) async {
+    final clap = _posts.doc(postId).collection('claps').doc(uid);
+    final post = _posts.doc(postId);
+
+    try {
+      final existing = await clap.get();
+      final liked = !existing.exists;
+
+      // The clap document and the counter move together. One without the other
+      // is a count that drifts from the thing it is counting — and because the
+      // document id is the uid, pressing the button twice cannot double it.
+      final batch = _db.batch();
+      if (liked) {
+        batch.set(clap, {'at': FieldValue.serverTimestamp()});
+        batch.update(post, {'claps': FieldValue.increment(1)});
+      } else {
+        batch.delete(clap);
+        batch.update(post, {'claps': FieldValue.increment(-1)});
+      }
+      await batch.commit();
+      return liked;
+    } on FirebaseException catch (error) {
+      debugPrint('clap failed: ${error.code}');
+      return (await clap.get()).exists;
+    }
+  }
+
+  @override
+  Stream<List<PostComment>> watchComments(String postId, {int limit = 50}) {
+    return _posts
+        .doc(postId)
+        .collection('comments')
+        .orderBy('createdAt', descending: false)
+        .limit(limit)
+        .snapshots()
+        .map(
+          (snapshot) => [
+            for (final doc in snapshot.docs)
+              PostComment(
+                id: doc.id,
+                authorUsername: doc.data()['authorUsername'] as String? ?? '',
+                authorName: doc.data()['authorName'] as String? ?? '',
+                authorAvatarId:
+                    (doc.data()['authorAvatarId'] as num?)?.toInt() ?? 1,
+                body: doc.data()['body'] as String? ?? '',
+                createdAt:
+                    (doc.data()['createdAt'] as Timestamp?)?.toDate() ??
+                    DateTime.now(),
+              ),
+          ],
+        );
+  }
+
+  @override
+  Future<void> addComment({
+    required String postId,
+    required String uid,
+    required String username,
+    required String name,
+    required int avatarId,
+    required String body,
+  }) async {
+    final trimmed = body.trim();
+    if (trimmed.isEmpty) return;
+
+    final post = _posts.doc(postId);
+    try {
+      final batch = _db.batch();
+      batch.set(post.collection('comments').doc(), {
+        'authorUid': uid,
+        'authorUsername': username,
+        // Copied in so a thread costs one query rather than a read per row.
+        'authorName': name,
+        'authorAvatarId': avatarId,
+        'body': trimmed.length > PostComment.maxLength
+            ? trimmed.substring(0, PostComment.maxLength)
+            : trimmed,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      batch.update(post, {'commentCount': FieldValue.increment(1)});
+      await batch.commit();
+    } on FirebaseException catch (error) {
+      debugPrint('comment failed: ${error.code}');
+    }
+  }
+
+  @override
+  Future<String?> postAuthorUid(String postId) async {
+    try {
+      return (await _posts.doc(postId).get()).data()?['authorUid'] as String?;
+    } on FirebaseException {
+      return null;
+    }
   }
 
   FeedPost _postFrom(
