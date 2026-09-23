@@ -170,19 +170,28 @@ service cloud.firestore {
     // key off request.auth.uid, and a username is not proof of anything.
 
     match /connections/{pair} {
-      // Both branches exist because rules are matched against the *query*, not
+      // An accepted connection is public; a pending one is not.
+      //
+      // Who is connected to whom is the visible part of any professional
+      // network, and profiles show both a count and a list. Keeping that
+      // private made it impossible to open anyone else's profile at all. A
+      // request that has not been answered is a different matter — it stays
+      // between the two people involved until one of them accepts.
+      //
+      // Each clause exists because rules are matched against the *query*, not
       // just the documents it returns. Firestore has to prove up front that a
-      // query can only return readable documents, and it can only do that when
-      // a filter lines up with a clause here:
+      // query can only return readable documents, which it can only do when a
+      // filter lines up with a clause here:
       //
-      //   where('uids', arrayContains: me)  ->  me in resource.data.uids
-      //   where('toUid', isEqualTo: me)     ->  me == resource.data.toUid
+      //   where('accepted', isEqualTo: true)  ->  resource.data.accepted == true
+      //   where('uids', arrayContains: me)    ->  me in resource.data.uids
+      //   where('toUid', isEqualTo: me)       ->  me == resource.data.toUid
       //
-      // With only the first clause, listing incoming requests by toUid is
-      // rejected outright even though every document it would return is one
-      // this user is allowed to read.
+      // Drop a clause and the matching query is refused outright, even when
+      // every document it would return is one this user may read.
       allow read: if isSignedIn()
-        && (request.auth.uid in resource.data.uids
+        && (resource.data.accepted == true
+            || request.auth.uid in resource.data.uids
             || request.auth.uid == resource.data.toUid
             || request.auth.uid == resource.data.fromUid);
 

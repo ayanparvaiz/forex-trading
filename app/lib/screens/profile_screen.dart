@@ -53,6 +53,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int _connectionCount = 0;
   bool _loading = true;
   bool _busy = false;
+  bool _failed = false;
 
   /// Rebuilt to force the paged lists to refetch after a connection changes.
   int _listVersion = 0;
@@ -67,49 +68,77 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _load();
   }
 
+  /// Loads the profile.
+  ///
+  /// Everything here is wrapped. An await with no catch leaves the loading flag
+  /// set and the screen spins forever on any failure — a refused query, a
+  /// dropped connection — looking busy long after it gave up. That has already
+  /// happened twice on this screen; it is not allowed to happen a third time.
   Future<void> _load() async {
-    final trader = await widget.repository.trader(widget.username);
-    final count = await widget.repository.connectionCount(widget.username);
-
-    final me = _me;
-    var status = ConnectionStatus.none;
-    if (me != null && me != widget.username) {
-      status = await widget.repository.statusBetween(me, widget.username);
-      // Opening the page is the visit. Recorded after the read so it never
-      // shows the viewer their own arrival.
-      await widget.repository.recordView(
-        viewer: me,
-        profileId: widget.username,
-      );
-    }
-
-    if (!mounted) return;
     setState(() {
-      _trader = trader;
-      _status = status;
-      _connectionCount = count;
-      _loading = false;
+      _loading = true;
+      _failed = false;
     });
+
+    try {
+      final trader = await widget.repository.trader(widget.username);
+      final count = await widget.repository.connectionCount(widget.username);
+
+      final me = _me;
+      var status = ConnectionStatus.none;
+      if (me != null && me != widget.username) {
+        status = await widget.repository.statusBetween(me, widget.username);
+        // Opening the page is the visit. Recorded after the read so it never
+        // shows the viewer their own arrival.
+        await widget.repository.recordView(
+          viewer: me,
+          profileId: widget.username,
+        );
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _trader = trader;
+        _status = status;
+        _connectionCount = count;
+        _loading = false;
+      });
+    } catch (error) {
+      debugPrint('profile load failed: $error');
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _failed = true;
+      });
+    }
   }
 
   Future<void> _act(Future<void> Function() action) async {
     setState(() => _busy = true);
-    await action();
-    if (!mounted) return;
 
-    final me = _me;
-    final status = me == null
-        ? ConnectionStatus.none
-        : await widget.repository.statusBetween(me, widget.username);
-    final count = await widget.repository.connectionCount(widget.username);
+    try {
+      await action();
 
-    if (!mounted) return;
-    setState(() {
-      _status = status;
-      _connectionCount = count;
-      _busy = false;
-      _listVersion++;
-    });
+      final me = _me;
+      final status = me == null
+          ? ConnectionStatus.none
+          : await widget.repository.statusBetween(me, widget.username);
+      final count = await widget.repository.connectionCount(widget.username);
+
+      if (!mounted) return;
+      setState(() {
+        _status = status;
+        _connectionCount = count;
+        _busy = false;
+        _listVersion++;
+      });
+    } catch (error) {
+      debugPrint('profile action failed: $error');
+      if (!mounted) return;
+      // Clearing busy matters more than reporting: a stuck spinner on the
+      // connect button makes the whole profile look broken.
+      setState(() => _busy = false);
+    }
   }
 
   @override
@@ -128,9 +157,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
             )
           : trader == null
           ? Center(
-              child: Text(
-                '@${widget.username}',
-                style: const TextStyle(color: AppColors.textMuted),
+              child: Padding(
+                padding: const EdgeInsets.all(Gap.xl),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _failed
+                          ? Icons.cloud_off_outlined
+                          : Icons.person_off_outlined,
+                      size: 30,
+                      color: AppColors.textMuted,
+                    ),
+                    Gap.h12,
+                    Text(
+                      _failed ? s.couldNotLoad : '@${widget.username}',
+                      style: const TextStyle(color: AppColors.textMuted),
+                    ),
+                    if (_failed) ...[
+                      Gap.h12,
+                      FilledButton(onPressed: _load, child: Text(s.retry)),
+                    ],
+                  ],
+                ),
               ),
             )
           : ListView(
