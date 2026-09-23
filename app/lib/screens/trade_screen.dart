@@ -7,6 +7,7 @@ import '../i18n/strings.dart';
 import '../models/candle.dart';
 import '../models/instrument.dart';
 import '../models/trade.dart';
+import '../models/trade_preset.dart';
 import '../theme/app_theme.dart';
 import '../widgets/candle_chart.dart';
 import '../widgets/common.dart';
@@ -36,6 +37,12 @@ class _TradeScreenState extends State<TradeScreen> {
   double _rewardRatio = 2;
 
   double _riskPercent = 1;
+
+  /// Whether the three sliders are showing.
+  ///
+  /// Closed to begin with: the presets answer the same question, and a screen
+  /// that opens with every control unfolded is the screen this one replaced.
+  bool _customising = false;
 
   final _reasonController = TextEditingController();
 
@@ -289,50 +296,143 @@ class _TradeScreenState extends State<TradeScreen> {
     );
   }
 
+  /// Plan, as three presets with the sliders folded away behind them.
+  ///
+  /// Stop, target and risk were three sliders a beginner had to set correctly
+  /// together before they could place anything, which is three chances to get
+  /// it wrong and no way to tell that you had. The presets answer all three at
+  /// once and say what the answer costs. The sliders are still there, one tap
+  /// away, because someone who knows what they want should not have to fight a
+  /// simplification built for someone else.
   Widget _planCard(PositionSize size, Strings s) {
+    final selected = TradePreset.matching(
+      stopPips: _stopPips,
+      rewardRatio: _rewardRatio,
+      riskPercent: _riskPercent,
+    );
+
     return SectionCard(
       title: s.plan,
+      trailing: selected == null
+          ? Pill(text: s.customPlan, color: AppColors.textMuted, dense: true)
+          : null,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _slider(
-            label: s.stopLoss,
-            value: '${_stopPips.toStringAsFixed(0)} ${s.pips}',
-            secondary: _instrument.formatPrice(_stopPrice),
-            secondaryColor: AppColors.loss,
-            slider: Slider(
-              value: _stopPips,
-              min: 5,
-              max: 80,
-              divisions: 75,
-              onChanged: (v) => setState(() => _stopPips = v),
+          Row(
+            children: [
+              for (final preset in TradePreset.values) ...[
+                if (preset != TradePreset.values.first) Gap.w8,
+                Expanded(
+                  child: _PresetTile(
+                    preset: preset,
+                    selected: preset == selected,
+                    label: _presetLabel(preset, s),
+                    onTap: () => setState(() {
+                      _stopPips = preset.stopPips;
+                      _rewardRatio = preset.rewardRatio;
+                      _riskPercent = preset.riskPercent;
+                    }),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          Gap.h12,
+          // Always on, preset or not. The cost of the choice is the point of
+          // making it, so it does not get hidden behind the custom toggle.
+          Text(
+            s.survivalNote(
+              10,
+              '${(100 * _survivalFactor(10)).toStringAsFixed(0)}%',
+            ),
+            style: const TextStyle(
+              fontSize: 11.5,
+              height: 1.45,
+              color: AppColors.textMuted,
             ),
           ),
-          _slider(
-            label: '${s.target} (R:R)',
-            value: '1 : ${_rewardRatio.toStringAsFixed(1)}',
-            secondary: _instrument.formatPrice(_targetPrice),
-            secondaryColor: AppColors.profit,
-            slider: Slider(
-              value: _rewardRatio,
-              min: 0.5,
-              max: 5,
-              divisions: 45,
-              onChanged: (v) => setState(() => _rewardRatio = v),
-            ),
+          Gap.h8,
+          // The numbers stay readable while collapsed, so folding the sliders
+          // away never means not knowing what is set.
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  s.planSummary(
+                    '${_stopPips.toStringAsFixed(0)} ${s.pips}',
+                    '1:${_rewardRatio.toStringAsFixed(1)}',
+                    '${_riskPercent.toStringAsFixed(2)}%',
+                  ),
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    color: AppColors.textSecondary,
+                    fontFeatures: tabularFigures,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => setState(() => _customising = !_customising),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.brand,
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
+                ),
+                child: Text(
+                  _customising ? s.hide : s.setItMyself,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
           ),
-          _slider(
-            label: s.risk,
-            value: '${_riskPercent.toStringAsFixed(2)}%',
-            secondary: pointsDelta(-size.plannedRisk),
-            secondaryColor: AppColors.loss,
-            slider: Slider(
-              value: _riskPercent,
-              min: 0.25,
-              max: 5,
-              divisions: 19,
-              onChanged: (v) => setState(() => _riskPercent = v),
+          if (_customising) ...[
+            Gap.h8,
+            _slider(
+              label: s.stopLoss,
+              value: '${_stopPips.toStringAsFixed(0)} ${s.pips}',
+              secondary: _instrument.formatPrice(_stopPrice),
+              secondaryColor: AppColors.loss,
+              slider: Slider(
+                value: _stopPips,
+                min: 5,
+                max: 80,
+                divisions: 75,
+                onChanged: (v) => setState(() => _stopPips = v),
+              ),
             ),
-          ),
+            _slider(
+              label: '${s.target} (R:R)',
+              value: '1 : ${_rewardRatio.toStringAsFixed(1)}',
+              secondary: _instrument.formatPrice(_targetPrice),
+              secondaryColor: AppColors.profit,
+              slider: Slider(
+                value: _rewardRatio,
+                min: 0.5,
+                max: 5,
+                divisions: 45,
+                onChanged: (v) => setState(() => _rewardRatio = v),
+              ),
+            ),
+            _slider(
+              label: s.risk,
+              value: '${_riskPercent.toStringAsFixed(2)}%',
+              secondary: pointsDelta(-size.plannedRisk),
+              secondaryColor: AppColors.loss,
+              slider: Slider(
+                value: _riskPercent,
+                min: 0.25,
+                max: 5,
+                divisions: 19,
+                onChanged: (v) => setState(() => _riskPercent = v),
+              ),
+            ),
+          ],
+          // Outside the custom block on purpose. Risk above 2% can only be set
+          // by dragging, but folding the sliders away afterwards must not fold
+          // away the warning about what was dragged.
           if (_riskPercent > 2) ...[
             Gap.h8,
             _Warning(
@@ -347,6 +447,12 @@ class _TradeScreenState extends State<TradeScreen> {
       ),
     );
   }
+
+  String _presetLabel(TradePreset preset, Strings s) => switch (preset) {
+    TradePreset.careful => s.presetCareful,
+    TradePreset.standard => s.presetStandard,
+    TradePreset.bold => s.presetBold,
+  };
 
   /// Fraction of the balance left after [n] consecutive full-risk losses.
   double _survivalFactor(int n) {
@@ -610,6 +716,67 @@ class _TradeScreenState extends State<TradeScreen> {
             _directionLabel(_direction, s),
             _stopPips.toStringAsFixed(0),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One risk level, with what it costs written on it.
+///
+/// The percentage is on the tile rather than only in the sliders below,
+/// because "careful" and "bold" are words and the number is the thing being
+/// chosen. Nobody should have to open the sliders to find out what they just
+/// tapped.
+class _PresetTile extends StatelessWidget {
+  const _PresetTile({
+    required this.preset,
+    required this.selected,
+    required this.label,
+    required this.onTap,
+  });
+
+  final TradePreset preset;
+  final bool selected;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: Gap.sm, horizontal: 6),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.brandDim : AppColors.elevated,
+          borderRadius: Radii.tile,
+          border: Border.all(
+            color: selected ? AppColors.brand : AppColors.border,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: selected ? AppColors.brand : AppColors.textPrimary,
+              ),
+            ),
+            Gap.h4,
+            Text(
+              '${preset.riskPercent.toStringAsFixed(preset.riskPercent < 1 ? 1 : 0)}%',
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textMuted,
+                fontFeatures: tabularFigures,
+              ),
+            ),
+          ],
         ),
       ),
     );

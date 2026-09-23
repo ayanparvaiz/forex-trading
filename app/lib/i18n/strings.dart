@@ -215,6 +215,26 @@ class Strings {
   String get buy => _t('বাই', 'Buy');
   String get sell => _t('সেল', 'Sell');
   String get plan => _t('প্ল্যান', 'Plan');
+
+  // --- Risk presets --------------------------------------------------------
+
+  String get presetCareful => _t('নিরাপদ', 'Careful');
+  String get presetStandard => _t('সাধারণ', 'Standard');
+  String get presetBold => _t('সাহসী', 'Bold');
+  String get customPlan => _t('নিজের হিসাব', 'Custom');
+  String get setItMyself => _t('নিজে ঠিক করুন', 'Set it myself');
+
+  /// What the chosen risk actually costs, in the only terms that matter.
+  String survivalNote(int losses, String left) => _t(
+    'টানা $losses বার হারলে অ্যাকাউন্টের $left বাকি থাকবে।',
+    '$left of the account is left after $losses losses in a row.',
+  );
+
+  String planSummary(String stop, String target, String risk) => _t(
+    'স্টপ $stop · টার্গেট $target · রিস্ক $risk',
+    'Stop $stop · target $target · risk $risk',
+  );
+
   String get stopLoss => _t('স্টপ লস', 'Stop loss');
   String get target => _t('টার্গেট', 'Target');
   String get entry => _t('এন্ট্রি', 'Entry');
