@@ -152,6 +152,73 @@ class Trade {
   final Set<RuleViolation> violations;
   final bool isShared;
 
+  /// Everything needed to rebuild the trade, and nothing derived.
+  ///
+  /// Pips, risk, R and P&L are all computed from these, so storing them would
+  /// only create a second copy that could drift from the first — and a journal
+  /// whose numbers disagree with its own prices is worth nothing.
+  Map<String, Object?> toJson() => {
+    'symbol': symbol,
+    'direction': direction.name,
+    'lots': lots,
+    'entryPrice': entryPrice,
+    'stopPrice': stopPrice,
+    'targetPrice': targetPrice,
+    'openedAt': openedAt.toIso8601String(),
+    'closedAt': closedAt?.toIso8601String(),
+    'exitPrice': exitPrice,
+    'exitReason': exitReason?.name,
+    'balanceAtEntry': balanceAtEntry,
+    'reason': reason,
+    'lesson': lesson,
+    'violations': [for (final v in violations) v.name],
+    'isShared': isShared,
+  };
+
+  /// Rebuilds a trade from storage.
+  ///
+  /// [id] comes from outside the map because Firestore keeps it on the
+  /// document rather than in the fields, and the two must never disagree.
+  ///
+  /// Unknown enum names are dropped rather than throwing: a violation renamed
+  /// in a later version should cost that one flag, not the whole journal.
+  factory Trade.fromJson(String id, Map<String, Object?> json) {
+    DateTime? date(Object? value) =>
+        value is String ? DateTime.tryParse(value) : null;
+
+    double number(Object? value, [double fallback = 0]) =>
+        value is num ? value.toDouble() : fallback;
+
+    return Trade(
+      id: id,
+      symbol: json['symbol'] as String? ?? '',
+      direction: TradeDirection.values.firstWhere(
+        (d) => d.name == json['direction'],
+        orElse: () => TradeDirection.buy,
+      ),
+      lots: number(json['lots']),
+      entryPrice: number(json['entryPrice']),
+      stopPrice: number(json['stopPrice']),
+      targetPrice: number(json['targetPrice']),
+      openedAt: date(json['openedAt']) ?? DateTime.now(),
+      closedAt: date(json['closedAt']),
+      exitPrice: json['exitPrice'] is num
+          ? (json['exitPrice'] as num).toDouble()
+          : null,
+      exitReason: ExitReason.values
+          .where((r) => r.name == json['exitReason'])
+          .firstOrNull,
+      balanceAtEntry: number(json['balanceAtEntry']),
+      reason: json['reason'] as String? ?? '',
+      lesson: json['lesson'] as String?,
+      violations: {
+        for (final name in (json['violations'] as List? ?? const []))
+          ...RuleViolation.values.where((v) => v.name == name),
+      },
+      isShared: json['isShared'] as bool? ?? false,
+    );
+  }
+
   Instrument get instrument => Instrument.bySymbol(symbol);
 
   TradeStatus get status =>

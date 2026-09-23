@@ -7,6 +7,7 @@ import '../models/badge.dart';
 import '../models/instrument.dart';
 import '../models/trade.dart';
 import 'mock_market.dart';
+import 'trade_repository.dart';
 
 /// Everything about the learner's demo account: points, positions, history.
 ///
@@ -14,11 +15,17 @@ import 'mock_market.dart';
 /// midnight and everyone starts level, so nobody can buy an advantage by
 /// grinding yesterday — the only thing that carries over is the badge ladder.
 ///
-/// Held in memory for now. The Firestore-backed version keeps the same API, so
-/// the screens will not change when it lands.
+/// The trades are real and they are stored. Everything else on this screen —
+/// every statistic, the discipline score, the badge, the drawdown — is derived
+/// from them on read, never stored beside them, so no number here can ever
+/// disagree with the trades that produced it.
+///
+/// The prices, on the other hand, are not real: [MockMarket] generates them on
+/// the device. This is a practice account, and that part is the point.
 class AccountStore extends ChangeNotifier {
-  AccountStore({MockMarket? market}) : market = market ?? MockMarket() {
-    _seedHistory();
+  AccountStore({MockMarket? market, TradeRepository? trades})
+    : market = market ?? MockMarket(),
+      _repository = trades ?? const NoTradeRepository() {
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       this.market.tick();
       _settleHitOrders();
@@ -28,6 +35,63 @@ class AccountStore extends ChangeNotifier {
 
   final MockMarket market;
   Timer? _ticker;
+
+  TradeRepository _repository;
+
+  /// True until the stored journal has been read.
+  ///
+  /// Screens use it to tell "no trades yet" apart from "not loaded yet" — the
+  /// two look identical and mean opposite things, and showing a new trader an
+  /// empty journal that is really a loading journal is how a working app looks
+  /// broken.
+  bool _loading = false;
+  bool get isLoading => _loading;
+
+  /// Points the store at an account and reads its journal.
+  ///
+  /// Called when a session is restored or somebody signs in. Signing in as
+  /// somebody else replaces the trades rather than merging them, which is the
+  /// only safe answer on a shared phone.
+  Future<void> attach(TradeRepository repository) async {
+    _repository = repository;
+    _trades.clear();
+    _loading = true;
+    notifyListeners();
+
+    try {
+      _trades.addAll(await repository.load());
+    } catch (error) {
+      // The journal stays empty and the app stays usable. Reporting it is the
+      // screens' job — silently pretending the account has no history would be
+      // worse than showing nothing.
+      debugPrint('journal could not be loaded: $error');
+    }
+
+    _loading = false;
+    notifyListeners();
+  }
+
+  /// Forgets the signed-in account's trades. Called on log out.
+  void detach() {
+    _repository = const NoTradeRepository();
+    _trades.clear();
+    _loading = false;
+    notifyListeners();
+  }
+
+  /// Writes a trade without making the caller wait for the network.
+  ///
+  /// The in-memory list is what the screens draw, and it is already correct by
+  /// the time this runs. Awaiting the write would mean a spinner between
+  /// tapping Buy and seeing the position, for a round trip that changes
+  /// nothing on screen.
+  void _persist(Trade trade) {
+    unawaited(
+      _repository.save(trade).catchError((Object error) {
+        debugPrint('trade ${trade.id} was not saved: $error');
+      }),
+    );
+  }
 
   /// Points every trader is given at midnight. Not earned, not saved up.
   static const double dailyAllowance = 10000;
@@ -160,6 +224,7 @@ class AccountStore extends ChangeNotifier {
 
     final recorded = trade.copyWith(violations: violations);
     _trades.add(recorded);
+    _persist(recorded);
 
     // The crowd sees the order flow: one more buyer nudges the price up.
     market.applyPressure(instrument, direction == TradeDirection.buy ? 1 : -1);
@@ -184,6 +249,7 @@ class AccountStore extends ChangeNotifier {
       reason: ExitReason.manual,
       lesson: lesson,
     );
+    _persist(_trades[index]);
 
     // Closing a long is a sell, and pushes the other way.
     market.applyPressure(
@@ -209,6 +275,7 @@ class AccountStore extends ChangeNotifier {
             violations: {...trade.violations, RuleViolation.movedStop},
           )
         : updated;
+    _persist(_trades[index]);
     notifyListeners();
   }
 
@@ -220,6 +287,7 @@ class AccountStore extends ChangeNotifier {
       lesson: lesson,
       violations: {...trade.violations}..remove(RuleViolation.noJournal),
     );
+    _persist(_trades[index]);
     notifyListeners();
   }
 
@@ -227,6 +295,7 @@ class AccountStore extends ChangeNotifier {
     final index = _trades.indexWhere((t) => t.id == id);
     if (index < 0) return;
     _trades[index] = _trades[index].copyWith(isShared: true);
+    _persist(_trades[index]);
     notifyListeners();
   }
 
@@ -252,12 +321,17 @@ class AccountStore extends ChangeNotifier {
           exit: trade.stopPrice,
           reason: ExitReason.stopLoss,
         );
+        // Written the moment it fills. This runs off a one-second timer with
+        // nobody necessarily looking at the app, and a stop that filled but
+        // was never stored would reopen as a live position next launch.
+        _persist(_trades[i]);
       } else if (targetHit) {
         _trades[i] = _closeWith(
           trade,
           exit: trade.targetPrice,
           reason: ExitReason.takeProfit,
         );
+        _persist(_trades[i]);
       }
     }
   }
@@ -279,140 +353,6 @@ class AccountStore extends ChangeNotifier {
       lesson: lesson,
       violations: violations,
     );
-  }
-
-  /// A short history so the journal, stats and badge have something to show.
-  void _seedHistory() {
-    final now = DateTime.now();
-    final seeds = <Map<String, dynamic>>[
-      {
-        'sym': 'EUR/USD',
-        'dir': TradeDirection.buy,
-        'entry': 1.08420,
-        'stop': 1.08220,
-        'target': 1.08820,
-        'exit': 1.08820,
-        'daysAgo': 9,
-        'reason': 'H4 সাপোর্টে বুলিশ এনগাল্ফিং, লন্ডন সেশনের শুরুতে',
-        'lesson':
-            'প্ল্যান মতো চলেছে। টার্গেটে বসে থেকেছি, তাড়াতাড়ি বের হইনি।',
-        'v': <RuleViolation>{},
-      },
-      {
-        'sym': 'GBP/USD',
-        'dir': TradeDirection.sell,
-        'entry': 1.26800,
-        'stop': 1.27000,
-        'target': 1.26400,
-        'exit': 1.27000,
-        'daysAgo': 8,
-        'reason': 'রেজিস্ট্যান্স রিজেকশন, ডেইলি ডাউনট্রেন্ড',
-        'lesson':
-            'স্টপ লেগেছে, ঠিক আছে। সেটআপ ভালো ছিল, ফল খারাপ — এটাই ট্রেডিং।',
-        'v': <RuleViolation>{},
-      },
-      {
-        'sym': 'EUR/USD',
-        'dir': TradeDirection.buy,
-        'entry': 1.08300,
-        'stop': 1.08150,
-        'target': 1.08450,
-        'exit': 1.08150,
-        'daysAgo': 6,
-        'reason': 'মনে হলো উঠবে',
-        'lesson': null,
-        'v': <RuleViolation>{
-          RuleViolation.noReason,
-          RuleViolation.poorRiskReward,
-          RuleViolation.noJournal,
-        },
-      },
-      {
-        'sym': 'USD/JPY',
-        'dir': TradeDirection.buy,
-        'entry': 150.200,
-        'stop': 149.900,
-        'target': 150.800,
-        'exit': 150.800,
-        'daysAgo': 5,
-        'reason': 'ডেইলি ব্রেকআউট রিটেস্ট, ভলিউম কনফার্ম করেছে',
-        'lesson':
-            'রিটেস্টের জন্য অপেক্ষা করাটা কাজে দিয়েছে। ব্রেকআউটে ঝাঁপ দিইনি।',
-        'v': <RuleViolation>{},
-      },
-      {
-        'sym': 'EUR/USD',
-        'dir': TradeDirection.sell,
-        'entry': 1.08700,
-        'stop': 1.08900,
-        'target': 1.08300,
-        'exit': 1.08900,
-        'daysAgo': 3,
-        'reason': 'আগের ট্রেডে হেরেছি, টাকা ফেরত আনতে হবে',
-        'lesson': 'রাগের মাথায় ঢুকেছিলাম। এটা ট্রেড ছিল না, প্রতিশোধ ছিল।',
-        'v': <RuleViolation>{
-          RuleViolation.revengeTrade,
-          RuleViolation.riskTooHigh,
-        },
-      },
-      {
-        'sym': 'GBP/USD',
-        'dir': TradeDirection.buy,
-        'entry': 1.26300,
-        'stop': 1.26100,
-        'target': 1.26750,
-        'exit': 1.26750,
-        'daysAgo': 1,
-        'reason': 'ডেইলি ডিমান্ড জোন, ১৫মি তে কনফার্মেশন ক্যান্ডেল',
-        'lesson':
-            'রিস্ক ১% এর নিচে রেখেছি, সাইজ ঠিক ছিল। এভাবেই চালিয়ে যেতে হবে।',
-        'v': <RuleViolation>{},
-      },
-    ];
-
-    for (var i = 0; i < seeds.length; i++) {
-      final s = seeds[i];
-      final instrument = Instrument.bySymbol(s['sym'] as String);
-      final entry = s['entry'] as double;
-      final stop = s['stop'] as double;
-
-      // Size each historical trade at the risk rule, so the seeded numbers are
-      // internally consistent with the calculator the app ships.
-      final sized = sizePosition(
-        balance: dailyAllowance,
-        riskPercent: maxRiskPercent,
-        entryPrice: entry,
-        stopPrice: stop,
-        instrument: instrument,
-      );
-      final lots = sized.lots >= Instrument.minLot
-          ? sized.lots
-          : Instrument.minLot;
-
-      final opened = now.subtract(Duration(days: s['daysAgo'] as int));
-      _trades.add(
-        Trade(
-          id: 'seed-$i',
-          symbol: instrument.symbol,
-          direction: s['dir'] as TradeDirection,
-          lots: lots,
-          entryPrice: entry,
-          stopPrice: stop,
-          targetPrice: s['target'] as double,
-          openedAt: opened,
-          closedAt: opened.add(const Duration(hours: 5)),
-          exitPrice: s['exit'] as double,
-          exitReason: (s['exit'] as double) == stop
-              ? ExitReason.stopLoss
-              : ExitReason.takeProfit,
-          balanceAtEntry: dailyAllowance,
-          reason: s['reason'] as String,
-          lesson: s['lesson'] as String?,
-          violations: s['v'] as Set<RuleViolation>,
-          isShared: i.isEven,
-        ),
-      );
-    }
   }
 
   @override

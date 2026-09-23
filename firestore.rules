@@ -118,6 +118,21 @@ service cloud.firestore {
           && request.resource.data.reason is string
           && request.resource.data.reason.size() >= 10;
 
+        // Violations may be added, and one of them may be cleared.
+        //
+        // Moving a stop earns a violation after the fact, so the set cannot be
+        // frozen at creation. But a trader deciding they did not break a rule
+        // after all is exactly what this app exists not to allow, so the only
+        // flag that can ever come off is noJournal — and it comes off by
+        // writing the lesson, which is the thing it was complaining about.
+        function violationsOnlyGrow() {
+          return request.resource.data.violations.toSet()
+                   .hasAll(resource.data.violations.toSet())
+            || resource.data.violations.toSet()
+                 .difference(request.resource.data.violations.toSet())
+                 .hasOnly(['noJournal']);
+        }
+
         // Entry facts are immutable once written — otherwise a trader could
         // rewrite a loss into a win after the fact, and the journal would be
         // worth nothing.
@@ -127,7 +142,7 @@ service cloud.firestore {
           && unchanged('direction')
           && unchanged('lots')
           && unchanged('balanceAtEntry')
-          && unchanged('violations');
+          && violationsOnlyGrow();
 
         allow delete: if false;
       }

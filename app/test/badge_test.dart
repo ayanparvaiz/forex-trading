@@ -1,8 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forex_trading/data/account_store.dart';
 import 'package:forex_trading/data/mock_market.dart';
+import 'package:forex_trading/data/trade_repository.dart';
 import 'package:forex_trading/models/badge.dart';
 import 'package:forex_trading/models/instrument.dart';
+import 'package:forex_trading/models/trade.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   group('BadgeRank', () {
@@ -66,7 +69,57 @@ void main() {
   group('daily allowance', () {
     late AccountStore store;
 
-    setUp(() => store = AccountStore());
+    /// A closed trade, won or lost, on a chosen day.
+    ///
+    /// Built here rather than taken from the app. The store used to plant a
+    /// fake history on startup and these tests read it, which meant they were
+    /// measuring the fixture — and when the fake history went, so did what
+    /// they were checking. A test that needs a history should state the
+    /// history it needs.
+    Trade closed({
+      required String id,
+      required DateTime day,
+      required bool won,
+    }) {
+      const entry = 1.08500;
+      return Trade(
+        id: id,
+        symbol: 'EUR/USD',
+        direction: TradeDirection.buy,
+        lots: 0.10,
+        entryPrice: entry,
+        stopPrice: Instrument.eurusd.shiftByPips(entry, -20),
+        targetPrice: Instrument.eurusd.shiftByPips(entry, 40),
+        openedAt: day,
+        closedAt: day.add(const Duration(hours: 1)),
+        exitPrice: Instrument.eurusd.shiftByPips(entry, won ? 40 : -20),
+        exitReason: won ? ExitReason.takeProfit : ExitReason.stopLoss,
+        balanceAtEntry: AccountStore.dailyAllowance,
+        reason: 'a reason long enough to be accepted',
+        lesson: 'what it taught me',
+      );
+    }
+
+    setUp(() async {
+      SharedPreferences.setMockInitialValues({});
+      final repository = LocalTradeRepository(
+        uid: 'u1',
+        prefs: await SharedPreferences.getInstance(),
+      );
+
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day, 9);
+      final yesterday = today.subtract(const Duration(days: 1));
+
+      // Two days, so "only today counts" has something to be wrong about.
+      await repository.save(closed(id: 'y1', day: yesterday, won: true));
+      await repository.save(closed(id: 'y2', day: yesterday, won: false));
+      await repository.save(closed(id: 't1', day: today, won: true));
+
+      store = AccountStore();
+      await store.attach(repository);
+    });
+
     tearDown(() => store.dispose());
 
     test('balance is the allowance plus only what closed today', () {
