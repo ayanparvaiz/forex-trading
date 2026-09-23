@@ -7,6 +7,7 @@ import '../data/avatars.dart';
 import '../data/community_repository.dart';
 import '../data/firestore_community_repository.dart';
 import '../data/notification_repository.dart';
+import '../data/one_time_notice.dart';
 import '../data/page.dart';
 import '../data/session_controller.dart';
 import '../i18n/strings.dart';
@@ -27,8 +28,26 @@ import 'profile_screen.dart';
 /// most profitable one is fourth. That contrast is the lesson, and it is why
 /// the ranking rule is stated in plain text at the top of the list rather than
 /// left for anyone to infer.
-class CommunityScreen extends StatelessWidget {
+class CommunityScreen extends StatefulWidget {
   const CommunityScreen({super.key});
+
+  @override
+  State<CommunityScreen> createState() => _CommunityScreenState();
+}
+
+class _CommunityScreenState extends State<CommunityScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabs = TabController(length: 2, vsync: this);
+
+  /// Bumped after posting, to rebuild the feed from the top so the new post is
+  /// there rather than waiting for a pull-to-refresh nobody thinks to do.
+  int _feedVersion = 0;
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
+  }
 
   /// The signed-in trader as a leaderboard row, built from their live numbers.
   Trader? _you(BuildContext context) {
@@ -53,6 +72,26 @@ class CommunityScreen extends StatelessWidget {
     );
   }
 
+  /// Opens the composer, then shows the result where it landed.
+  ///
+  /// Posting from the leaderboard used to be impossible — the only compose
+  /// button lived on the feed tab, so the question "where do I post?" had no
+  /// answer on the screen half the people were looking at. It sits in the app
+  /// bar now, above the tabs, because it belongs to the section rather than to
+  /// one of its two lists.
+  Future<void> _compose(CommunityRepository repository) async {
+    final posted = await showPostComposer(context, repository: repository);
+    if (!mounted || !posted) return;
+
+    setState(() => _feedVersion++);
+    // Land on the feed whichever tab it was written from. A post you cannot
+    // see is indistinguishable from one that failed.
+    _tabs.animateTo(1);
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(context.s.posted)));
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = context.s;
@@ -64,33 +103,53 @@ class CommunityScreen extends StatelessWidget {
     );
     final you = _you(context);
 
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(s.navCommunity),
-          bottom: TabBar(
-            labelColor: AppColors.textPrimary,
-            unselectedLabelColor: AppColors.textMuted,
-            indicatorColor: AppColors.brand,
-            indicatorSize: TabBarIndicatorSize.tab,
-            dividerColor: AppColors.border,
-            labelStyle: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(s.navCommunity),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: Gap.lg),
+            child: FilledButton.icon(
+              onPressed: () => _compose(repository),
+              icon: const Icon(Icons.edit_outlined, size: 16),
+              label: Text(s.newPost),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.brand,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+                minimumSize: const Size(0, 34),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                textStyle: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
-            tabs: [
-              Tab(text: s.leaderboard),
-              Tab(text: s.feed),
-            ],
           ),
-        ),
-        body: TabBarView(
-          children: [
-            _Leaderboard(s: s, repository: repository, you: you),
-            _Feed(s: s, repository: repository),
+        ],
+        bottom: TabBar(
+          controller: _tabs,
+          labelColor: AppColors.textPrimary,
+          unselectedLabelColor: AppColors.textMuted,
+          indicatorColor: AppColors.brand,
+          indicatorSize: TabBarIndicatorSize.tab,
+          dividerColor: AppColors.border,
+          labelStyle: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+          tabs: [
+            Tab(text: s.leaderboard),
+            Tab(text: s.feed),
           ],
         ),
+      ),
+      body: TabBarView(
+        controller: _tabs,
+        children: [
+          _Leaderboard(s: s, repository: repository, you: you),
+          _Feed(s: s, repository: repository, version: _feedVersion),
+        ],
       ),
     );
   }
@@ -293,13 +352,63 @@ class _YourRankBarState extends State<_YourRankBar> {
 }
 
 /// Why the list is ordered the way it is, stated rather than left to infer.
-class _RankingExplainer extends StatelessWidget {
+///
+/// Said in full once, on the first visit after install, and collapsed to a
+/// single line once it has been read. The rule is the whole point of the
+/// screen, so it is never removed — but a paragraph that reprints itself above
+/// the list every single time is one people learn to scroll past, and it costs
+/// four rows of a fifty-row board to do it.
+///
+/// The collapsed line reopens on tap, because "I dismissed it and now I cannot
+/// find out why I am ranked here" is a worse outcome than the paragraph.
+class _RankingExplainer extends StatefulWidget {
   const _RankingExplainer({required this.s});
 
   final Strings s;
 
   @override
+  State<_RankingExplainer> createState() => _RankingExplainerState();
+}
+
+class _RankingExplainerState extends State<_RankingExplainer> {
+  final _notice = OneTimeNotice('leaderboard.ranking');
+
+  /// Starts collapsed, which is what a returning reader sees. The flag resolves
+  /// within a frame or two, so a first-time reader watches it open rather than
+  /// watching a full panel shrink — a reveal reads better than a retraction.
+  bool _read = true;
+  bool _expanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _notice.isDismissed().then((read) {
+      if (mounted) setState(() => _read = read);
+    });
+  }
+
+  Future<void> _markRead() async {
+    setState(() {
+      _read = true;
+      _expanded = false;
+    });
+    await _notice.dismiss();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final s = widget.s;
+    final open = !_read || _expanded;
+
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      alignment: Alignment.topCenter,
+      child: open ? _full(s) : _collapsed(s),
+    );
+  }
+
+  Widget _full(Strings s) {
     return Container(
       padding: const EdgeInsets.all(Gap.md),
       decoration: BoxDecoration(
@@ -307,26 +416,83 @@ class _RankingExplainer extends StatelessWidget {
         borderRadius: Radii.tile,
         border: Border.all(color: AppColors.discipline.withValues(alpha: 0.4)),
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            Icons.shield_outlined,
-            size: 18,
-            color: AppColors.discipline,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.shield_outlined,
+                size: 18,
+                color: AppColors.discipline,
+              ),
+              Gap.w12,
+              Expanded(
+                child: Text(
+                  s.leaderboardExplainer,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    height: 1.5,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            ],
           ),
-          Gap.w12,
-          Expanded(
-            child: Text(
-              s.leaderboardExplainer,
-              style: const TextStyle(
-                fontSize: 12.5,
-                height: 1.5,
-                color: AppColors.textPrimary,
+          Gap.h8,
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: _read
+                  ? () => setState(() => _expanded = false)
+                  : _markRead,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.discipline,
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
+              ),
+              child: Text(
+                _read ? s.hide : s.gotIt,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _collapsed(Strings s) {
+    return InkWell(
+      onTap: () => setState(() => _expanded = true),
+      borderRadius: Radii.tile,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: Gap.xs),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.shield_outlined,
+              size: 14,
+              color: AppColors.discipline,
+            ),
+            Gap.w8,
+            Expanded(
+              child: Text(
+                s.rankedByDiscipline,
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ),
+            const Icon(Icons.expand_more, size: 16, color: AppColors.textMuted),
+          ],
+        ),
       ),
     );
   }
@@ -481,65 +647,25 @@ class _LeaderboardRow extends StatelessWidget {
   }
 }
 
-class _Feed extends StatefulWidget {
-  const _Feed({required this.s, required this.repository});
+class _Feed extends StatelessWidget {
+  const _Feed({
+    required this.s,
+    required this.repository,
+    required this.version,
+  });
 
   final Strings s;
   final CommunityRepository repository;
 
-  @override
-  State<_Feed> createState() => _FeedState();
-}
-
-class _FeedState extends State<_Feed> {
-  /// Bumped after posting, to rebuild the list from the top so the new post is
-  /// there rather than waiting for a pull-to-refresh nobody thinks to do.
-  int _version = 0;
-
-  Future<void> _compose() async {
-    final posted = await showPostComposer(
-      context,
-      repository: widget.repository,
-    );
-    if (!mounted || !posted) return;
-
-    setState(() => _version++);
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(context.s.posted)));
-  }
+  /// Changes when something has been posted, which rebuilds the list from the
+  /// first page so the new post is at the top where its author expects it.
+  final int version;
 
   @override
   Widget build(BuildContext context) {
-    final s = widget.s;
-    final repository = widget.repository;
-
-    return Stack(
-      children: [
-        _feedList(s, repository),
-        Positioned(
-          right: Gap.lg,
-          bottom: Gap.lg,
-          child: FloatingActionButton.extended(
-            onPressed: _compose,
-            backgroundColor: AppColors.brand,
-            foregroundColor: Colors.white,
-            icon: const Icon(Icons.edit_outlined, size: 19),
-            label: Text(
-              s.newPost,
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _feedList(Strings s, CommunityRepository repository) {
     return PagedListView<FeedPost>(
-      key: ValueKey('${s.lang}-$_version'),
-      // Extra bottom room so the compose button never covers the last card.
-      padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, 96),
+      key: ValueKey('${s.lang}-$version'),
+      padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.xxl),
       pageSize: 6,
       fetch: repository.feed,
       itemBuilder: (context, post, _) => Padding(
