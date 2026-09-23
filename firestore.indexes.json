@@ -89,21 +89,6 @@
       ]
     },
     {
-      "comment": "Feed: unexpired posts, newest first.",
-      "collectionGroup": "posts",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "expiresAt",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "postedAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
       "comment": "Your notifications, newest first, expired ones filtered out.",
       "collectionGroup": "notifications",
       "queryScope": "COLLECTION",
@@ -129,6 +114,21 @@
         },
         {
           "fieldPath": "read",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "expiresAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "comment": "Feed pass one: posts by people you are connected to, newest first.",
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "authorUid",
           "order": "ASCENDING"
         },
         {

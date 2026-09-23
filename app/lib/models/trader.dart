@@ -60,6 +60,7 @@ class FeedPost {
     required this.followedRules,
     required this.claps,
     required this.commentCount,
+    this.reach = 0,
   });
 
   final String id;
@@ -82,4 +83,11 @@ class FeedPost {
 
   final int claps;
   final int commentCount;
+
+  /// How many distinct people have seen this post.
+  ///
+  /// Counts people, not scrolls — one view per reader, forever. It is the
+  /// signal the feed ranks strangers' posts by, once posts from people you
+  /// know have been shown.
+  final int reach;
 }

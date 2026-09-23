@@ -188,7 +188,10 @@ class _ProfileButton extends StatelessWidget {
                   openProfile(
                     context,
                     username,
-                    buildCommunityRepository(session.language),
+                    buildCommunityRepository(
+                      session.language,
+                      viewerUid: session.uid,
+                    ),
                   );
                 },
                 icon: const Icon(Icons.person_outline, size: 18),

@@ -102,6 +102,9 @@ abstract class CommunityRepository {
 
   /// Who wrote [postId], so a reaction can notify them.
   Future<String?> postAuthorUid(String postId);
+
+  /// Records that [uid] has seen [postId]. Counted once per person, ever.
+  Future<void> recordReach(String postId, String uid);
 }
 
 /// On-device implementation over the seeded accounts.
@@ -235,6 +238,9 @@ class LocalCommunityRepository implements CommunityRepository {
 
   @override
   Future<String?> postAuthorUid(String postId) async => null;
+
+  @override
+  Future<void> recordReach(String postId, String uid) async {}
 
   @override
   Future<int?> rankOf(String username) async {

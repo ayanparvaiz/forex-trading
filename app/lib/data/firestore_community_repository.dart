@@ -14,11 +14,41 @@ import 'page.dart';
 /// Picks the right backend for the community screens.
 ///
 /// One call site decides, so no screen has to know or care which one it got.
-CommunityRepository buildCommunityRepository(AppLanguage language) {
+CommunityRepository buildCommunityRepository(
+  AppLanguage language, {
+  String? viewerUid,
+}) {
   final local = LocalCommunityRepository(language: language);
   if (!FirebaseBootstrap.isReady) return local;
 
-  return FirestoreCommunityRepository(language: language, fallback: local);
+  return FirestoreCommunityRepository(
+    language: language,
+    fallback: local,
+    viewerUid: viewerUid,
+  );
+}
+
+/// Which pass of the feed a cursor is in.
+enum _FeedPhase { connections, reach }
+
+/// Where the feed got to.
+///
+/// Opaque to every caller — the paged list only ever hands it straight back —
+/// which is what lets the feed be two queries stitched together without the UI
+/// knowing.
+class _FeedCursor {
+  const _FeedCursor({
+    this.phase = _FeedPhase.connections,
+    this.inner,
+    this.seen = const {},
+  });
+
+  final _FeedPhase phase;
+  final DocumentSnapshot<Map<String, dynamic>>? inner;
+
+  /// Ids already shown, so a connection's post cannot reappear in the second
+  /// pass where it would also rank on reach.
+  final Set<String> seen;
 }
 
 /// Community data read from Firestore.
@@ -31,10 +61,14 @@ class FirestoreCommunityRepository implements CommunityRepository {
   FirestoreCommunityRepository({
     required this.language,
     required this.fallback,
+    this.viewerUid,
     FirebaseFirestore? firestore,
   }) : _db = firestore ?? FirebaseFirestore.instance;
 
   final AppLanguage language;
+
+  /// Who is reading. The feed is personalised, so it has to know.
+  final String? viewerUid;
   final FirebaseFirestore _db;
 
   /// Still-local implementation for the collections not yet migrated.
@@ -209,9 +243,10 @@ class FirestoreCommunityRepository implements CommunityRepository {
 
     final others = [
       for (final doc in snapshot.docs)
-        (doc.data()['uids'] as List)
-            .cast<String>()
-            .firstWhere((u) => u != uid, orElse: () => uid),
+        (doc.data()['uids'] as List).cast<String>().firstWhere(
+          (u) => u != uid,
+          orElse: () => uid,
+        ),
     ];
 
     return ResultPage(
@@ -355,8 +390,10 @@ class FirestoreCommunityRepository implements CommunityRepository {
     if (uid == null) return 0;
 
     // An aggregate: the count costs one read rather than one per visitor.
-    final result =
-        await _profileViews.where('profileUid', isEqualTo: uid).count().get();
+    final result = await _profileViews
+        .where('profileUid', isEqualTo: uid)
+        .count()
+        .get();
     return result.count ?? 0;
   }
 
@@ -423,39 +460,145 @@ class FirestoreCommunityRepository implements CommunityRepository {
 
   // --- Feed ----------------------------------------------------------------
 
+  /// Which accounts the signed-in trader is connected to, cached per session.
+  List<String>? _myConnectionUids;
+
+  Future<List<String>> _connectionUidsFor(String uid) async {
+    final cached = _myConnectionUids;
+    if (cached != null) return cached;
+
+    try {
+      // Capped at thirty because that is the most an `whereIn` will take, and
+      // beyond it the first page is already full of people you know.
+      final snapshot = await _connections
+          .where('uids', arrayContains: uid)
+          .where('accepted', isEqualTo: true)
+          .limit(30)
+          .get();
+
+      return _myConnectionUids = [
+        for (final doc in snapshot.docs)
+          (doc.data()['uids'] as List).cast<String>().firstWhere(
+            (u) => u != uid,
+            orElse: () => uid,
+          ),
+      ]..remove(uid);
+    } on FirebaseException {
+      return _myConnectionUids = const [];
+    }
+  }
+
+  /// Turns post documents into cards, attaching each author's current profile.
+  ///
+  /// Authors are fetched fresh rather than copied into the post, so changing an
+  /// avatar updates every post that person ever wrote.
+  Future<List<FeedPost>> _hydrate(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) async {
+    if (docs.isEmpty) return [];
+
+    final authors = await _tradersByUid([
+      for (final doc in docs) doc.data()['authorUid'] as String,
+    ]);
+    final byUsername = {for (final a in authors) a.id: a};
+
+    return [
+      for (final doc in docs)
+        if (byUsername[doc.data()['authorUsername']] != null)
+          _postFrom(doc, byUsername[doc.data()['authorUsername']]!),
+    ];
+  }
+
+  /// The feed is two lists stitched together: people you know, then everyone
+  /// else by reach.
+  ///
+  /// Firestore cannot express "sort by whether I am connected to the author",
+  /// so the ordering is done by asking twice. The cursor carries which pass we
+  /// are in, where we got to, and what has already been shown — a post from a
+  /// connection must not turn up again in the second pass.
+  ///
+  /// Expiry is a query filter in the first pass. In the second it is checked
+  /// after reading, because Firestore will not order by reach while filtering
+  /// on a different field — so a handful of expired documents are read and
+  /// dropped. That is the cost of ranking by reach without a server, and it is
+  /// small while the feed is.
   @override
   Future<ResultPage<FeedPost>> feed({Object? cursor, int limit = 8}) async {
-    // Expiry is filtered in the query, not after reading, so an expired post
-    // never reaches a client at all — the seven-day life is enforced by the
-    // database rather than remembered by the UI.
-    //
-    // Ordering by expiresAt descending is ordering by postedAt descending:
-    // expiry is always exactly seven days after posting. Using one field for
-    // both the filter and the sort keeps this on an automatic single-field
-    // index instead of needing a composite one.
+    final state = cursor is _FeedCursor ? cursor : const _FeedCursor();
+
+    if (state.phase == _FeedPhase.connections) {
+      final page = await _connectionPosts(state, limit);
+      if (page != null) return page;
+      // Nobody connected, or their posts are exhausted — fall through.
+    }
+
+    return _reachPosts(state, limit);
+  }
+
+  Future<ResultPage<FeedPost>?> _connectionPosts(
+    _FeedCursor state,
+    int limit,
+  ) async {
+    final me = viewerUid;
+    if (me == null) return null;
+
+    final friends = await _connectionUidsFor(me);
+    if (friends.isEmpty) return null;
+
     var query = _posts
+        .where('authorUid', whereIn: friends)
         .where('expiresAt', isGreaterThan: Timestamp.now())
         .orderBy('expiresAt', descending: true)
         .limit(limit);
-    if (cursor is DocumentSnapshot) query = query.startAfterDocument(cursor);
+    if (state.inner != null) query = query.startAfterDocument(state.inner!);
+
+    final snapshot = await query.get();
+    if (snapshot.docs.isEmpty) return null;
+
+    final seen = {...state.seen, ...snapshot.docs.map((d) => d.id)};
+    final more = snapshot.docs.length == limit;
+
+    return ResultPage(
+      items: await _hydrate(snapshot.docs),
+      cursor: _FeedCursor(
+        // Stay in this pass while there are more; otherwise hand over.
+        phase: more ? _FeedPhase.connections : _FeedPhase.reach,
+        inner: more ? snapshot.docs.last : null,
+        seen: seen,
+      ),
+      // Always more to come: even with no further connection posts, the second
+      // pass has not run yet.
+      hasMore: true,
+    );
+  }
+
+  Future<ResultPage<FeedPost>> _reachPosts(_FeedCursor state, int limit) async {
+    var query = _posts.orderBy('reach', descending: true).limit(limit);
+    if (state.phase == _FeedPhase.reach && state.inner != null) {
+      query = query.startAfterDocument(state.inner!);
+    }
 
     final snapshot = await query.get();
     if (snapshot.docs.isEmpty) return const ResultPage.empty();
 
-    // Authors are fetched fresh rather than copied into the post, so changing
-    // an avatar updates every post that person ever wrote.
-    final authors = await _tradersByUid([
-      for (final doc in snapshot.docs) doc.data()['authorUid'] as String,
-    ]);
-    final byUsername = {for (final a in authors) a.id: a};
+    final now = Timestamp.now();
+    final fresh = [
+      for (final doc in snapshot.docs)
+        if (!state.seen.contains(doc.id) &&
+            ((doc.data()['expiresAt'] as Timestamp?) ?? now).compareTo(now) > 0)
+          doc,
+    ];
 
     return ResultPage(
-      items: [
-        for (final doc in snapshot.docs)
-          if (byUsername[doc.data()['authorUsername']] != null)
-            _postFrom(doc, byUsername[doc.data()['authorUsername']]!),
-      ],
-      cursor: snapshot.docs.last,
+      items: await _hydrate(fresh),
+      cursor: _FeedCursor(
+        phase: _FeedPhase.reach,
+        inner: snapshot.docs.last,
+        seen: {...state.seen, ...snapshot.docs.map((d) => d.id)},
+      ),
+      // Judged on what came back from the query, not on what survived the
+      // filter: a page that was entirely expired still means there is more
+      // behind it.
       hasMore: snapshot.docs.length == limit,
     );
   }
@@ -581,6 +724,34 @@ class FirestoreCommunityRepository implements CommunityRepository {
     }
   }
 
+  /// Posts this device has already counted a view for, this session.
+  ///
+  /// Scrolling a card off screen and back would otherwise attempt the write
+  /// again. The batch below would refuse it, but not attempting it at all is
+  /// cheaper than being refused.
+  final Set<String> _reachRecorded = {};
+
+  @override
+  Future<void> recordReach(String postId, String uid) async {
+    if (!_reachRecorded.add(postId)) return;
+
+    final view = _posts.doc(postId).collection('views').doc(uid);
+
+    try {
+      // Both writes in one batch, and the view document is what guards the
+      // counter. Its rule allows create but never update, so a second view by
+      // the same person is refused — and because it is one batch, the refusal
+      // takes the increment down with it. Reach counts people, not scrolls.
+      final batch = _db.batch()
+        ..set(view, {'at': FieldValue.serverTimestamp()})
+        ..update(_posts.doc(postId), {'reach': FieldValue.increment(1)});
+      await batch.commit();
+    } on FirebaseException {
+      // Already seen, or offline. Reach is a ranking signal, not an
+      // accounting record — losing one is not worth surfacing.
+    }
+  }
+
   FeedPost _postFrom(
     QueryDocumentSnapshot<Map<String, dynamic>> doc,
     Trader author,
@@ -597,6 +768,7 @@ class FirestoreCommunityRepository implements CommunityRepository {
       followedRules: data['followedRules'] as bool? ?? false,
       claps: (data['claps'] as num?)?.toInt() ?? 0,
       commentCount: (data['commentCount'] as num?)?.toInt() ?? 0,
+      reach: (data['reach'] as num?)?.toInt() ?? 0,
     );
   }
 }

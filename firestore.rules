@@ -22,10 +22,10 @@ service cloud.firestore {
         || (field in resource.data && request.resource.data[field] == resource.data[field]);
     }
 
-    /// True when an update touches nothing but the two counters.
+    /// True when an update touches nothing but the counters.
     function onlyCounters() {
       return request.resource.data.diff(resource.data).affectedKeys()
-        .hasOnly(['claps', 'commentCount']);
+        .hasOnly(['claps', 'commentCount', 'reach']);
     }
 
     /// A counter may move by one in either direction, and never below zero.
@@ -164,7 +164,8 @@ service cloud.firestore {
           ||
           (onlyCounters()
             && withinOne('claps')
-            && withinOne('commentCount'))
+            && withinOne('commentCount')
+            && withinOne('reach'))
         );
 
       allow delete: if isSignedIn()
@@ -189,6 +190,15 @@ service cloud.firestore {
         allow read: if isSignedIn();
         allow create, delete: if isOwner(uid);
         allow update: if false;
+      }
+
+      // One view document per user per post, for the same reason: reach counts
+      // people, not scrolls. Views are never removed — a post that was seen
+      // stays seen.
+      match /views/{uid} {
+        allow read: if isSignedIn();
+        allow create: if isOwner(uid);
+        allow update, delete: if false;
       }
     }
 

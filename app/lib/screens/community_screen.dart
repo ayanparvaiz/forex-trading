@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../data/account_scope.dart';
@@ -55,7 +57,10 @@ class CommunityScreen extends StatelessWidget {
     final s = context.s;
     final language = context.session.language;
 
-    final repository = buildCommunityRepository(language);
+    final repository = buildCommunityRepository(
+      language,
+      viewerUid: context.session.uid,
+    );
     final you = _you(context);
 
     return DefaultTabController(
@@ -654,6 +659,10 @@ class _PostActionsState extends State<_PostActions> {
     final uid = context.session.uid;
     if (uid == null) return;
 
+    // Building the card is the moment the post was seen, so reach is recorded
+    // here rather than on a tap. Counted once per person, ever.
+    unawaited(widget.repository.recordReach(widget.post.id, uid));
+
     final liked = await widget.repository.hasClapped(widget.post.id, uid);
     if (mounted) setState(() => _liked = liked);
   }
@@ -715,6 +724,25 @@ class _PostActionsState extends State<_PostActions> {
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Reach first, and deliberately quiet. It is how the feed decides
+            // what a stranger sees, not a score to chase.
+            if (widget.post.reach > 0) ...[
+              const Icon(
+                Icons.visibility_outlined,
+                size: 14,
+                color: AppColors.textMuted,
+              ),
+              Gap.w4,
+              Text(
+                '${widget.post.reach}',
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  color: AppColors.textMuted,
+                  fontFeatures: tabularFigures,
+                ),
+              ),
+              Gap.w12,
+            ],
             InkWell(
               onTap: _toggle,
               borderRadius: Radii.pill,

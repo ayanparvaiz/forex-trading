@@ -98,6 +98,7 @@ class NotificationsScreen extends StatefulWidget {
 class _NotificationsScreenState extends State<NotificationsScreen> {
   late final CommunityRepository _community = buildCommunityRepository(
     context.session.language,
+    viewerUid: context.session.uid,
   );
 
   @override
