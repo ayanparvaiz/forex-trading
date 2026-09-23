@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
@@ -10,6 +13,7 @@ import '../firebase/firebase_bootstrap.dart';
 import 'avatars.dart';
 import 'community_repository.dart';
 import 'page.dart';
+import 'seen_posts.dart';
 
 /// Picks the right backend for the community screens.
 ///
@@ -41,14 +45,25 @@ class _FeedCursor {
     this.phase = _FeedPhase.connections,
     this.inner,
     this.seen = const {},
+    this.ranked = const [],
+    this.offset = 0,
   });
 
   final _FeedPhase phase;
   final DocumentSnapshot<Map<String, dynamic>>? inner;
 
   /// Ids already shown, so a connection's post cannot reappear in the second
-  /// pass where it would also rank on reach.
+  /// pass where it would also be ranked.
   final Set<String> seen;
+
+  /// The scored window, held so it is built once rather than per page.
+  ///
+  /// Ranking is done on the client because the score mixes fields Firestore
+  /// cannot sort by together — engagement over age. Scoring a window of recent
+  /// posts once and paging through the result is one burst of reads instead of
+  /// a query per page that could not express the order anyway.
+  final List<FeedPost> ranked;
+  final int offset;
 }
 
 /// Community data read from Firestore.
@@ -69,6 +84,9 @@ class FirestoreCommunityRepository implements CommunityRepository {
 
   /// Who is reading. The feed is personalised, so it has to know.
   final String? viewerUid;
+
+  /// What this device has already shown, used to push repeats down the feed.
+  final SeenPosts seenPosts = SeenPosts();
   final FirebaseFirestore _db;
 
   /// Still-local implementation for the collections not yet migrated.
@@ -532,7 +550,7 @@ class FirestoreCommunityRepository implements CommunityRepository {
       // Nobody connected, or their posts are exhausted — fall through.
     }
 
-    return _reachPosts(state, limit);
+    return _rankedPosts(state, limit);
   }
 
   Future<ResultPage<FeedPost>?> _connectionPosts(
@@ -572,48 +590,88 @@ class FirestoreCommunityRepository implements CommunityRepository {
     );
   }
 
-  Future<ResultPage<FeedPost>> _reachPosts(_FeedCursor state, int limit) async {
-    var query = _posts.orderBy('reach', descending: true).limit(limit);
-    if (state.phase == _FeedPhase.reach && state.inner != null) {
-      query = query.startAfterDocument(state.inner!);
-    }
+  /// How many recent posts are scored in one go.
+  ///
+  /// A window, not the collection. Ranking needs to compare posts against each
+  /// other, and comparing everything ever written would get slower every week —
+  /// so the feed considers what is recent and lets the rest expire.
+  static const _rankingWindow = 60;
 
-    var snapshot = await query.get();
+  /// Score for a post: engagement, decayed by age.
+  ///
+  /// The divisor is the whole point. Without it the most-reached post ever
+  /// written sits at the top forever and the feed never moves — which is
+  /// exactly what a reach-only ordering did. With it, a new post with a little
+  /// attention outranks an old one with a lot, and the feed turns over on its
+  /// own.
+  ///
+  /// Comments weigh more than likes, and likes more than views, because that
+  /// is the order of how much someone had to care.
+  ///
+  /// Whether the reader has seen it is deliberately not part of this. It was,
+  /// briefly, as a multiplier — and a heavily-read post still outranked a fresh
+  /// unread one, which is the opposite of what was wanted. Seen-ness is an
+  /// ordering rule, not a discount, so it lives in the sort instead.
+  static double scoreOf(FeedPost post) {
+    final hours = DateTime.now().difference(post.postedAt).inMinutes / 60;
+    final engagement = post.reach + post.claps * 3 + post.commentCount * 5 + 1;
 
-    // Firestore's orderBy silently skips documents that do not carry the field
-    // at all — so a single post written without a reach value is invisible to
-    // this query, and a whole collection without one makes the feed look
-    // empty. Every write path sets reach, but an empty first page is cheap to
-    // check and an empty feed is not a failure anyone should have to debug.
-    if (snapshot.docs.isEmpty && state.inner == null) {
-      snapshot = await _posts
-          .where('expiresAt', isGreaterThan: Timestamp.now())
-          .orderBy('expiresAt', descending: true)
-          .limit(limit)
-          .get();
-    }
+    return engagement / math.pow(hours + 2, 1.4);
+  }
 
+  Future<ResultPage<FeedPost>> _rankedPosts(
+    _FeedCursor state,
+    int limit,
+  ) async {
+    // The window is scored once and paged from memory afterwards.
+    if (state.ranked.isNotEmpty) return _slice(state, limit);
+
+    final snapshot = await _posts
+        .where('expiresAt', isGreaterThan: Timestamp.now())
+        .orderBy('expiresAt', descending: true)
+        .limit(_rankingWindow)
+        .get();
     if (snapshot.docs.isEmpty) return const ResultPage.empty();
 
-    final now = Timestamp.now();
-    final fresh = [
-      for (final doc in snapshot.docs)
-        if (!state.seen.contains(doc.id) &&
-            ((doc.data()['expiresAt'] as Timestamp?) ?? now).compareTo(now) > 0)
-          doc,
-    ];
+    final posts = await _hydrate(snapshot.docs);
+    final seenBefore = await seenPosts.load();
+
+    final ranked =
+        [
+          for (final post in posts)
+            if (!state.seen.contains(post.id)) post,
+        ]..sort((a, b) {
+          // Everything unread first, then everything read, each block ordered by
+          // score within itself. Read posts are moved rather than hidden —
+          // somebody who checks the feed often would otherwise find it empty.
+          final aSeen = seenBefore.contains(a.id);
+          final bSeen = seenBefore.contains(b.id);
+          if (aSeen != bSeen) return aSeen ? 1 : -1;
+
+          return scoreOf(b).compareTo(scoreOf(a));
+        });
+
+    return _slice(
+      _FeedCursor(phase: _FeedPhase.reach, seen: state.seen, ranked: ranked),
+      limit,
+    );
+  }
+
+  ResultPage<FeedPost> _slice(_FeedCursor state, int limit) {
+    if (state.offset >= state.ranked.length) return const ResultPage.empty();
+
+    final end = (state.offset + limit).clamp(0, state.ranked.length);
+    final items = state.ranked.sublist(state.offset, end);
 
     return ResultPage(
-      items: await _hydrate(fresh),
+      items: items,
       cursor: _FeedCursor(
         phase: _FeedPhase.reach,
-        inner: snapshot.docs.last,
-        seen: {...state.seen, ...snapshot.docs.map((d) => d.id)},
+        seen: {...state.seen, ...items.map((p) => p.id)},
+        ranked: state.ranked,
+        offset: end,
       ),
-      // Judged on what came back from the query, not on what survived the
-      // filter: a page that was entirely expired still means there is more
-      // behind it.
-      hasMore: snapshot.docs.length == limit,
+      hasMore: end < state.ranked.length,
     );
   }
 
@@ -748,6 +806,10 @@ class FirestoreCommunityRepository implements CommunityRepository {
   @override
   Future<void> recordReach(String postId, String uid) async {
     if (!_reachRecorded.add(postId)) return;
+
+    // Remembered on the device too, so the next time this feed is ranked the
+    // post sinks below whatever has not been read yet.
+    unawaited(seenPosts.add([postId]));
 
     final view = _posts.doc(postId).collection('views').doc(uid);
 

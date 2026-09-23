@@ -649,9 +649,17 @@ class _PostActionsState extends State<_PostActions> {
   bool _liked = false;
   bool _busy = false;
 
+  bool _started = false;
+
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Not initState. Reading an InheritedWidget there is forbidden, and
+    // because this runs inside an async call the resulting error vanishes into
+    // an unhandled future — the like simply never loaded back, with nothing to
+    // show for it. didChangeDependencies is the first place context is legal.
+    if (_started) return;
+    _started = true;
     _loadMyReaction();
   }
 
