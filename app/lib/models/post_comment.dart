@@ -29,8 +29,17 @@ class PostComment {
 /// do, and a card should update its counts without refetching the page it
 /// lives on.
 class PostCounters {
-  const PostCounters({required this.claps, required this.commentCount});
+  const PostCounters({
+    required this.claps,
+    required this.commentCount,
+    required this.reach,
+  });
 
   final int claps;
   final int commentCount;
+
+  /// How many people have seen it. Streamed with the rest because opening the
+  /// card is itself a view — a reach that only updated on reload would be
+  /// wrong the instant it was drawn.
+  final int reach;
 }

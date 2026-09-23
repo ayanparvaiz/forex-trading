@@ -6,8 +6,10 @@ import '../data/account_store.dart';
 import '../data/session_controller.dart';
 import '../i18n/strings.dart';
 import '../models/trade.dart';
+import '../data/firestore_community_repository.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
+import 'post_composer_sheet.dart';
 
 /// Trade history and the numbers derived from it.
 ///
@@ -361,20 +363,59 @@ class _TradeCard extends StatelessWidget {
               ],
             ),
           ],
-          if (trade.lesson == null) ...[
-            Gap.h12,
-            OutlinedButton.icon(
-              onPressed: () => _writeLesson(context),
-              icon: const Icon(Icons.edit_note, size: 17),
-              label: Text(s.writeLesson),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.brand,
-                side: const BorderSide(color: AppColors.border),
-                minimumSize: const Size.fromHeight(40),
-                shape: const RoundedRectangleBorder(borderRadius: Radii.tile),
-              ),
-            ),
-          ],
+          Gap.h12,
+          Row(
+            children: [
+              if (trade.lesson == null)
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _writeLesson(context),
+                    icon: const Icon(Icons.edit_note, size: 17),
+                    label: Text(s.writeLesson),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.brand,
+                      side: const BorderSide(color: AppColors.border),
+                      minimumSize: const Size.fromHeight(40),
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: Radii.tile,
+                      ),
+                    ),
+                  ),
+                )
+              else
+                // Sharing needs the lesson, so the two buttons never appear at
+                // once: write it first, then it can be shared.
+                Expanded(
+                  child: trade.isShared
+                      ? OutlinedButton.icon(
+                          onPressed: null,
+                          icon: const Icon(Icons.check, size: 17),
+                          label: Text(s.alreadyShared),
+                          style: OutlinedButton.styleFrom(
+                            disabledForegroundColor: AppColors.textMuted,
+                            side: const BorderSide(color: AppColors.border),
+                            minimumSize: const Size.fromHeight(40),
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: Radii.tile,
+                            ),
+                          ),
+                        )
+                      : OutlinedButton.icon(
+                          onPressed: () => _share(context),
+                          icon: const Icon(Icons.ios_share, size: 17),
+                          label: Text(s.shareToFeed),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.brand,
+                            side: const BorderSide(color: AppColors.border),
+                            minimumSize: const Size.fromHeight(40),
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: Radii.tile,
+                            ),
+                          ),
+                        ),
+                ),
+            ],
+          ),
         ],
       ),
     );
@@ -434,6 +475,31 @@ class _TradeCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// Publishes this trade to the feed.
+  ///
+  /// Marked as shared only once the post actually landed, so a failed write
+  /// leaves the button where it was rather than claiming something that is not
+  /// there.
+  Future<void> _share(BuildContext context) async {
+    final session = context.session;
+    final repository = buildCommunityRepository(
+      session.language,
+      viewerUid: session.uid,
+    );
+
+    final posted = await showPostComposer(
+      context,
+      repository: repository,
+      trade: trade,
+    );
+    if (!posted || !context.mounted) return;
+
+    store.shareTrade(trade.id);
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(context.s.posted)));
   }
 
   Future<void> _writeLesson(BuildContext context) async {

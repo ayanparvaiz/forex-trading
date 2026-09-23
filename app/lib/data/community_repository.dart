@@ -105,6 +105,21 @@ abstract class CommunityRepository {
 
   /// Records that [uid] has seen [postId]. Counted once per person, ever.
   Future<void> recordReach(String postId, String uid);
+
+  /// Publishes a journal entry to the feed. Returns the new post's id.
+  ///
+  /// Takes the lesson as well as the reason, because a post with no lesson is
+  /// a result with nothing anyone can learn from — and this feed exists to be
+  /// learned from.
+  Future<String?> createPost({
+    required String uid,
+    required String username,
+    required String symbol,
+    required double rMultiple,
+    required String reason,
+    required String lesson,
+    required bool followedRules,
+  });
 }
 
 /// On-device implementation over the seeded accounts.
@@ -241,6 +256,17 @@ class LocalCommunityRepository implements CommunityRepository {
 
   @override
   Future<void> recordReach(String postId, String uid) async {}
+
+  @override
+  Future<String?> createPost({
+    required String uid,
+    required String username,
+    required String symbol,
+    required double rMultiple,
+    required String reason,
+    required String lesson,
+    required bool followedRules,
+  }) async => null;
 
   @override
   Future<int?> rankOf(String username) async {

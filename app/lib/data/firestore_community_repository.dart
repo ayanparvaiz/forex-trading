@@ -506,6 +506,42 @@ class FirestoreCommunityRepository implements CommunityRepository {
     }
   }
 
+  @override
+  Future<String?> createPost({
+    required String uid,
+    required String username,
+    required String symbol,
+    required double rMultiple,
+    required String reason,
+    required String lesson,
+    required bool followedRules,
+  }) async {
+    final now = DateTime.now();
+    try {
+      final doc = await _posts.add({
+        'authorUid': uid,
+        'authorUsername': username,
+        'symbol': symbol,
+        'rMultiple': rMultiple,
+        'reason': reason.trim(),
+        'lesson': lesson.trim(),
+        'followedRules': followedRules,
+        'claps': 0,
+        'commentCount': 0,
+        // Written explicitly, not left to default on read. Firestore's orderBy
+        // skips documents missing the field entirely, so a post without reach
+        // is a post the feed cannot see.
+        'reach': 0,
+        'postedAt': Timestamp.fromDate(now),
+        'expiresAt': Timestamp.fromDate(now.add(const Duration(days: 7))),
+      });
+      return doc.id;
+    } on FirebaseException catch (error) {
+      debugPrint('create post failed: ${error.code}');
+      return null;
+    }
+  }
+
   /// Turns post documents into cards, attaching each author's current profile.
   ///
   /// Authors are fetched fresh rather than copied into the post, so changing an
@@ -686,6 +722,7 @@ class FirestoreCommunityRepository implements CommunityRepository {
       return PostCounters(
         claps: (data['claps'] as num?)?.toInt() ?? 0,
         commentCount: (data['commentCount'] as num?)?.toInt() ?? 0,
+        reach: (data['reach'] as num?)?.toInt() ?? 0,
       );
     });
   }

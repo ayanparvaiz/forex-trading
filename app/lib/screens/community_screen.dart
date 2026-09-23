@@ -17,6 +17,7 @@ import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/paged_list.dart';
 import 'post_comments_sheet.dart';
+import 'post_composer_sheet.dart';
 import 'profile_screen.dart';
 
 /// Leaderboard and shared journal feed.
@@ -480,17 +481,65 @@ class _LeaderboardRow extends StatelessWidget {
   }
 }
 
-class _Feed extends StatelessWidget {
+class _Feed extends StatefulWidget {
   const _Feed({required this.s, required this.repository});
 
   final Strings s;
   final CommunityRepository repository;
 
   @override
+  State<_Feed> createState() => _FeedState();
+}
+
+class _FeedState extends State<_Feed> {
+  /// Bumped after posting, to rebuild the list from the top so the new post is
+  /// there rather than waiting for a pull-to-refresh nobody thinks to do.
+  int _version = 0;
+
+  Future<void> _compose() async {
+    final posted = await showPostComposer(
+      context,
+      repository: widget.repository,
+    );
+    if (!mounted || !posted) return;
+
+    setState(() => _version++);
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(context.s.posted)));
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final s = widget.s;
+    final repository = widget.repository;
+
+    return Stack(
+      children: [
+        _feedList(s, repository),
+        Positioned(
+          right: Gap.lg,
+          bottom: Gap.lg,
+          child: FloatingActionButton.extended(
+            onPressed: _compose,
+            backgroundColor: AppColors.brand,
+            foregroundColor: Colors.white,
+            icon: const Icon(Icons.edit_outlined, size: 19),
+            label: Text(
+              s.newPost,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _feedList(Strings s, CommunityRepository repository) {
     return PagedListView<FeedPost>(
-      key: ValueKey(s.lang),
-      padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.xxl),
+      key: ValueKey('${s.lang}-$_version'),
+      // Extra bottom room so the compose button never covers the last card.
+      padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, 96),
       pageSize: 6,
       fetch: repository.feed,
       itemBuilder: (context, post, _) => Padding(
@@ -727,6 +776,7 @@ class _PostActionsState extends State<_PostActions> {
             PostCounters(
               claps: widget.post.claps,
               commentCount: widget.post.commentCount,
+              reach: widget.post.reach,
             );
 
         return Row(
@@ -734,23 +784,25 @@ class _PostActionsState extends State<_PostActions> {
           children: [
             // Reach first, and deliberately quiet. It is how the feed decides
             // what a stranger sees, not a score to chase.
-            if (widget.post.reach > 0) ...[
-              const Icon(
-                Icons.visibility_outlined,
-                size: 14,
+            //
+            // Shown even at zero. Hiding it below a threshold meant a whole
+            // feed of new posts showed none at all, which read as a missing
+            // feature rather than an honest count.
+            const Icon(
+              Icons.visibility_outlined,
+              size: 14,
+              color: AppColors.textMuted,
+            ),
+            Gap.w4,
+            Text(
+              '${counters.reach}',
+              style: const TextStyle(
+                fontSize: 11.5,
                 color: AppColors.textMuted,
+                fontFeatures: tabularFigures,
               ),
-              Gap.w4,
-              Text(
-                '${widget.post.reach}',
-                style: const TextStyle(
-                  fontSize: 11.5,
-                  color: AppColors.textMuted,
-                  fontFeatures: tabularFigures,
-                ),
-              ),
-              Gap.w12,
-            ],
+            ),
+            Gap.w12,
             InkWell(
               onTap: _toggle,
               borderRadius: Radii.pill,

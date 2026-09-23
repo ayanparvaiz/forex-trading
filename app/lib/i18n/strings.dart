@@ -347,6 +347,21 @@ class Strings {
   // --- Reactions ----------------------------------------------------------
 
   String get comments => _t('মন্তব্য', 'Comments');
+  String get newPost => _t('নতুন পোস্ট', 'New post');
+  String get shareToFeed => _t('ফিডে শেয়ার', 'Share to feed');
+  String get publish => _t('পোস্ট করুন', 'Post');
+  String get posted => _t('ফিডে পোস্ট হয়েছে', 'Posted to the feed');
+  String get result => _t('ফল', 'Result');
+  String get pair => _t('পেয়ার', 'Pair');
+  String get lessonRequiredToPost => _t(
+        'কী শিখলেন সেটা ছাড়া পোস্ট করা যাবে না — অন্তত ১০ অক্ষর।',
+        'A post needs what you learned — at least 10 characters.',
+      );
+  String get postGuideline => _t(
+        'ফল যাই হোক লিখুন। হারা ট্রেডের পোস্টই সবচেয়ে কাজের — সিগন্যাল না।',
+        'Post either result. The losing ones teach the most. No signals.',
+      );
+  String get alreadyShared => _t('শেয়ার করা হয়েছে', 'Shared');
   String get writeComment => _t('কিছু লিখুন…', 'Write something…');
   String get send => _t('পাঠান', 'Send');
   String get noComments =>
