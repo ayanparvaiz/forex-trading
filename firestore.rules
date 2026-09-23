@@ -22,6 +22,23 @@ service cloud.firestore {
         || (field in resource.data && request.resource.data[field] == resource.data[field]);
     }
 
+    /// True when an update touches nothing but the two counters.
+    function onlyCounters() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['claps', 'commentCount']);
+    }
+
+    /// A counter may move by one in either direction, and never below zero.
+    ///
+    /// This is what keeps clapping honest without a server in the loop: a
+    /// client can register its own like, but it cannot add fifty, and it
+    /// cannot drive the count negative to hide someone else's.
+    function withinOne(field) {
+      return request.resource.data[field] >= 0
+        && request.resource.data[field] >= resource.data[field] - 1
+        && request.resource.data[field] <= resource.data[field] + 1;
+    }
+
     // Fields only Cloud Functions may set. A client that tries to write any of
     // them is rejected outright.
     function serverOwnedUnchanged() {
@@ -122,36 +139,52 @@ service cloud.firestore {
       allow read: if isSignedIn();
 
       allow create: if isSignedIn()
-        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.authorUid == request.auth.uid
         && request.resource.data.lesson is string
         && request.resource.data.lesson.size() >= 10
         && request.resource.data.claps == 0
         && request.resource.data.commentCount == 0;
 
-      // Authors may fix their own wording. Clap and comment counters are
-      // aggregated by Cloud Functions so they cannot be inflated from a client.
+      // Two separate update paths.
+      //
+      // An author may fix their own wording but not their own numbers. Anyone
+      // signed in may move the counters, because clapping and commenting are
+      // things other people do — but only by one at a time, and only the
+      // counters. Without Cloud Functions the increment has to happen on the
+      // client, so the rule bounds what a client can do with it: a like cannot
+      // add fifty, and it cannot quietly rewrite the post while it is there.
       allow update: if isSignedIn()
-        && resource.data.authorId == request.auth.uid
-        && unchanged('claps')
-        && unchanged('commentCount')
-        && unchanged('rMultiple')
-        && unchanged('authorId')
-        && unchanged('postedAt');
+        && (
+          (resource.data.authorUid == request.auth.uid
+            && unchanged('claps')
+            && unchanged('commentCount')
+            && unchanged('rMultiple')
+            && unchanged('authorUid')
+            && unchanged('postedAt'))
+          ||
+          (onlyCounters()
+            && withinOne('claps')
+            && withinOne('commentCount'))
+        );
 
-      allow delete: if isSignedIn() && resource.data.authorId == request.auth.uid;
+      allow delete: if isSignedIn()
+        && resource.data.authorUid == request.auth.uid;
 
       match /comments/{commentId} {
         allow read: if isSignedIn();
         allow create: if isSignedIn()
-          && request.resource.data.authorId == request.auth.uid
+          && request.resource.data.authorUid == request.auth.uid
           && request.resource.data.body is string
           && request.resource.data.body.size() > 0
           && request.resource.data.body.size() <= 1000;
-        allow update: if isSignedIn() && resource.data.authorId == request.auth.uid;
-        allow delete: if isSignedIn() && resource.data.authorId == request.auth.uid;
+        allow update: if isSignedIn()
+          && resource.data.authorUid == request.auth.uid;
+        allow delete: if isSignedIn()
+          && resource.data.authorUid == request.auth.uid;
       }
 
-      // One clap document per user per post, so claps cannot be spammed.
+      // One clap document per user per post, keyed by uid, so a like cannot be
+      // spammed however many times the button is pressed.
       match /claps/{uid} {
         allow read: if isSignedIn();
         allow create, delete: if isOwner(uid);

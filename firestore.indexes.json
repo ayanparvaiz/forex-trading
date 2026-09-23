@@ -21,36 +21,6 @@
       ]
     },
     {
-      "comment": "Feed filtered to one pair, newest first.",
-      "collectionGroup": "posts",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "symbol",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "postedAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "comment": "Feed paged by expiry, so expired posts never reach a client.",
-      "collectionGroup": "posts",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "expiresAt",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "postedAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
       "comment": "A trader's open positions.",
       "collectionGroup": "trades",
       "queryScope": "COLLECTION",
@@ -114,6 +84,21 @@
         },
         {
           "fieldPath": "viewedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "comment": "Feed: unexpired posts, newest first.",
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "expiresAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "postedAt",
           "order": "DESCENDING"
         }
       ]

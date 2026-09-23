@@ -47,6 +47,8 @@ class FirestoreCommunityRepository implements CommunityRepository {
       _db.collection('connections');
   CollectionReference<Map<String, dynamic>> get _profileViews =>
       _db.collection('profileViews');
+  CollectionReference<Map<String, dynamic>> get _posts =>
+      _db.collection('posts');
 
   /// username -> uid, remembered for the life of the repository.
   ///
@@ -415,9 +417,61 @@ class FirestoreCommunityRepository implements CommunityRepository {
     }
   }
 
-  // --- Not yet migrated ----------------------------------------------------
+  // --- Feed ----------------------------------------------------------------
 
   @override
-  Future<ResultPage<FeedPost>> feed({Object? cursor, int limit = 8}) =>
-      fallback.feed(cursor: cursor, limit: limit);
+  Future<ResultPage<FeedPost>> feed({Object? cursor, int limit = 8}) async {
+    // Expiry is filtered in the query, not after reading, so an expired post
+    // never reaches a client at all — the seven-day life is enforced by the
+    // database rather than remembered by the UI.
+    //
+    // Ordering by expiresAt descending is ordering by postedAt descending:
+    // expiry is always exactly seven days after posting. Using one field for
+    // both the filter and the sort keeps this on an automatic single-field
+    // index instead of needing a composite one.
+    var query = _posts
+        .where('expiresAt', isGreaterThan: Timestamp.now())
+        .orderBy('expiresAt', descending: true)
+        .limit(limit);
+    if (cursor is DocumentSnapshot) query = query.startAfterDocument(cursor);
+
+    final snapshot = await query.get();
+    if (snapshot.docs.isEmpty) return const ResultPage.empty();
+
+    // Authors are fetched fresh rather than copied into the post, so changing
+    // an avatar updates every post that person ever wrote.
+    final authors = await _tradersByUid([
+      for (final doc in snapshot.docs) doc.data()['authorUid'] as String,
+    ]);
+    final byUsername = {for (final a in authors) a.id: a};
+
+    return ResultPage(
+      items: [
+        for (final doc in snapshot.docs)
+          if (byUsername[doc.data()['authorUsername']] != null)
+            _postFrom(doc, byUsername[doc.data()['authorUsername']]!),
+      ],
+      cursor: snapshot.docs.last,
+      hasMore: snapshot.docs.length == limit,
+    );
+  }
+
+  FeedPost _postFrom(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+    Trader author,
+  ) {
+    final data = doc.data();
+    return FeedPost(
+      id: doc.id,
+      author: author,
+      symbol: data['symbol'] as String? ?? '',
+      rMultiple: (data['rMultiple'] as num?)?.toDouble() ?? 0,
+      postedAt: (data['postedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      reason: data['reason'] as String? ?? '',
+      lesson: data['lesson'] as String? ?? '',
+      followedRules: data['followedRules'] as bool? ?? false,
+      claps: (data['claps'] as num?)?.toInt() ?? 0,
+      commentCount: (data['commentCount'] as num?)?.toInt() ?? 0,
+    );
+  }
 }
