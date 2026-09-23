@@ -25,6 +25,7 @@ class FirebaseBootstrap {
     try {
       await Firebase.initializeApp();
       _ready = true;
+      debugPrint('Firebase ready — accounts and community are on Firestore.');
     } catch (error) {
       _ready = false;
       debugPrint(

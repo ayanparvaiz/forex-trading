@@ -30,8 +30,30 @@ service cloud.firestore {
         && unchanged('tradeCount')
         && unchanged('winRate')
         && unchanged('journalStreak')
-        && unchanged('tierIndex')
+        && unchanged('badgePoints')
         && unchanged('balance');
+    }
+
+    // --- Username claims ----------------------------------------------------
+    //
+    // One document per username, keyed by the username itself. Uniqueness comes
+    // from the document id: Firestore refuses a create on an id that already
+    // exists, so two people signing up with the same name at the same instant
+    // cannot both win. Checking a query and then writing would race.
+
+    match /usernames/{username} {
+      // Readable by anyone, because availability is checked on the sign-up
+      // screen before there is an account to authenticate with. Usernames are
+      // public anyway — they are printed on every leaderboard row.
+      allow read: if true;
+
+      // You may only claim a name for yourself.
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid;
+
+      // A claim is permanent. Releasing one would let a name be recycled onto
+      // a different person while old posts still carry it.
+      allow update, delete: if false;
     }
 
     // --- Profiles -----------------------------------------------------------
@@ -43,14 +65,20 @@ service cloud.firestore {
       allow create: if isOwner(uid)
         && request.resource.data.displayName is string
         && request.resource.data.displayName.size() <= 40
-        // A new account starts on the first tier with a clean slate. It cannot
-        // be born with a score.
+        && request.resource.data.username is string
+        // A new account starts with a clean slate. It cannot be born with a
+        // score, a badge, or a trade history.
         && request.resource.data.disciplineScore == 100
+        && request.resource.data.badgePoints == 0
         && request.resource.data.tradeCount == 0
-        && request.resource.data.tierIndex == 0;
+        && request.resource.data.totalR == 0;
 
-      // Settings are the trader's own; stats are not.
-      allow update: if isOwner(uid) && serverOwnedUnchanged();
+      // Settings are the trader's own; stats are not. The username is fixed at
+      // creation — the claim document points at this uid and nothing updates it.
+      allow update: if isOwner(uid)
+        && serverOwnedUnchanged()
+        && unchanged('username')
+        && unchanged('createdAt');
 
       allow delete: if isOwner(uid);
 

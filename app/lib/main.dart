@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'data/account_scope.dart';
 import 'data/account_store.dart';
 import 'data/auth_repository.dart';
+import 'data/firebase_auth_repository.dart';
 import 'data/seed_accounts.dart';
 import 'data/session_controller.dart';
 import 'firebase/firebase_bootstrap.dart';
@@ -28,7 +29,14 @@ class ForexTradingApp extends StatefulWidget {
 }
 
 class _ForexTradingAppState extends State<ForexTradingApp> {
-  final LocalAuthRepository _auth = LocalAuthRepository();
+  /// Firestore when it is reachable, on-device storage when it is not.
+  ///
+  /// A fresh clone with no Firebase config still runs the whole app, which is
+  /// what makes the project contributable without an account.
+  late final AuthRepository _auth = FirebaseBootstrap.isReady
+      ? FirebaseAuthRepository()
+      : LocalAuthRepository();
+
   late final SessionController _session = SessionController(_auth);
   late final AccountStore _store = AccountStore();
 
@@ -55,10 +63,17 @@ class _ForexTradingAppState extends State<ForexTradingApp> {
   Future<void> _start() async {
     final held = Future<void>.delayed(_minimumSplash);
 
-    // Populate the twenty demo accounts before restoring the session, so the
-    // leaderboard and feed are never empty on a fresh install. Idempotent, and
-    // it leaves an existing session alone.
-    await SeedAccounts.ensureSeeded(_auth);
+    // Demo accounts are only seeded into local storage. On Firestore the
+    // twenty accounts are seeded once, server-side — creating twenty auth
+    // users from a phone would be both slow and wrong.
+    final auth = _auth;
+    if (auth is LocalAuthRepository) {
+      debugPrint('Auth backend: on-device storage (Firebase unavailable).');
+      await SeedAccounts.ensureSeeded(auth);
+    } else {
+      debugPrint('Auth backend: Firestore.');
+    }
+
     await _session.restore();
 
     // Real work and the floor run together, so a slow start costs nothing

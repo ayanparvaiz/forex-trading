@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../i18n/strings.dart';
 import '../models/user_profile.dart';
+import 'username_suggestions.dart';
 
 /// Why a sign-up or log-in did not go through.
 enum AuthError {
@@ -149,33 +150,8 @@ class LocalAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<List<String>> suggestUsernames(String base, {int count = 4}) async {
-    // Strip anything the username rules would reject, so a suggestion built
-    // from "Rifat Hasan!" starts from "rifathasan".
-    var stem = AuthRepository.normalise(base).replaceAll(RegExp(r'[^a-z0-9_]'), '');
-    if (stem.length < 3) stem = stem.isEmpty ? 'trader' : '${stem}fx';
-    if (stem.length > 14) stem = stem.substring(0, 14);
-
-    final random = Random();
-    final candidates = <String>{
-      '${stem}fx',
-      '${stem}_fx',
-      '$stem${random.nextInt(90) + 10}',
-      '${stem}trades',
-      '${stem}_${random.nextInt(900) + 100}',
-      'the$stem',
-      '${stem}pips',
-      '$stem${DateTime.now().year % 100}',
-    };
-
-    final free = <String>[];
-    for (final candidate in candidates) {
-      if (free.length >= count) break;
-      if (candidate.length > 20) continue;
-      if (await isUsernameAvailable(candidate)) free.add(candidate);
-    }
-    return free;
-  }
+  Future<List<String>> suggestUsernames(String base, {int count = 4}) =>
+      suggestFreeUsernames(base, isFree: isUsernameAvailable, count: count);
 
   @override
   Future<AuthResult> signUp({
