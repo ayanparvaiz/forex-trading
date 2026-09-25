@@ -122,6 +122,53 @@ void main() {
     });
   });
 
+  group('typing', () {
+    ChatThread typingAt(DateTime? at) => ChatThread(
+      id: 'a-b',
+      uids: const [me, them],
+      users: const ['a', 'b'],
+      updatedAt: t0,
+      lastMessage: null,
+      unread: const {},
+      readAt: const {},
+      deliveredAt: const {},
+      typing: {them: ?at},
+    );
+
+    test('a fresh mark: typing', () {
+      expect(
+        isTyping(typingAt(t0.subtract(const Duration(seconds: 2))), them, t0),
+        isTrue,
+      );
+    });
+
+    test('a mark older than the window: stopped, even if never cleared', () {
+      // Someone who puts the phone down mid-sentence never sends the clear.
+      expect(
+        isTyping(typingAt(t0.subtract(const Duration(seconds: 9))), them, t0),
+        isFalse,
+      );
+    });
+
+    test('no mark, or a mark for someone else: not typing', () {
+      expect(isTyping(typingAt(null), them, t0), isFalse);
+      expect(isTyping(typingAt(t0), me, t0), isFalse);
+    });
+
+    test('a clock a second or two ahead still reads as typing', () {
+      expect(
+        isTyping(typingAt(t0.add(const Duration(seconds: 2))), them, t0),
+        isTrue,
+      );
+    });
+
+    test('refreshes land well inside the window', () {
+      // The typist re-stamps every few seconds; if that were not comfortably
+      // shorter than the window, "typing…" would flicker between refreshes.
+      expect(typingRefresh * 2, lessThan(typingWindow));
+    });
+  });
+
   group('loading messages', () {
     test('newest first, merged without duplicates', () {
       final a = msg('a', t0);
