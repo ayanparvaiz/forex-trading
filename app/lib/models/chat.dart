@@ -57,6 +57,17 @@ class ChatPreview {
   final DateTime sentAt;
 }
 
+/// The message a reply answers: which one, and whose.
+///
+/// No copy of its text — the original is looked up and shown as it is now,
+/// so unsending a message also takes it out of every reply to it.
+class ReplyRef {
+  const ReplyRef({required this.id, required this.senderUid});
+
+  final String id;
+  final String senderUid;
+}
+
 class ChatMessage {
   const ChatMessage({
     required this.id,
@@ -65,6 +76,8 @@ class ChatMessage {
     required this.sentAt,
     required this.unsent,
     required this.pending,
+    this.replyTo,
+    this.forwarded = false,
     this.cursor,
   });
 
@@ -74,12 +87,56 @@ class ChatMessage {
   final DateTime sentAt;
   final bool unsent;
 
+  /// The message this one answers, when it is a reply.
+  final ReplyRef? replyTo;
+
+  /// A copy of a message from another conversation.
+  final bool forwarded;
+
   /// Written on this phone but not yet confirmed by the server.
   final bool pending;
 
   /// Where to continue from when loading older messages. Opaque to
   /// everything but the repository that made it.
   final Object? cursor;
+}
+
+/// What one person has deleted from a conversation for themselves only.
+///
+/// The conversation is untouched — the other person keeps every message.
+/// This is just what to leave out on this person's side.
+class ChatPrefs {
+  const ChatPrefs({this.clearedAt, this.hidden = const {}});
+
+  static const none = ChatPrefs();
+
+  /// "Delete chat": everything sent up to this moment is gone for them.
+  final DateTime? clearedAt;
+
+  /// "Delete for me": messages removed one at a time.
+  final Set<String> hidden;
+
+  /// Whether [m] is shown. A message still on its way is always new, so
+  /// never before a clear.
+  bool shows(ChatMessage m) {
+    if (hidden.contains(m.id)) return false;
+    final cleared = clearedAt;
+    return cleared == null || m.pending || m.sentAt.isAfter(cleared);
+  }
+
+  /// Whether the conversation stays in the inbox. A deleted chat leaves it
+  /// until someone says something new.
+  bool listsThread(ChatThread t) {
+    final cleared = clearedAt;
+    return cleared == null || t.updatedAt.isAfter(cleared);
+  }
+
+  /// Whether messages sent at [t] and before are all cleared, so there is
+  /// nothing older worth loading.
+  bool clearedBy(DateTime t) {
+    final cleared = clearedAt;
+    return cleared != null && !t.isAfter(cleared);
+  }
 }
 
 /// The tick on a message you sent.

@@ -310,6 +310,59 @@ void main() {
     });
   });
 
+  group('deleting for me', () {
+    final cleared = t0.add(const Duration(minutes: 10));
+    final prefs = ChatPrefs(clearedAt: cleared, hidden: const {'h'});
+
+    test('a message deleted for me is left out, and only that one', () {
+      final m1 = msg('h', t0.add(const Duration(minutes: 20)));
+      final m2 = msg('k', t0.add(const Duration(minutes: 20)));
+      expect(prefs.shows(m1), isFalse);
+      expect(prefs.shows(m2), isTrue);
+    });
+
+    test('a deleted chat hides everything up to the moment of deleting', () {
+      expect(prefs.shows(msg('1', t0)), isFalse);
+      expect(prefs.shows(msg('2', cleared)), isFalse);
+      expect(
+        prefs.shows(msg('3', cleared.add(const Duration(seconds: 1)))),
+        isTrue,
+      );
+    });
+
+    test(
+      'a message still on its way is new, whatever its placeholder time',
+      () {
+        expect(prefs.shows(msg('p', t0, pending: true)), isTrue);
+      },
+    );
+
+    test('a deleted chat leaves the inbox until something new is said', () {
+      ChatThread at(DateTime t) => ChatThread(
+        id: 'a-b',
+        uids: const [me, them],
+        users: const ['a', 'b'],
+        updatedAt: t,
+        lastMessage: null,
+        unread: const {},
+        readAt: const {},
+        deliveredAt: const {},
+      );
+      expect(prefs.listsThread(at(cleared)), isFalse);
+      expect(
+        prefs.listsThread(at(cleared.add(const Duration(seconds: 1)))),
+        isTrue,
+      );
+      expect(ChatPrefs.none.listsThread(at(t0)), isTrue);
+    });
+
+    test('nothing older is worth loading once the page reaches the clear', () {
+      expect(prefs.clearedBy(t0), isTrue);
+      expect(prefs.clearedBy(cleared.add(const Duration(minutes: 1))), isFalse);
+      expect(ChatPrefs.none.clearedBy(t0), isFalse);
+    });
+  });
+
   group('time labels', () {
     const en = Strings(AppLanguage.en);
     const bn = Strings(AppLanguage.bn);
