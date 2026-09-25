@@ -103,3 +103,160 @@ export async function writeStats(projectId, uid, stats, token, now = new Date())
   });
   if (!res.ok) throw new Error(`write stats ${res.status}: ${await res.text()}`);
 }
+
+// --- Erasing an account ------------------------------------------------------
+
+/**
+ * Thrown when a call should simply be made again: this request has used up
+ * its share of Firestore calls, or a document changed under a write. Erasing
+ * is written so that running it again picks up where it stopped.
+ */
+export class TryAgain extends Error {}
+
+function encodeValue(v) {
+  if (typeof v === 'string') return { stringValue: v };
+  if (typeof v === 'boolean') return { booleanValue: v };
+  if (Number.isInteger(v)) return { integerValue: String(v) };
+  return { doubleValue: v };
+}
+
+const OPS = { '==': 'EQUAL', 'array-contains': 'ARRAY_CONTAINS' };
+
+/**
+ * The few Firestore calls erasing needs, over REST, each one counted.
+ *
+ * Paths are relative to the database root ("users/abc/trades/t1"). [budget]
+ * caps the calls one request makes: Cloudflare's free plan allows 50
+ * outgoing requests per incoming one, and token checks need some of those.
+ * Past the budget every call throws TryAgain, and the app asks again.
+ */
+export function restStore(projectId, token, { budget = 40 } = {}) {
+  const root = `projects/${projectId}/databases/(default)/documents`;
+  const api = `https://firestore.googleapis.com/v1/${root}`;
+  const url = (path) => (path ? `${api}/${path.split('/').map(encodeURIComponent).join('/')}` : api);
+  const full = (path) => `${root}/${path}`;
+  const relative = (name) => name.slice(root.length + 1);
+  let spent = 0;
+
+  async function call(target, body, { commit = false } = {}) {
+    if (spent >= budget) throw new TryAgain('out of budget');
+    spent++;
+    const res = await fetch(target, {
+      method: body ? 'POST' : 'GET',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: body && JSON.stringify(body),
+    });
+    if (res.status === 404 && !body) return null;
+    if (!res.ok) {
+      const text = await res.text();
+      // A write whose precondition no longer holds — a post deleted between
+      // reading its count and writing it. Nothing is written; the next call
+      // re-reads. Only for commits: a query refused for a missing index says
+      // FAILED_PRECONDITION too, and asking again would never fix that.
+      if (commit && (res.status === 409 || text.includes('FAILED_PRECONDITION'))) {
+        throw new TryAgain(`conflict: ${text}`);
+      }
+      throw new Error(`firestore ${res.status}: ${text}`);
+    }
+    return res.json();
+  }
+
+  const select = (fields) => ({
+    fields: (fields.length ? fields : ['__name__']).map((fieldPath) => ({ fieldPath })),
+  });
+
+  async function runQuery(parent, structuredQuery) {
+    const rows = await call(`${url(parent)}:runQuery`, { structuredQuery });
+    return rows
+      .filter((r) => r.document)
+      .map((r) => ({ path: relative(r.document.name), data: decodeFields(r.document.fields ?? {}) }));
+  }
+
+  return {
+    get spent() {
+      return spent;
+    },
+
+    /** One document's [fields], or null if it does not exist. */
+    async get(path, fields = []) {
+      const target = new URL(url(path));
+      for (const f of fields) target.searchParams.append('mask.fieldPaths', f);
+      const doc = await call(target);
+      return doc ? decodeFields(doc.fields ?? {}) : null;
+    },
+
+    /**
+     * Documents in [collection] whose [field] matches, by path. With [group],
+     * every collection of that name at any depth.
+     */
+    find({ collection, group = false, field, op = '==', value, limit, fields = [] }) {
+      return runQuery('', {
+        from: [{ collectionId: collection, allDescendants: group }],
+        where: { fieldFilter: { field: { fieldPath: field }, op: OPS[op], value: encodeValue(value) } },
+        select: select(fields),
+        limit,
+      });
+    },
+
+    /** Paths of every document below [path], in any subcollection. */
+    async descendants(path, limit) {
+      const rows = await runQuery(path, {
+        from: [{ allDescendants: true }],
+        select: select([]),
+        limit,
+      });
+      return rows.map((r) => r.path);
+    },
+
+    /** Several documents at once: path → fields, or null where missing. */
+    async getAll(paths, fields = []) {
+      const out = new Map();
+      if (paths.length === 0) return out;
+      const body = { documents: paths.map(full) };
+      if (fields.length) body.mask = { fieldPaths: fields };
+      for (const r of await call(`${api}:batchGet`, body)) {
+        if (r.found) out.set(relative(r.found.name), decodeFields(r.found.fields ?? {}));
+        else out.set(relative(r.missing), null);
+      }
+      return out;
+    },
+
+    /**
+     * Applies [writes] atomically — all of them or none.
+     *
+     *   { delete: path }
+     *   { increment: path, field, by }   the document must still exist
+     *   { set: path, field, value }      the document must still exist
+     *   { replace: path, serverTime }    the whole document becomes one timestamp
+     */
+    async commit(writes) {
+      const rest = writes.map((w) => {
+        if (w.delete) return { delete: full(w.delete) };
+        if (w.increment) {
+          return {
+            transform: {
+              document: full(w.increment),
+              fieldTransforms: [{ fieldPath: w.field, increment: encodeValue(w.by) }],
+            },
+            currentDocument: { exists: true },
+          };
+        }
+        if (w.set) {
+          return {
+            update: { name: full(w.set), fields: { [w.field]: encodeValue(w.value) } },
+            updateMask: { fieldPaths: [w.field] },
+            currentDocument: { exists: true },
+          };
+        }
+        if (w.replace) {
+          return {
+            update: { name: full(w.replace), fields: {} },
+            updateTransforms: [{ fieldPath: w.serverTime, setToServerValue: 'REQUEST_TIME' }],
+          };
+        }
+        throw new Error(`unknown write ${JSON.stringify(w)}`);
+      });
+      await call(`${api}:commit`, { writes: rest }, { commit: true });
+    },
+  };
+}
