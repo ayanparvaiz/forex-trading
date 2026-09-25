@@ -99,7 +99,30 @@ class SessionController extends ChangeNotifier {
     return result;
   }
 
+  /// Work that has to happen while still signed in, just before signing
+  /// out — forgetting this phone for push notifications. Also run after an
+  /// account is deleted, for whatever of it does not need the account.
+  final List<Future<void> Function(String uid)> _signOutHooks = [];
+
+  void addSignOutHook(Future<void> Function(String uid) hook) =>
+      _signOutHooks.add(hook);
+
+  void removeSignOutHook(Future<void> Function(String uid) hook) =>
+      _signOutHooks.remove(hook);
+
+  Future<void> _runSignOutHooks(String? uid) async {
+    if (uid == null) return;
+    for (final hook in List.of(_signOutHooks)) {
+      try {
+        await hook(uid);
+      } catch (e) {
+        debugPrint('sign-out hook failed: $e');
+      }
+    }
+  }
+
   Future<void> logOut() async {
+    await _runSignOutHooks(_uid);
     await _auth.logOut();
     _profile = null;
     _uid = null;
@@ -114,8 +137,10 @@ class SessionController extends ChangeNotifier {
   /// Deletes the account for good. Null on success, and then nobody is
   /// signed in — the app falls back to the login screen.
   Future<AuthError?> deleteAccount({required String password}) async {
+    final uid = _uid;
     final error = await _auth.deleteAccount(password: password);
     if (error == null) {
+      await _runSignOutHooks(uid);
       _profile = null;
       _uid = null;
       notifyListeners();
