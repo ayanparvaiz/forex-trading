@@ -100,6 +100,10 @@ class ChatInbox extends ChangeNotifier with WidgetsBindingObserver {
   bool _foreground = true;
   Timer? _heartbeat;
 
+  /// Set while the account is being deleted: a beat in the middle would
+  /// write back the presence the worker has just erased.
+  bool _presencePaused = false;
+
   /// Delivery marks asked for and not yet reflected back, so a slow
   /// acknowledgement does not trigger the same write twice.
   final Map<String, DateTime> _deliveryRequested = {};
@@ -198,12 +202,14 @@ class ChatInbox extends ChangeNotifier with WidgetsBindingObserver {
   /// A beat a minute while the app is in front; one more on the way out, so
   /// "last active" is when you actually left rather than up to a minute early.
   void _startHeartbeat() {
+    if (_presencePaused) return;
     _beat();
     _heartbeat?.cancel();
     _heartbeat = Timer.periodic(const Duration(minutes: 1), (_) => _beat());
   }
 
   void _beat() {
+    if (_presencePaused) return;
     repository.beat(uid).catchError((Object e) {
       debugPrint('presence beat failed: $e');
     });
@@ -224,6 +230,18 @@ class ChatInbox extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   bool get isForeground => _foreground;
+
+  /// Stops "active now" being written, until [resumePresence].
+  void pausePresence() {
+    _presencePaused = true;
+    _heartbeat?.cancel();
+  }
+
+  void resumePresence() {
+    if (!_presencePaused) return;
+    _presencePaused = false;
+    if (_foreground) _startHeartbeat();
+  }
 
   @override
   void dispose() {
