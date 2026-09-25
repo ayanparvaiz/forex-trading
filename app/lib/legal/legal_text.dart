@@ -45,7 +45,7 @@ const _privacyEn = LegalDocument(
   title: 'Privacy Policy',
   updated: 'Last updated $legalUpdated',
   intro:
-      'This policy explains what Forex Trading ("the app", "we") collects, why, '
+      'This policy explains what Forex Social ("the app", "we") collects, why, '
       'who can see it, and how to delete it. The app is a practice simulator: '
       'it uses demo points and never real money.',
   sections: [
@@ -141,7 +141,7 @@ const _privacyBn = LegalDocument(
   title: 'প্রাইভেসি পলিসি',
   updated: 'সর্বশেষ হালনাগাদ $legalUpdatedBn',
   intro:
-      'Forex Trading ("অ্যাপ", "আমরা") কী তথ্য নেয়, কেন নেয়, কে দেখতে পায় '
+      'Forex Social ("অ্যাপ", "আমরা") কী তথ্য নেয়, কেন নেয়, কে দেখতে পায় '
       'আর কীভাবে মুছে ফেলা যায় — এই পলিসিতে তা বলা আছে। এটা একটা প্র্যাকটিস '
       'সিমুলেটর: এখানে ডেমো পয়েন্ট চলে, আসল টাকা কখনো না।',
   sections: [
@@ -237,7 +237,7 @@ const _termsEn = LegalDocument(
   title: 'Terms & Conditions',
   updated: 'Last updated $legalUpdated',
   intro:
-      'These terms are the agreement between you and Forex Trading. By '
+      'These terms are the agreement between you and Forex Social. By '
       'creating an account or using the app, you agree to them and to the '
       'Privacy Policy.',
   sections: [
@@ -315,7 +315,7 @@ const _termsBn = LegalDocument(
   title: 'শর্তাবলি',
   updated: 'সর্বশেষ হালনাগাদ $legalUpdatedBn',
   intro:
-      'এই শর্তগুলো আপনার আর Forex Trading-এর মধ্যে চুক্তি। অ্যাকাউন্ট খুলে '
+      'এই শর্তগুলো আপনার আর Forex Social-এর মধ্যে চুক্তি। অ্যাকাউন্ট খুলে '
       'বা অ্যাপ ব্যবহার করে আপনি এই শর্ত আর প্রাইভেসি পলিসিতে রাজি হচ্ছেন।',
   sections: [
     LegalSection('১. এটা প্র্যাকটিসের অ্যাপ, ব্রোকার নয়', [
