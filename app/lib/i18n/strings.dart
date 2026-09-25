@@ -610,6 +610,44 @@ class Strings {
   String blockedOn(DateTime t) =>
       _t('${shortDate(t)} তারিখে ব্লক', 'Blocked ${shortDate(t)}');
 
+  // --- Reporting ----------------------------------------------------------
+
+  String get report => _t('রিপোর্ট', 'Report');
+  String reportUserTitle(String username) =>
+      _t('@$username-কে রিপোর্ট', 'Report @$username');
+  String get reportMessageTitle => _t('মেসেজ রিপোর্ট', 'Report message');
+  String get reportPostTitle => _t('পোস্ট রিপোর্ট', 'Report post');
+  String get reportCommentTitle => _t('কমেন্ট রিপোর্ট', 'Report comment');
+  String get reportWhy => _t('সমস্যাটা কী?', "What's wrong?");
+  String get reportPrivate => _t(
+    'রিপোর্ট শুধু মডারেটররা দেখেন। যাকে রিপোর্ট করছেন তাকে জানানো হয় না।',
+    'Only moderators see reports. The person you report is not told.',
+  );
+  String get reportNoteHint =>
+      _t('আরও কিছু বলতে চাইলে লিখুন (ঐচ্ছিক)', 'Anything else? (optional)');
+  String get sendReport => _t('রিপোর্ট পাঠান', 'Send report');
+  String get reportThanks =>
+      _t('ধন্যবাদ, রিপোর্ট পেয়েছি', 'Thanks — report received');
+  String get reportThanksBody => _t(
+    'আমরা দেখে ব্যবস্থা নেব। চাইলে তাকে ব্লকও করতে পারেন।',
+    'We will look into it. You can also block this person.',
+  );
+  String get done => _t('ঠিক আছে', 'Done');
+
+  String reportReason(String reason) => switch (reason) {
+    'spam' => _t('স্প্যাম', 'Spam'),
+    'harassment' => _t('হয়রানি বা বুলিং', 'Harassment or bullying'),
+    'hate' => _t('ঘৃণা ছড়ানো', 'Hate speech'),
+    'sexual' => _t('যৌন কনটেন্ট', 'Sexual content'),
+    'violence' => _t('সহিংসতা বা হুমকি', 'Violence or threats'),
+    'scam' => _t(
+      'প্রতারণা বা টাকার সিগন্যাল বিক্রি',
+      'Scam, or selling paid signals',
+    ),
+    'impersonation' => _t('অন্য কারো ছদ্মবেশ', 'Pretending to be someone else'),
+    _ => _t('অন্য কিছু', 'Something else'),
+  };
+
   // --- Settings -----------------------------------------------------------
 
   String get settings => _t('সেটিংস', 'Settings');
