@@ -24,6 +24,16 @@ export const VIOLATION_WEIGHTS = {
   noJournal: 10,
 };
 
+/**
+ * Closed trades needed before an account appears on the leaderboard.
+ *
+ * With no closed trades the discipline score is 100 — nothing has been broken
+ * yet — so without a floor every brand-new account would sit at the top,
+ * above people who have kept their rules over dozens of trades. Mirrors
+ * CommunityRepository.minRankedTrades in the app.
+ */
+export const MIN_RANKED_TRADES = 5;
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // Bangladesh time, fixed at UTC+6 with no daylight saving. The app counts

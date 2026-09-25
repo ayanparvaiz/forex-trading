@@ -17,7 +17,7 @@
 // A caller can only ever recompute their own row, and only from their own
 // trades. There is no parameter that says whose numbers to change.
 
-import { leaderboardStats } from './stats.js';
+import { MIN_RANKED_TRADES, leaderboardStats } from './stats.js';
 import { serviceAccountToken, verifyIdToken } from './google.js';
 import { listTrades, statsUpdatedAt, writeStats } from './firestore.js';
 
@@ -88,9 +88,12 @@ export default {
 
       const trades = await listTrades(env.FIREBASE_PROJECT_ID, uid, token);
       const stats = leaderboardStats(trades);
-      await writeStats(env.FIREBASE_PROJECT_ID, uid, stats, token);
+      // Written here rather than left to the query, so the leaderboard can ask
+      // "ranked == true" with an equality filter and one index.
+      const ranked = stats.tradeCount >= MIN_RANKED_TRADES;
+      await writeStats(env.FIREBASE_PROJECT_ID, uid, { ...stats, ranked }, token);
 
-      return json(stats);
+      return json({ ...stats, ranked });
     } catch (error) {
       if (error.message === 'no such user') return json({ error: 'no profile' }, 404);
       console.error('recompute failed for', uid, error);

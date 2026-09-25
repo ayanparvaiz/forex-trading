@@ -86,9 +86,9 @@ const INTEGER_FIELDS = new Set(['badgePoints', 'tradeCount', 'journalStreak']);
 export async function writeStats(projectId, uid, stats, token, now = new Date()) {
   const fields = {};
   for (const [k, v] of Object.entries(stats)) {
-    fields[k] = INTEGER_FIELDS.has(k)
-      ? { integerValue: String(Math.trunc(v)) }
-      : { doubleValue: v };
+    if (typeof v === 'boolean') fields[k] = { booleanValue: v };
+    else if (INTEGER_FIELDS.has(k)) fields[k] = { integerValue: String(Math.trunc(v)) };
+    else fields[k] = { doubleValue: v };
   }
   fields.statsUpdatedAt = { timestampValue: now.toISOString() };
 
