@@ -11,9 +11,9 @@ import '../models/trade.dart';
 import '../theme/app_theme.dart';
 import '../widgets/avatar_image.dart';
 import '../widgets/common.dart';
-import 'edit_profile_sheet.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
+import 'settings_screen.dart';
 
 /// Home screen: what the account is worth, and how well it is being run.
 ///
@@ -67,7 +67,7 @@ class PortfolioScreen extends StatelessWidget {
   }
 }
 
-/// Avatar in the app bar. Tapping it opens language and sign-out.
+/// Avatar in the app bar. Tapping it opens your profile and Settings.
 class _ProfileButton extends StatelessWidget {
   const _ProfileButton({required this.avatarId, required this.name});
 
@@ -136,50 +136,6 @@ class _ProfileButton extends StatelessWidget {
                 ],
               ),
               Gap.h24,
-              Text(
-                s.chooseLanguage,
-                style: Theme.of(sheetContext).textTheme.labelSmall,
-              ),
-              Gap.h8,
-              Row(
-                children: [
-                  for (final language in AppLanguage.values) ...[
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          session.setLanguage(language);
-                          Navigator.of(sheetContext).pop();
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: Gap.md),
-                          decoration: BoxDecoration(
-                            color: session.language == language
-                                ? AppColors.brandDim
-                                : AppColors.elevated,
-                            borderRadius: Radii.tile,
-                            border: Border.all(
-                              color: session.language == language
-                                  ? AppColors.brand
-                                  : AppColors.border,
-                            ),
-                          ),
-                          child: Center(
-                            child: Text(
-                              '${language.flag}  ${language.nativeName}',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    if (language != AppLanguage.values.last) Gap.w12,
-                  ],
-                ],
-              ),
-              Gap.h16,
               FilledButton.icon(
                 onPressed: () {
                   final username = session.profile?.username;
@@ -198,31 +154,21 @@ class _ProfileButton extends StatelessWidget {
                 label: Text(s.profile),
               ),
               Gap.h8,
+              // Everything else about the account — editing it, the password,
+              // language, privacy, signing out — lives in Settings, so this
+              // sheet stays a short way in rather than a second settings page.
               OutlinedButton.icon(
                 onPressed: () {
                   Navigator.of(sheetContext).pop();
-                  showEditProfileSheet(context);
+                  openSettings(context);
                 },
-                icon: const Icon(Icons.edit_outlined, size: 18),
-                label: Text(s.editProfile),
+                icon: const Icon(Icons.settings_outlined, size: 18),
+                label: Text(s.settings),
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size.fromHeight(48),
                   foregroundColor: AppColors.textPrimary,
                   side: const BorderSide(color: AppColors.border),
                   shape: const RoundedRectangleBorder(borderRadius: Radii.tile),
-                ),
-              ),
-              Gap.h8,
-              TextButton.icon(
-                onPressed: () {
-                  session.logOut();
-                  Navigator.of(sheetContext).pop();
-                },
-                icon: const Icon(Icons.logout, size: 18),
-                label: Text(s.logOut),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.loss,
-                  minimumSize: const Size.fromHeight(44),
                 ),
               ),
             ],
