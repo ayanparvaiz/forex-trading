@@ -159,6 +159,17 @@ abstract class CommunityRepository {
   /// has been deleted.
   Future<FeedPost?> post(String postId);
 
+  /// People whose username or name starts with [query] — the part of search
+  /// the server answers. Case does not matter, and a leading "@" is ignored.
+  Future<List<Trader>> searchPeople(String query, {int limit = 10});
+
+  /// [username]'s most recent posts, newest first.
+  Future<List<FeedPost>> postsBy(String username, {int limit = 3});
+
+  /// What a search is matched against: lower case, no "@", no spaces around.
+  static String normaliseQuery(String query) =>
+      query.trim().toLowerCase().replaceFirst(RegExp(r'^@'), '');
+
   /// Deletes your own post, and every comment, like and view on it — they
   /// mean nothing without it.
   Future<void> deletePost(String postId);
@@ -346,6 +357,22 @@ class LocalCommunityRepository implements CommunityRepository {
   /// Nothing to delete: this device never publishes to the feed.
   @override
   Future<void> deletePost(String postId) async {}
+
+  @override
+  Future<List<Trader>> searchPeople(String query, {int limit = 10}) async {
+    final q = CommunityRepository.normaliseQuery(query);
+    if (q.isEmpty) return const [];
+    return [
+      for (final t in MockCommunity.traders(language))
+        if (t.id.startsWith(q) || t.name.toLowerCase().startsWith(q)) t,
+    ].take(limit).toList();
+  }
+
+  @override
+  Future<List<FeedPost>> postsBy(String username, {int limit = 3}) async => [
+    for (final p in MockCommunity.liveFeed(language))
+      if (p.author.id == username) p,
+  ].take(limit).toList();
 
   @override
   Future<int?> rankOf(String username) async {

@@ -637,6 +637,46 @@ class FirestoreCommunityRepository implements CommunityRepository {
     return authors.isEmpty ? null : _postFrom(doc, authors.first);
   }
 
+  /// Two prefix queries, one on the username and one on the lowercase name,
+  /// merged. Firestore matches only the start of a field; matching anywhere
+  /// in a name is done on the device, over the people search already knows.
+  @override
+  Future<List<Trader>> searchPeople(String query, {int limit = 10}) async {
+    final q = CommunityRepository.normaliseQuery(query);
+    if (q.isEmpty) return const [];
+    Future<QuerySnapshot<Map<String, dynamic>>> startsWith(String field) =>
+        _users
+            .orderBy(field)
+            .startAt([q])
+            .endAt(['$q\uf8ff'])
+            .limit(limit)
+            .get();
+    final pages = await Future.wait([
+      startsWith('username'),
+      startsWith('nameLower'),
+    ]);
+    final seen = <String>{};
+    return [
+      for (final page in pages)
+        for (final d in page.docs)
+          if (_traderFrom(d.data()) case final t when seen.add(t.id)) t,
+    ];
+  }
+
+  /// Newest first, by expiry — which is posting time plus a fixed week, so
+  /// the same order, and it lets this share the feed's index.
+  @override
+  Future<List<FeedPost>> postsBy(String username, {int limit = 3}) async {
+    final uid = await _uidFor(username);
+    if (uid == null) return const [];
+    final page = await _posts
+        .where('authorUid', isEqualTo: uid)
+        .orderBy('expiresAt', descending: true)
+        .limit(limit)
+        .get();
+    return _hydrate(page.docs);
+  }
+
   /// Everything under the post first — comments, likes, views — and the post
   /// last. Stopped part-way, the post is still there, and deleting it again
   /// finishes the job.
