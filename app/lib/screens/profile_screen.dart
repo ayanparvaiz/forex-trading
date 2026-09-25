@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 
 import '../data/community_repository.dart';
+import '../data/firestore_community_repository.dart';
 import '../data/notification_repository.dart';
 import '../data/page.dart';
 import '../data/session_controller.dart';
+import '../firebase/firebase_bootstrap.dart';
 import '../i18n/strings.dart';
 import '../models/app_notification.dart';
 import '../models/connection.dart';
 import '../models/trader.dart';
 import '../theme/app_theme.dart';
+import '../widgets/avatar_image.dart';
 import '../widgets/common.dart';
 import '../widgets/paged_list.dart';
-import '../widgets/avatar_image.dart';
+import 'chat_screen.dart';
 import 'edit_profile_sheet.dart';
 
 /// Opens [username]'s profile.
@@ -168,6 +171,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _message() async {
+    final me = _me;
+    if (me == null) return;
+    final otherUid = await widget.repository.uidFor(widget.username);
+    if (otherUid == null || !mounted) return;
+    await openChat(
+      context,
+      chatId: FirestoreCommunityRepository.pairId(me, widget.username),
+      otherUid: otherUid,
+      otherUsername: widget.username,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = context.s;
@@ -236,36 +252,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _Header(trader: trader, s: s),
                 Gap.h12,
                 if (!_isSelf) ...[
-                  _ConnectButton(
-                    status: _status,
-                    busy: _busy,
-                    s: s,
-                    onConnect: () => _act(() async {
-                      await widget.repository.sendRequest(
-                        from: _me!,
-                        to: widget.username,
-                      );
-                      await _notify(
-                        NotificationKind.connectionRequest,
-                        widget.username,
-                      );
-                    }),
-                    onAccept: () => _act(() async {
-                      await widget.repository.acceptRequest(
-                        me: _me!,
-                        from: widget.username,
-                      );
-                      await _notify(
-                        NotificationKind.connectionAccepted,
-                        widget.username,
-                      );
-                    }),
-                    onRemove: () => _act(
-                      () => widget.repository.removeConnection(
-                        me: _me!,
-                        other: widget.username,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _ConnectButton(
+                          status: _status,
+                          busy: _busy,
+                          s: s,
+                          onConnect: () => _act(() async {
+                            await widget.repository.sendRequest(
+                              from: _me!,
+                              to: widget.username,
+                            );
+                            await _notify(
+                              NotificationKind.connectionRequest,
+                              widget.username,
+                            );
+                          }),
+                          onAccept: () => _act(() async {
+                            await widget.repository.acceptRequest(
+                              me: _me!,
+                              from: widget.username,
+                            );
+                            await _notify(
+                              NotificationKind.connectionAccepted,
+                              widget.username,
+                            );
+                          }),
+                          onRemove: () => _act(
+                            () => widget.repository.removeConnection(
+                              me: _me!,
+                              other: widget.username,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                      // Next to Connect, as on LinkedIn — once there is a
+                      // connection to talk through. A request opens the
+                      // conversation, so this appears the moment one is sent.
+                      if (_status != ConnectionStatus.none &&
+                          FirebaseBootstrap.isReady) ...[
+                        Gap.w12,
+                        _MessageButton(label: s.message, onTap: _message),
+                      ],
+                    ],
                   ),
                   Gap.h12,
                 ],
@@ -372,6 +402,36 @@ class _Header extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A square message button, so it fits beside even the two-button
+/// accept/decline row without squeezing either.
+class _MessageButton extends StatelessWidget {
+  const _MessageButton({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: label,
+      child: SizedBox(
+        width: 52,
+        height: 52,
+        child: OutlinedButton(
+          onPressed: onTap,
+          style: OutlinedButton.styleFrom(
+            padding: EdgeInsets.zero,
+            foregroundColor: AppColors.brand,
+            side: const BorderSide(color: AppColors.brand),
+            shape: const RoundedRectangleBorder(borderRadius: Radii.tile),
+          ),
+          child: const Icon(Icons.chat_bubble_outline_rounded, size: 21),
+        ),
       ),
     );
   }
