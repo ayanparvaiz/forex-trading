@@ -205,7 +205,7 @@ class ChatRepository {
   /// Not awaited by the screen: the message appears from the local cache at
   /// once, marked pending, and turns into a tick when the server has it.
   /// Offline, the write waits in the queue and goes when the phone does.
-  Future<void> send({
+  Future<String> send({
     required String chatId,
     required String me,
     required String other,
@@ -213,7 +213,7 @@ class ChatRepository {
     ReplyRef? replyTo,
     bool forwarded = false,
     MessageAttachment? attachment,
-  }) {
+  }) async {
     final message = _messages(chatId).doc();
     final batch = _db.batch()
       ..set(message, {
@@ -242,7 +242,9 @@ class ChatRepository {
         // the message it was about never show at the same time.
         FieldPath(['typing', me]): FieldValue.delete(),
       });
-    return batch.commit();
+    await batch.commit();
+    // The id, for telling the recipient once the server has it.
+    return message.id;
   }
 
   /// I am typing. Called at most every [typingRefresh] while the box has

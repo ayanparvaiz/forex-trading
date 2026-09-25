@@ -84,7 +84,7 @@ class RoomRepository {
   /// Sends as [name] (@[username]) — which the rules check against your
   /// profile — and moves the room's preview, in one batch. Writing is also
   /// reading: your mark moves past everything before it.
-  Future<void> send({
+  Future<String> send({
     required String roomId,
     required String me,
     required String name,
@@ -93,7 +93,7 @@ class RoomRepository {
     ReplyRef? replyTo,
     bool forwarded = false,
     MessageAttachment? attachment,
-  }) {
+  }) async {
     final message = _messages(roomId).doc();
     final batch = _db.batch()
       ..set(message, {
@@ -120,7 +120,9 @@ class RoomRepository {
         'updatedAt': FieldValue.serverTimestamp(),
       })
       ..update(_member(roomId, me), {'readAt': FieldValue.serverTimestamp()});
-    return batch.commit();
+    await batch.commit();
+    // The id, for telling the recipient once the server has it.
+    return message.id;
   }
 
   Future<void> unsend({
