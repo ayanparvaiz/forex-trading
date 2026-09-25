@@ -157,6 +157,14 @@ class ChatRepository {
   Future<bool> isConnected(String chatId) async =>
       (await _connections.doc(chatId).get()).data()?['accepted'] == true;
 
+  /// [isConnected], live: a conversation that is open when the other person
+  /// disconnects or blocks has to close then, not the next time it opens.
+  Stream<bool> watchConnected(String chatId) => _connections
+      .doc(chatId)
+      .snapshots()
+      .map((d) => d.data()?['accepted'] == true)
+      .distinct();
+
   // --- Messages -------------------------------------------------------------
 
   /// The newest page, live. Metadata changes are included so a message
