@@ -10,6 +10,7 @@ import 'firebase/firebase_bootstrap.dart';
 import 'screens/auth/auth_gate.dart';
 import 'screens/splash_screen.dart';
 import 'theme/app_theme.dart';
+import 'widgets/inbox_host.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,6 +40,7 @@ class _ForexTradingAppState extends State<ForexTradingApp> {
 
   late final SessionController _session = SessionController(_auth);
   late final AccountStore _store = AccountStore();
+  final _navigator = GlobalKey<NavigatorState>();
 
   @override
   void initState() {
@@ -99,6 +101,12 @@ class _ForexTradingAppState extends State<ForexTradingApp> {
           title: 'Forex Trading',
           debugShowCheckedModeBanner: false,
           theme: buildAppTheme(),
+          navigatorKey: _navigator,
+          // Above the Navigator, so every route — tabs, conversations,
+          // profiles — can reach the inbox, and a new-message banner draws
+          // over whichever one is showing.
+          builder: (context, child) =>
+              InboxHost(navigatorKey: _navigator, child: child!),
           home: _booting ? const SplashScreen() : const AuthGate(),
         ),
       ),
