@@ -76,6 +76,7 @@ class FirebaseAuthRepository implements AuthRepository {
     required AppLanguage language,
     required int avatarId,
     bool startSession = true,
+    String? termsVersion,
   }) async {
     final invalid = AuthRepository.validate(
       username: username,
@@ -134,6 +135,12 @@ class FirebaseAuthRepository implements AuthRepository {
           'journalStreak': 0,
           'totalR': 0,
           'createdAtServer': FieldValue.serverTimestamp(),
+          // What this person agreed to, and when. Outside the fields a
+          // profile update may touch, so it stays as it was agreed.
+          if (termsVersion != null) ...{
+            'termsVersion': termsVersion,
+            'termsAcceptedAt': FieldValue.serverTimestamp(),
+          },
         });
       });
 

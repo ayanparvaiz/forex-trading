@@ -70,6 +70,11 @@ abstract class AuthRepository {
     required AppLanguage language,
     required int avatarId,
     bool startSession = true,
+
+    /// The version of the terms and privacy policy the person agreed to,
+    /// recorded on the new account. Null only for accounts created by the
+    /// seeding tools, which no person signed up for.
+    String? termsVersion,
   });
 
   Future<AuthResult> logIn({
@@ -184,6 +189,7 @@ class LocalAuthRepository implements AuthRepository {
     required AppLanguage language,
     required int avatarId,
     bool startSession = true,
+    String? termsVersion,
   }) async {
     final invalid = AuthRepository.validate(
       username: username,
