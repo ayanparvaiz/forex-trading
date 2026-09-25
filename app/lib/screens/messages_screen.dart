@@ -14,7 +14,7 @@ import 'profile_screen.dart';
 
 /// Your conversations, most recent first.
 ///
-/// Everyone you have a connection with is here — the request itself opens the
+/// Everyone you are connected with is here — accepting a request opens the
 /// conversation — ordered by the last thing said.
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
