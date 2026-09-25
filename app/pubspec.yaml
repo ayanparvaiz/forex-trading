@@ -39,6 +39,7 @@ dependencies:
   cloud_firestore: ^6.10.0
   shared_preferences: ^2.5.5
   crypto: ^3.0.7
+  flutter_svg: ^2.3.0
 
 dev_dependencies:
   flutter_test:
@@ -68,6 +69,7 @@ flutter:
     - assets/logo/
     - assets/icon/
     - assets/images/
+    - assets/avatars/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
