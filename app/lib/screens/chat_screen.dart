@@ -268,21 +268,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   Future<void> _menu(String action) async {
     switch (action) {
       case 'mute':
-        final repo = _repo;
-        final s = context.s;
-        final messenger = ScaffoldMessenger.of(context);
-        final until = await pickMuteUntil(context);
-        if (until == null || repo == null) return;
-        await repo
-            .mute(widget.chatId, _me, until)
-            .catchError((Object e) => debugPrint('mute failed: $e'));
-        messenger.showSnackBar(
-          SnackBar(content: Text(s.mutedUntil(until, DateTime.now()))),
-        );
+        final inbox = _inbox;
+        if (inbox != null) await muteChat(context, inbox, widget.chatId);
       case 'unmute':
-        await _repo
-            ?.unmute(widget.chatId, _me)
-            .catchError((Object e) => debugPrint('unmute failed: $e'));
+        final inbox = _inbox;
+        if (inbox != null) await unmuteChat(inbox, widget.chatId);
       case 'profile':
         openProfile(
           context,

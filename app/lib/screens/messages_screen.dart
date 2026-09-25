@@ -394,19 +394,9 @@ class _ThreadRow extends StatelessWidget {
           ),
         );
       case 'mute':
-        final messenger = ScaffoldMessenger.of(context);
-        final until = await pickMuteUntil(context);
-        if (until == null) return;
-        await inbox.repository
-            .mute(thread.id, me, until)
-            .catchError((Object e) => debugPrint('mute failed: $e'));
-        messenger.showSnackBar(
-          SnackBar(content: Text(s.mutedUntil(until, DateTime.now()))),
-        );
+        await muteChat(context, inbox, thread.id);
       case 'unmute':
-        await inbox.repository
-            .unmute(thread.id, me)
-            .catchError((Object e) => debugPrint('unmute failed: $e'));
+        await unmuteChat(inbox, thread.id);
       case 'delete':
         await _delete(context, otherName);
     }

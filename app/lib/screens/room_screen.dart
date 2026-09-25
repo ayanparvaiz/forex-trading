@@ -109,116 +109,26 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _join() async {
-    final rooms = _rooms;
-    if (rooms == null || _busy) return;
-    final s = context.s;
-    final messenger = ScaffoldMessenger.of(context);
+    if (_busy) return;
     setState(() => _busy = true);
-    try {
-      await rooms.join(widget.roomId, _me);
-      messenger.showSnackBar(SnackBar(content: Text(s.joinedGlobal)));
-    } catch (e) {
-      debugPrint('join failed: $e');
-      messenger.showSnackBar(SnackBar(content: Text(s.couldNotJoin)));
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  Future<void> _leave() async {
-    final rooms = _rooms;
-    if (rooms == null) return;
-    final s = context.s;
-    final messenger = ScaffoldMessenger.of(context);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dialog) => AlertDialog(
-        backgroundColor: AppColors.elevated,
-        title: Text(s.leaveGlobalTitle),
-        content: Text(s.leaveGlobalBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialog).pop(false),
-            child: Text(s.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialog).pop(true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.loss),
-            child: Text(s.leave),
-          ),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    try {
-      await rooms.leave(widget.roomId, _me);
-      messenger.showSnackBar(SnackBar(content: Text(s.leftGlobal)));
-    } catch (e) {
-      debugPrint('leave failed: $e');
-      messenger.showSnackBar(SnackBar(content: Text(s.couldNotJoin)));
-    }
+    await joinRoom(context, widget.roomId);
+    if (mounted) setState(() => _busy = false);
   }
 
   Future<void> _menu(String action) async {
     final inbox = _inbox;
     if (inbox == null) return;
-    final s = context.s;
-    final messenger = ScaffoldMessenger.of(context);
     switch (action) {
       case 'mute':
-        final until = await pickMuteUntil(context);
-        if (until == null) return;
-        await inbox.repository
-            .mute(widget.roomId, _me, until)
-            .catchError((Object e) => debugPrint('mute failed: $e'));
-        messenger.showSnackBar(
-          SnackBar(content: Text(s.mutedUntil(until, DateTime.now()))),
-        );
+        await muteChat(context, inbox, widget.roomId);
       case 'unmute':
-        await inbox.repository
-            .unmute(widget.roomId, _me)
-            .catchError((Object e) => debugPrint('unmute failed: $e'));
+        await unmuteChat(inbox, widget.roomId);
       case 'clear':
-        await _clear();
+        await confirmClearRoom(context, widget.roomId);
       case 'join':
         await _join();
       case 'leave':
-        await _leave();
-    }
-  }
-
-  /// "Delete chat", from my side only; everyone else keeps everything.
-  Future<void> _clear() async {
-    final inbox = _inbox;
-    if (inbox == null) return;
-    final s = context.s;
-    final messenger = ScaffoldMessenger.of(context);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dialog) => AlertDialog(
-        backgroundColor: AppColors.elevated,
-        title: Text(s.deleteChatTitle),
-        content: Text(s.deleteRoomBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialog).pop(false),
-            child: Text(s.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialog).pop(true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.loss),
-            child: Text(s.deleteChat),
-          ),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    try {
-      await clearRoomForMe(inbox, widget.roomId, _me);
-      messenger.showSnackBar(SnackBar(content: Text(s.chatDeleted)));
-    } catch (e) {
-      debugPrint('clear room failed: $e');
-      messenger.showSnackBar(SnackBar(content: Text(s.couldNotDeleteChat)));
+        await confirmLeaveRoom(context, widget.roomId);
     }
   }
 
@@ -382,11 +292,96 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
   }
 }
 
-/// "Delete chat" for a room: what I have seen goes from my side, and my
-/// read mark moves so nothing counts as unread.
-Future<void> clearRoomForMe(ChatInbox inbox, String roomId, String me) async {
-  await inbox.repository.clearChat(roomId, me, countsUnread: false);
-  if (inbox.joinedGlobal) await inbox.rooms?.markRead(roomId, me);
+/// Joins the room, and says so.
+Future<void> joinRoom(BuildContext context, String roomId) async {
+  final inbox = InboxScope.read(context);
+  final rooms = inbox?.rooms;
+  if (inbox == null || rooms == null) return;
+  final s = context.s;
+  final messenger = ScaffoldMessenger.of(context);
+  try {
+    await rooms.join(roomId, inbox.uid);
+    messenger.showSnackBar(SnackBar(content: Text(s.joinedGlobal)));
+  } catch (e) {
+    debugPrint('join failed: $e');
+    messenger.showSnackBar(SnackBar(content: Text(s.couldNotJoin)));
+  }
+}
+
+/// Leaves the room, once asked whether you are sure.
+Future<void> confirmLeaveRoom(BuildContext context, String roomId) async {
+  final inbox = InboxScope.read(context);
+  final rooms = inbox?.rooms;
+  if (inbox == null || rooms == null) return;
+  final s = context.s;
+  final messenger = ScaffoldMessenger.of(context);
+  final ok = await _confirm(
+    context,
+    title: s.leaveGlobalTitle,
+    body: s.leaveGlobalBody,
+    action: s.leave,
+  );
+  if (!ok) return;
+  try {
+    await rooms.leave(roomId, inbox.uid);
+    messenger.showSnackBar(SnackBar(content: Text(s.leftGlobal)));
+  } catch (e) {
+    debugPrint('leave failed: $e');
+    messenger.showSnackBar(SnackBar(content: Text(s.couldNotJoin)));
+  }
+}
+
+/// "Delete chat" for a room, once asked: what I have seen goes from my side
+/// only, and my read mark moves so nothing counts as unread.
+Future<void> confirmClearRoom(BuildContext context, String roomId) async {
+  final inbox = InboxScope.read(context);
+  if (inbox == null) return;
+  final s = context.s;
+  final messenger = ScaffoldMessenger.of(context);
+  final ok = await _confirm(
+    context,
+    title: s.deleteChatTitle,
+    body: s.deleteRoomBody,
+    action: s.deleteChat,
+  );
+  if (!ok) return;
+  try {
+    await inbox.repository.clearChat(roomId, inbox.uid, countsUnread: false);
+    if (inbox.joinedGlobal) await inbox.rooms?.markRead(roomId, inbox.uid);
+    messenger.showSnackBar(SnackBar(content: Text(s.chatDeleted)));
+  } catch (e) {
+    debugPrint('clear room failed: $e');
+    messenger.showSnackBar(SnackBar(content: Text(s.couldNotDeleteChat)));
+  }
+}
+
+Future<bool> _confirm(
+  BuildContext context, {
+  required String title,
+  required String body,
+  required String action,
+}) async {
+  final s = context.s;
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (dialog) => AlertDialog(
+      backgroundColor: AppColors.elevated,
+      title: Text(title),
+      content: Text(body),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialog).pop(false),
+          child: Text(s.cancel),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(dialog).pop(true),
+          style: TextButton.styleFrom(foregroundColor: AppColors.loss),
+          child: Text(action),
+        ),
+      ],
+    ),
+  );
+  return ok == true;
 }
 
 /// The room, as [ConversationView] reads it.

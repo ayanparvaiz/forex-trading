@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../data/chat_inbox.dart';
 import '../data/session_controller.dart';
 import '../i18n/strings.dart';
 import '../models/chat.dart';
@@ -56,6 +57,28 @@ Future<DateTime?> pickMuteUntil(BuildContext context) {
     ),
   );
 }
+
+/// Asks how long, mutes [chatId], and says until when.
+Future<void> muteChat(
+  BuildContext context,
+  ChatInbox inbox,
+  String chatId,
+) async {
+  final s = context.s;
+  final messenger = ScaffoldMessenger.of(context);
+  final until = await pickMuteUntil(context);
+  if (until == null) return;
+  await inbox.repository
+      .mute(chatId, inbox.uid, until)
+      .catchError((Object e) => debugPrint('mute failed: $e'));
+  messenger.showSnackBar(
+    SnackBar(content: Text(s.mutedUntil(until, DateTime.now()))),
+  );
+}
+
+Future<void> unmuteChat(ChatInbox inbox, String chatId) => inbox.repository
+    .unmute(chatId, inbox.uid)
+    .catchError((Object e) => debugPrint('unmute failed: $e'));
 
 /// A menu row that mutes, or — when muted — unmutes and says until when.
 class MuteMenuRow extends StatelessWidget {
