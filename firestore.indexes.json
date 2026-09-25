@@ -55,6 +55,21 @@
       ]
     },
     {
+      "comment": "Your conversations, most recent first.",
+      "collectionGroup": "chats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "uids",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "comment": "A trader's open positions.",
       "collectionGroup": "trades",
       "queryScope": "COLLECTION",
