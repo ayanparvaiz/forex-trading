@@ -380,6 +380,24 @@ void main() {
     test('not muted at all', () {
       expect(ChatPrefs.none.mutedAt(t0), isFalse);
     });
+
+    test('says how long it lasts', () {
+      final en = Strings(AppLanguage.en);
+      final now = DateTime(2026, 9, 25, 10);
+      expect(
+        en.mutedUntil(DateTime(2026, 9, 25, 18, 30), now),
+        'Muted until 6:30 PM',
+      );
+      expect(
+        en.mutedUntil(DateTime(2026, 10, 2, 10), now),
+        'Muted until 2 Oct, 10:00 AM',
+      );
+      expect(en.mutedUntil(ChatPrefs.forever, now), 'Muted always');
+      expect(
+        Strings(AppLanguage.bn).mutedUntil(ChatPrefs.forever, now),
+        'সবসময়ের জন্য মিউট',
+      );
+    });
   });
 
   group('time labels', () {

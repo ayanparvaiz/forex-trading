@@ -500,6 +500,32 @@ class Strings {
   String get originalMissing =>
       _t('মূল মেসেজটি পাওয়া যাচ্ছে না', 'Original message not found');
 
+  // Muting.
+  String get mute => _t('মিউট', 'Mute');
+  String get unmute => _t('আনমিউট', 'Unmute');
+  String get muteNotifications => _t('নোটিফিকেশন মিউট', 'Mute notifications');
+  String get muteExplain => _t(
+    'মিউট থাকলে নতুন মেসেজের ব্যানার আসবে না, আর মেসেজ ট্যাবের সংখ্যায় এই '
+        'চ্যাট গোনা হবে না। চ্যাটে ঢুকলে সব মেসেজ আগের মতোই দেখবেন। কেউ '
+        'জানবে না যে আপনি মিউট করেছেন।',
+    "While muted, new messages won't pop up a banner or count on the "
+        "Messages tab. You'll still see everything in the chat, and nobody "
+        'is told you muted it.',
+  );
+  String get mute8Hours => _t('৮ ঘণ্টা', '8 hours');
+  String get mute1Week => _t('১ সপ্তাহ', '1 week');
+  String get muteAlways => _t('সবসময়', 'Always');
+
+  /// How long a mute lasts, as the chat and the inbox show it.
+  String mutedUntil(DateTime until, DateTime now) {
+    if (until.year >= 9999) return _t('সবসময়ের জন্য মিউট', 'Muted always');
+    final l = until.toLocal();
+    final sameDay =
+        l.year == now.year && l.month == now.month && l.day == now.day;
+    final when = sameDay ? clock(l) : '${shortDate(l)}, ${clock(l)}';
+    return _t('$when পর্যন্ত মিউট', 'Muted until $when');
+  }
+
   // Deleting for yourself.
   String get deleteForMe => _t('আমার দিক থেকে ডিলিট', 'Delete for me');
   String get messageDeleted => _t('মেসেজ ডিলিট হয়েছে', 'Message deleted');
