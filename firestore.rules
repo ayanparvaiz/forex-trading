@@ -22,6 +22,12 @@ service cloud.firestore {
         || (field in resource.data && request.resource.data[field] == resource.data[field]);
     }
 
+    /// Whether either of two people has blocked the other.
+    function blockedEitherWay(a, b) {
+      return exists(/databases/$(database)/documents/users/$(a)/blocks/$(b))
+        || exists(/databases/$(database)/documents/users/$(b)/blocks/$(a));
+    }
+
     /// True when an update touches nothing but the counters.
     function onlyCounters() {
       return request.resource.data.diff(resource.data).affectedKeys()
@@ -123,6 +129,21 @@ service cloud.firestore {
         && request.resource.data.avatarId <= 24;
 
       allow delete: if isOwner(uid);
+
+      // --- Blocks -----------------------------------------------------------
+      //
+      // Who you have blocked, private to you. The other person is never told,
+      // and nothing here is readable by them: the rules below read these
+      // documents to refuse their messages and requests, and that is all.
+      match /blocks/{blockedUid} {
+        allow read, delete: if isOwner(uid);
+        allow create: if isOwner(uid)
+          && blockedUid != uid
+          && request.resource.data.keys().hasOnly(['username', 'blockedAt'])
+          && request.resource.data.username is string
+          && request.resource.data.blockedAt == request.time;
+        allow update: if false;
+      }
 
       // --- Trades -----------------------------------------------------------
       //
@@ -326,6 +347,8 @@ service cloud.firestore {
       allow create: if isSignedIn()
         && request.resource.data.fromUid == request.auth.uid
         && request.resource.data.accepted == false
+        // Not between two people where either has blocked the other.
+        && !blockedEitherWay(request.resource.data.fromUid, request.resource.data.toUid)
         && request.resource.data.uids.size() == 2
         && request.auth.uid in request.resource.data.uids
         && request.resource.data.toUid in request.resource.data.uids;
@@ -505,7 +528,11 @@ service cloud.firestore {
           && request.resource.data.sentAt == request.time
           && request.resource.data.unsent == false
           // Still connected. Removing the connection closes the conversation.
-          && get(/databases/$(database)/documents/connections/$(chatId)).data.accepted == true;
+          && get(/databases/$(database)/documents/connections/$(chatId)).data.accepted == true
+          // And neither of them has blocked the other.
+          && !blockedEitherWay(
+               get(/databases/$(database)/documents/chats/$(chatId)).data.uids[0],
+               get(/databases/$(database)/documents/chats/$(chatId)).data.uids[1]);
 
         // Unsending blanks the text and flags it; the message keeps its place
         // so the conversation still makes sense around it. Only the sender.
