@@ -15,7 +15,7 @@ import '../widgets/avatar_image.dart';
 import '../widgets/common.dart';
 import '../widgets/paged_list.dart';
 import 'chat_screen.dart';
-import 'edit_profile_sheet.dart';
+import 'settings_screen.dart';
 
 /// Opens [username]'s profile.
 ///
@@ -196,12 +196,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           if (_isSelf && _trader != null)
             TextButton.icon(
               onPressed: () async {
-                // Re-read after saving, so the header shows what was stored
-                // rather than what was typed.
-                if (await showEditProfileSheet(context)) _load();
+                await openSettings(context);
+                // Re-read on the way back, so the header shows what was
+                // stored rather than what the profile said before.
+                if (mounted) _load();
               },
-              icon: const Icon(Icons.edit_outlined, size: 17),
-              label: Text(s.edit),
+              icon: const Icon(Icons.settings_outlined, size: 17),
+              label: Text(s.settings),
               style: TextButton.styleFrom(foregroundColor: AppColors.brand),
             ),
           Gap.w8,

@@ -588,14 +588,12 @@ class Strings {
 
   // --- Editing your profile ------------------------------------------------
 
-  String get editProfile => _t('প্রোফাইল এডিট', 'Edit profile');
   String get avatar => _t('অ্যাভাটার', 'Avatar');
   String get nameVisibleTo => _t(
     'লিডারবোর্ড, ফিড আর মেসেজে সবাই এই নামটাই দেখবে।',
     'This is the name people see on the leaderboard, in the feed and in '
         'messages.',
   );
-  String get edit => _t('এডিট', 'Edit');
   String get displayName => _t('নাম', 'Name');
   String get usernameFixed =>
       _t('ইউজারনেম বদলানো যায় না', 'Usernames cannot be changed');
@@ -606,8 +604,6 @@ class Strings {
     'সেভ হয়নি — ইন্টারনেট দেখে আবার চেষ্টা করুন।',
     'Not saved — check your connection and try again.',
   );
-  String get nameTooLong =>
-      _t('নাম ৪০ অক্ষরের মধ্যে রাখুন', 'Keep the name under 40 characters');
 
   // --- Notifications ------------------------------------------------------
 
