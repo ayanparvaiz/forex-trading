@@ -1,0 +1,251 @@
+{
+  "about": "Trades and the leaderboard numbers they must produce. Read by app/test/leaderboard_stats_test.dart and worker/test/stats.test.js. If the two implementations disagree, one of those tests fails. Expected values were produced by the Dart implementation and are the reference.",
+  "cases": [
+    {
+      "name": "no trades at all",
+      "now": "2026-09-25T10:00:00Z",
+      "trades": [],
+      "expected": {
+        "disciplineScore": 100.0,
+        "badgePoints": 0,
+        "tradeCount": 0,
+        "totalR": 0.0,
+        "winRate": 0.0,
+        "journalStreak": 0
+      }
+    },
+    {
+      "name": "open positions do not count",
+      "now": "2026-09-25T10:00:00Z",
+      "trades": [
+        {
+          "id": "open1",
+          "symbol": "EUR/USD",
+          "direction": "buy",
+          "lots": 0.1,
+          "entryPrice": 1.085,
+          "stopPrice": 1.083,
+          "targetPrice": 1.089,
+          "openedAt": "2026-09-25T08:00:00Z",
+          "closedAt": null,
+          "exitPrice": null,
+          "exitReason": null,
+          "balanceAtEntry": 10000,
+          "reason": "breakout above the range",
+          "lesson": null,
+          "violations": [
+            "riskTooHigh"
+          ],
+          "isShared": false
+        }
+      ],
+      "expected": {
+        "disciplineScore": 100.0,
+        "badgePoints": 0,
+        "tradeCount": 0,
+        "totalR": 0.0,
+        "winRate": 0.0,
+        "journalStreak": 0
+      }
+    },
+    {
+      "name": "clean win, broken loss, and a JPY trade held over two nights",
+      "now": "2026-09-25T10:00:00Z",
+      "trades": [
+        {
+          "id": "w1",
+          "symbol": "EUR/USD",
+          "direction": "buy",
+          "lots": 0.1,
+          "entryPrice": 1.085,
+          "stopPrice": 1.083,
+          "targetPrice": 1.089,
+          "openedAt": "2026-09-22T08:00:00Z",
+          "closedAt": "2026-09-22T11:00:00Z",
+          "exitPrice": 1.089,
+          "exitReason": "takeProfit",
+          "balanceAtEntry": 10000,
+          "reason": "breakout above the range",
+          "lesson": "waited for the retest",
+          "violations": [],
+          "isShared": true
+        },
+        {
+          "id": "l1",
+          "symbol": "GBP/USD",
+          "direction": "sell",
+          "lots": 0.2,
+          "entryPrice": 1.265,
+          "stopPrice": 1.268,
+          "targetPrice": 1.259,
+          "openedAt": "2026-09-23T08:00:00Z",
+          "closedAt": "2026-09-23T09:30:00Z",
+          "exitPrice": 1.268,
+          "exitReason": "stopLoss",
+          "balanceAtEntry": 10000,
+          "reason": "rejected the daily high",
+          "lesson": null,
+          "violations": [
+            "movedStop",
+            "riskTooHigh",
+            "noJournal"
+          ],
+          "isShared": false
+        },
+        {
+          "id": "j1",
+          "symbol": "USD/JPY",
+          "direction": "buy",
+          "lots": 0.05,
+          "entryPrice": 150.5,
+          "stopPrice": 150.2,
+          "targetPrice": 151.1,
+          "openedAt": "2026-09-22T12:00:00Z",
+          "closedAt": "2026-09-24T13:00:00Z",
+          "exitPrice": 150.9,
+          "exitReason": "manual",
+          "balanceAtEntry": 10000,
+          "reason": "carry trade into the BoJ meeting",
+          "lesson": "swap paid me to wait",
+          "violations": [
+            "poorRiskReward"
+          ],
+          "isShared": false
+        }
+      ],
+      "expected": {
+        "disciplineScore": 70.0,
+        "badgePoints": 1,
+        "tradeCount": 3,
+        "totalR": 2.264427860696487,
+        "winRate": 0.6666666666666666,
+        "journalStreak": 1
+      }
+    },
+    {
+      "name": "penalties floor at zero, never below",
+      "now": "2026-09-25T10:00:00Z",
+      "trades": [
+        {
+          "id": "bad",
+          "symbol": "EUR/USD",
+          "direction": "sell",
+          "lots": 0.5,
+          "entryPrice": 1.085,
+          "stopPrice": 1.086,
+          "targetPrice": 1.0845,
+          "openedAt": "2026-09-20T08:00:00Z",
+          "closedAt": "2026-09-20T08:10:00Z",
+          "exitPrice": 1.0842,
+          "exitReason": "manual",
+          "balanceAtEntry": 10000,
+          "reason": "felt like it would drop",
+          "lesson": null,
+          "violations": [
+            "riskTooHigh",
+            "movedStop",
+            "revengeTrade",
+            "overtrading",
+            "poorRiskReward"
+          ],
+          "isShared": false
+        }
+      ],
+      "expected": {
+        "disciplineScore": 0.0,
+        "badgePoints": 1,
+        "tradeCount": 1,
+        "totalR": 0.7199999999998312,
+        "winRate": 1.0,
+        "journalStreak": 0
+      }
+    },
+    {
+      "name": "streak counts back from yesterday in Dhaka time and stops at the first gap",
+      "why": "s1 closes at 19:00 UTC on the 23rd, which is 01:00 on the 24th in Dhaka. Counted in Dhaka the streak is 24, 23 = 2. Counted in UTC it would be 0, because the 24th would be empty. s4 has a whitespace-only lesson and must not count.",
+      "now": "2026-09-25T03:00:00Z",
+      "trades": [
+        {
+          "id": "s1",
+          "symbol": "EUR/USD",
+          "direction": "buy",
+          "lots": 0.1,
+          "entryPrice": 1.085,
+          "stopPrice": 1.083,
+          "targetPrice": 1.089,
+          "openedAt": "2026-09-23T18:30:00Z",
+          "closedAt": "2026-09-23T19:00:00Z",
+          "exitPrice": 1.083,
+          "exitReason": "stopLoss",
+          "balanceAtEntry": 10000,
+          "reason": "trend continuation",
+          "lesson": "entered before the candle closed",
+          "violations": [],
+          "isShared": false
+        },
+        {
+          "id": "s2",
+          "symbol": "EUR/USD",
+          "direction": "buy",
+          "lots": 0.1,
+          "entryPrice": 1.085,
+          "stopPrice": 1.083,
+          "targetPrice": 1.089,
+          "openedAt": "2026-09-23T09:00:00Z",
+          "closedAt": "2026-09-23T10:00:00Z",
+          "exitPrice": 1.089,
+          "exitReason": "takeProfit",
+          "balanceAtEntry": 10000,
+          "reason": "trend continuation",
+          "lesson": "patience on the entry",
+          "violations": [],
+          "isShared": false
+        },
+        {
+          "id": "s3",
+          "symbol": "EUR/USD",
+          "direction": "buy",
+          "lots": 0.1,
+          "entryPrice": 1.085,
+          "stopPrice": 1.083,
+          "targetPrice": 1.089,
+          "openedAt": "2026-09-21T09:00:00Z",
+          "closedAt": "2026-09-21T10:00:00Z",
+          "exitPrice": 1.089,
+          "exitReason": "takeProfit",
+          "balanceAtEntry": 10000,
+          "reason": "trend continuation",
+          "lesson": "this one is after the gap and must not count",
+          "violations": [],
+          "isShared": false
+        },
+        {
+          "id": "s4",
+          "symbol": "EUR/USD",
+          "direction": "buy",
+          "lots": 0.1,
+          "entryPrice": 1.085,
+          "stopPrice": 1.083,
+          "targetPrice": 1.089,
+          "openedAt": "2026-09-22T19:00:00Z",
+          "closedAt": "2026-09-22T19:30:00Z",
+          "exitPrice": 1.086,
+          "exitReason": "manual",
+          "balanceAtEntry": 10000,
+          "reason": "trend continuation",
+          "lesson": "   ",
+          "violations": [],
+          "isShared": false
+        }
+      ],
+      "expected": {
+        "disciplineScore": 100.0,
+        "badgePoints": 2,
+        "tradeCount": 4,
+        "totalR": 3.340000000000056,
+        "winRate": 0.75,
+        "journalStreak": 2
+      }
+    }
+  ]
+}
