@@ -29,6 +29,26 @@ class _MessagesScreenState extends State<MessagesScreen> {
   /// itself does not change.
   Timer? _clock;
 
+  /// Wakes the list when the soonest "typing…" runs out, so a row does not
+  /// keep saying it after the other person has stopped.
+  Timer? _typingExpiry;
+
+  void _scheduleTypingExpiry(ChatInbox inbox) {
+    final now = DateTime.now();
+    Duration? soonest;
+    for (final t in inbox.threads) {
+      final other = t.otherUid(inbox.uid);
+      if (!isTyping(t, other, now)) continue;
+      final left = typingWindow - now.difference(t.typing[other]!);
+      if (soonest == null || left < soonest) soonest = left;
+    }
+    _typingExpiry?.cancel();
+    if (soonest == null) return;
+    _typingExpiry = Timer(soonest + const Duration(milliseconds: 150), () {
+      if (mounted) setState(() {});
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -41,6 +61,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
   @override
   void dispose() {
     _clock?.cancel();
+    _typingExpiry?.cancel();
     super.dispose();
   }
 
@@ -48,6 +69,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
   Widget build(BuildContext context) {
     final s = context.s;
     final inbox = InboxScope.of(context);
+    if (inbox != null) _scheduleTypingExpiry(inbox);
 
     return Scaffold(
       appBar: AppBar(title: Text(s.messages)),
@@ -106,6 +128,8 @@ class _ThreadRow extends StatelessWidget {
         presenceOf(inbox.lastActive(otherUid), now) == Presence.activeNow;
     final last = thread.lastMessage;
     final mine = last?.senderUid == me;
+    // Typing replaces the preview, as in WhatsApp: it is the newer news.
+    final typing = isTyping(thread, otherUid, now);
 
     final preview = switch (last) {
       null => s.sayHi,
@@ -178,7 +202,7 @@ class _ThreadRow extends StatelessWidget {
                   const SizedBox(height: 3),
                   Row(
                     children: [
-                      if (mine && last != null && !last.unsent) ...[
+                      if (!typing && mine && last != null && !last.unsent) ...[
                         MessageTicks(
                           status: statusOf(
                             ChatMessage(
@@ -197,23 +221,33 @@ class _ThreadRow extends StatelessWidget {
                         const SizedBox(width: 3),
                       ],
                       Expanded(
-                        child: Text(
-                          preview,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontStyle: last == null || last.unsent
-                                ? FontStyle.italic
-                                : FontStyle.normal,
-                            fontWeight: unread > 0
-                                ? FontWeight.w600
-                                : FontWeight.w400,
-                            color: unread > 0
-                                ? AppColors.textPrimary
-                                : AppColors.textSecondary,
-                          ),
-                        ),
+                        child: typing
+                            ? Text(
+                                s.typing,
+                                maxLines: 1,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.profit,
+                                ),
+                              )
+                            : Text(
+                                preview,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontStyle: last == null || last.unsent
+                                      ? FontStyle.italic
+                                      : FontStyle.normal,
+                                  fontWeight: unread > 0
+                                      ? FontWeight.w600
+                                      : FontWeight.w400,
+                                  color: unread > 0
+                                      ? AppColors.textPrimary
+                                      : AppColors.textSecondary,
+                                ),
+                              ),
                       ),
                       if (unread > 0) ...[
                         Gap.w8,
