@@ -412,6 +412,18 @@ service cloud.firestore {
     // protect: you may move your own marks to now and never anyone else's —
     // otherwise a client could make its messages look read.
 
+    // "Typing": one timestamp per person, set to now while they type and
+    // removed when they send or clear the box. Like the other marks, only
+    // your own can move, and only to the server's clock.
+    function typingOk(o, n, me, other) {
+      return n.typing is map
+        && n.typing.keys().hasOnly(o.uids)
+        && n.typing.get(other, null) == o.get('typing', {}).get(other, null)
+        && (n.typing.get(me, null) == o.get('typing', {}).get(me, null)
+            || n.typing.get(me, null) == request.time
+            || n.typing.get(me, null) == null);
+    }
+
     function chatUpdateOk(chatId) {
       let o = resource.data;
       let n = request.resource.data;
@@ -422,7 +434,7 @@ service cloud.firestore {
         && n.users == o.users
         && n.createdAt == o.createdAt
         && n.diff(o).affectedKeys()
-             .hasOnly(['lastMessage', 'updatedAt', 'unread', 'readAt', 'deliveredAt'])
+             .hasOnly(['lastMessage', 'updatedAt', 'unread', 'readAt', 'deliveredAt', 'typing'])
         && n.unread.keys().hasOnly(o.uids)
         && n.readAt.keys().hasOnly(o.uids)
         && n.deliveredAt.keys().hasOnly(o.uids)
@@ -436,6 +448,7 @@ service cloud.firestore {
         && (n.unread[me] == o.unread[me] || n.unread[me] == 0 || n.unread[me] == 1)
         && (n.unread[other] == o.unread[other] || n.unread[other] == o.unread[other] + 1)
         && (n.updatedAt == o.updatedAt || n.updatedAt == request.time)
+        && (n.get('typing', null) == o.get('typing', null) || typingOk(o, n, me, other))
         // A new preview must be mine and must say exactly what the message
         // it points at says — no preview can claim a message that is not there.
         && (n.lastMessage == o.lastMessage
