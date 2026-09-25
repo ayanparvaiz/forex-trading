@@ -66,6 +66,7 @@ class SessionController extends ChangeNotifier {
     required String displayName,
     required Gender gender,
     required int avatarId,
+    required String termsVersion,
   }) async {
     final result = await _auth.signUp(
       username: username,
@@ -74,6 +75,7 @@ class SessionController extends ChangeNotifier {
       gender: gender,
       language: _language,
       avatarId: avatarId,
+      termsVersion: termsVersion,
     );
     if (result is AuthSuccess) {
       _profile = result.profile;

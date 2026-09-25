@@ -6,9 +6,11 @@ import '../../data/auth_repository.dart';
 import '../../data/avatars.dart';
 import '../../data/session_controller.dart';
 import '../../i18n/strings.dart';
+import '../../legal/legal_text.dart';
 import '../../models/user_profile.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/avatar_image.dart';
+import '../legal_screen.dart';
 
 /// Whether the typed username can be used.
 enum _NameStatus { empty, invalid, checking, available, taken }
@@ -40,6 +42,9 @@ class _SignupScreenState extends State<SignupScreen> {
 
   Gender? _gender;
   int? _avatarId;
+
+  /// The age and terms box on the last step. Nobody is signed up without it.
+  bool _agreed = false;
 
   bool _busy = false;
   bool _obscure = true;
@@ -102,7 +107,7 @@ class _SignupScreenState extends State<SignupScreen> {
           _nameStatus == _NameStatus.available &&
           _password.text.length >= AuthRepository.minPasswordLength,
     2 => _gender != null,
-    3 => _avatarId != null,
+    3 => _avatarId != null && _agreed,
     _ => false,
   };
 
@@ -137,6 +142,7 @@ class _SignupScreenState extends State<SignupScreen> {
       displayName: _name.text,
       gender: _gender!,
       avatarId: _avatarId!,
+      termsVersion: termsVersion,
     );
 
     if (!mounted) return;
@@ -434,6 +440,7 @@ class _SignupScreenState extends State<SignupScreen> {
             final selected = _avatarId == avatar.id;
 
             return GestureDetector(
+              key: ValueKey('signup-avatar-${avatar.id}'),
               onTap: () => setState(() => _avatarId = avatar.id),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 140),
@@ -497,6 +504,12 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
             ],
           ),
+        ),
+        Gap.h24,
+        _Agreement(
+          agreed: _agreed,
+          s: s,
+          onChanged: (v) => setState(() => _agreed = v),
         ),
       ],
     );
@@ -611,6 +624,99 @@ class _ChoiceCard extends StatelessWidget {
             Expanded(child: child),
             if (selected)
               const Icon(Icons.check_circle, size: 21, color: AppColors.brand),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The last thing before an account exists: age, and the two documents.
+///
+/// The names are links to the full text in the app, so agreeing never means
+/// agreeing to something that could not be read first.
+class _Agreement extends StatelessWidget {
+  const _Agreement({
+    required this.agreed,
+    required this.s,
+    required this.onChanged,
+  });
+
+  final bool agreed;
+  final Strings s;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget link(String text, LegalPage page) => GestureDetector(
+      onTap: () => openLegal(context, page),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 13.5,
+          height: 1.5,
+          fontWeight: FontWeight.w700,
+          color: AppColors.brand,
+          decoration: TextDecoration.underline,
+          decorationColor: AppColors.brand,
+        ),
+      ),
+    );
+
+    const plain = TextStyle(
+      fontSize: 13.5,
+      height: 1.5,
+      color: AppColors.textSecondary,
+    );
+
+    return InkWell(
+      onTap: () => onChanged(!agreed),
+      borderRadius: Radii.tile,
+      child: Container(
+        padding: const EdgeInsets.all(Gap.md),
+        decoration: BoxDecoration(
+          color: agreed ? AppColors.brandDim : AppColors.surface,
+          borderRadius: Radii.tile,
+          border: Border.all(
+            color: agreed ? AppColors.brand : AppColors.border,
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Checkbox(
+              value: agreed,
+              onChanged: (v) => onChanged(v ?? false),
+              activeColor: AppColors.brand,
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            Gap.w8,
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text.rich(
+                  TextSpan(
+                    style: plain,
+                    children: [
+                      TextSpan(text: s.agreePrefix),
+                      WidgetSpan(
+                        alignment: PlaceholderAlignment.baseline,
+                        baseline: TextBaseline.alphabetic,
+                        child: link(s.agreeTerms, LegalPage.terms),
+                      ),
+                      TextSpan(text: s.agreeAnd),
+                      WidgetSpan(
+                        alignment: PlaceholderAlignment.baseline,
+                        baseline: TextBaseline.alphabetic,
+                        child: link(s.agreePrivacy, LegalPage.privacy),
+                      ),
+                      TextSpan(text: s.agreeSuffix),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
