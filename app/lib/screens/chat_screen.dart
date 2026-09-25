@@ -79,11 +79,19 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   /// "active now" becomes "active 3m ago" without any new data arriving.
   Timer? _clock;
 
+  /// When I last stamped my typing mark, or null if I have none showing.
+  DateTime? _typingSentAt;
+
+  /// Wakes the screen when the other person's typing mark runs out, so
+  /// "typing…" goes away even if nothing else changes.
+  Timer? _typingExpiry;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _scroll.addListener(_onScroll);
+    _input.addListener(_onInputChanged);
     _clock = Timer.periodic(
       const Duration(seconds: 30),
       (_) => mounted ? setState(() {}) : null,
@@ -176,7 +184,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _maybeMarkRead();
+    if (state == AppLifecycleState.resumed) {
+      _maybeMarkRead();
+    } else if (state == AppLifecycleState.paused) {
+      _clearTyping();
+    }
   }
 
   void _onScroll() {
@@ -216,6 +228,57 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     }
   }
 
+  /// Stamps my typing mark while the box has text — at most once every
+  /// [typingRefresh], however fast the keys go — and clears it when the box
+  /// is emptied.
+  void _onInputChanged() {
+    final repo = _repo;
+    if (repo == null || _connected != true) return;
+
+    final now = DateTime.now();
+    if (_input.text.trim().isNotEmpty) {
+      final last = _typingSentAt;
+      if (last != null && now.difference(last) < typingRefresh) return;
+      _typingSentAt = now;
+      repo
+          .setTyping(widget.chatId, _me)
+          .catchError((Object e) => debugPrint('typing mark failed: $e'));
+    } else {
+      _clearTyping();
+    }
+  }
+
+  void _clearTyping() {
+    final repo = _repo;
+    final last = _typingSentAt;
+    _typingSentAt = null;
+    // Nothing to clear if the mark has already run out on its own.
+    if (repo == null ||
+        last == null ||
+        DateTime.now().difference(last) > typingWindow) {
+      return;
+    }
+    repo
+        .clearTyping(widget.chatId, _me)
+        .catchError((Object e) => debugPrint('typing clear failed: $e'));
+  }
+
+  /// Whether the other person is typing, arranging to redraw when their mark
+  /// runs out so the indicator does not outlive it.
+  bool _otherTyping(DateTime now) {
+    final thread = _thread;
+    if (thread == null || !isTyping(thread, widget.otherUid, now)) {
+      return false;
+    }
+    final at = thread.typing[widget.otherUid]!;
+    final left = typingWindow - now.difference(at);
+    _typingExpiry?.cancel();
+    _typingExpiry = Timer(left + const Duration(milliseconds: 150), () {
+      if (mounted) setState(() {});
+    });
+    return true;
+  }
+
   void _send() {
     final repo = _repo;
     final text = _input.text.trim();
@@ -223,6 +286,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
     final messenger = ScaffoldMessenger.of(context);
     final s = context.s;
+    // The send itself removes the typing mark, in the same batch; forget it
+    // here first so clearing the box does not write a second removal.
+    _typingSentAt = null;
     _input.clear();
     if (_scroll.hasClients) _scroll.jumpTo(0);
 
@@ -321,6 +387,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _clearTyping();
+    _typingExpiry?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     if (_inbox?.openChatId == widget.chatId) _inbox?.openChatId = null;
     _threadSub?.cancel();
@@ -338,6 +406,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     final last = inbox?.lastActive(widget.otherUid);
     final now = DateTime.now();
     final presence = presenceOf(last, now);
+    final typing = _otherTyping(now);
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -375,7 +444,16 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    if (presence != Presence.unknown)
+                    if (typing)
+                      Text(
+                        s.typing,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.profit,
+                        ),
+                      )
+                    else if (presence != Presence.unknown)
                       Text(
                         presence == Presence.activeNow
                             ? s.activeNow
@@ -400,7 +478,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           Expanded(
             child: Stack(
               children: [
-                _messageList(s, now),
+                _messageList(s, now, typing),
                 if (_showJump)
                   Positioned(
                     right: Gap.md,
@@ -434,7 +512,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     );
   }
 
-  Widget _messageList(Strings s, DateTime now) {
+  Widget _messageList(Strings s, DateTime now, bool typing) {
     if (!_firstPageIn) {
       return const Center(
         child: CircularProgressIndicator(
@@ -443,7 +521,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         ),
       );
     }
-    if (_messages.isEmpty) {
+    if (_messages.isEmpty && !typing) {
       return Center(
         child: Container(
           margin: const EdgeInsets.all(Gap.xl),
@@ -471,8 +549,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       controller: _scroll,
       reverse: true,
       padding: const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.md, Gap.md),
-      itemCount: items.length + (_noMoreOlder ? 0 : 1),
-      itemBuilder: (context, i) {
+      itemCount: items.length + (_noMoreOlder ? 0 : 1) + (typing ? 1 : 0),
+      itemBuilder: (context, index) {
+        // Index 0 is the bottom of a reversed list, which is where the
+        // typing bubble belongs — under the newest message.
+        if (typing && index == 0) return const TypingBubble();
+        final i = typing ? index - 1 : index;
         if (i == items.length) {
           return Padding(
             padding: const EdgeInsets.all(Gap.md),
