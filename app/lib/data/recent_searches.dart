@@ -16,6 +16,9 @@ class RecentPerson {
   final String name;
   final int avatarId;
 
+  factory RecentPerson.of(Trader t) =>
+      RecentPerson(username: t.id, name: t.name, avatarId: t.avatarId);
+
   Map<String, Object> toJson() => {
     'username': username,
     'name': name,
@@ -74,10 +77,10 @@ class RecentSearches {
   }
 
   /// To the front; once only.
-  Future<List<RecentPerson>> add(Trader t) async => _save([
-    RecentPerson(username: t.id, name: t.name, avatarId: t.avatarId),
+  Future<List<RecentPerson>> add(RecentPerson person) async => _save([
+    person,
     for (final p in await load())
-      if (p.username != t.id) p,
+      if (p.username != person.username) p,
   ]);
 
   Future<List<RecentPerson>> remove(String username) async => _save([

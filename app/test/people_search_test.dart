@@ -102,9 +102,9 @@ void main() {
 
     test('newest first, once each', () async {
       final recent = RecentSearches(owner: 'u1', prefs: prefs);
-      await recent.add(rifat);
-      await recent.add(mim);
-      await recent.add(rifat);
+      await recent.add(RecentPerson.of(rifat));
+      await recent.add(RecentPerson.of(mim));
+      await recent.add(RecentPerson.of(rifat));
       expect(
         [for (final p in await recent.load()) p.username],
         ['rifat', 'mim'],
@@ -114,7 +114,7 @@ void main() {
     test('kept to the last ten', () async {
       final recent = RecentSearches(owner: 'u1', prefs: prefs);
       for (var i = 0; i < 14; i++) {
-        await recent.add(person('p$i', 'P $i'));
+        await recent.add(RecentPerson.of(person('p$i', 'P $i')));
       }
       final kept = await recent.load();
       expect(kept, hasLength(RecentSearches.max));
@@ -123,8 +123,8 @@ void main() {
 
     test('removed one by one, or all at once', () async {
       final recent = RecentSearches(owner: 'u1', prefs: prefs);
-      await recent.add(rifat);
-      await recent.add(mim);
+      await recent.add(RecentPerson.of(rifat));
+      await recent.add(RecentPerson.of(mim));
       await recent.remove('rifat');
       expect([for (final p in await recent.load()) p.username], ['mim']);
       await recent.clear();
@@ -132,7 +132,10 @@ void main() {
     });
 
     test('each account has its own', () async {
-      await RecentSearches(owner: 'u1', prefs: prefs).add(rifat);
+      await RecentSearches(
+        owner: 'u1',
+        prefs: prefs,
+      ).add(RecentPerson.of(rifat));
       expect(await RecentSearches(owner: 'u2', prefs: prefs).load(), isEmpty);
     });
   });
