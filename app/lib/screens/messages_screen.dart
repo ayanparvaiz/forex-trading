@@ -132,8 +132,12 @@ class _ThreadRow extends StatelessWidget {
     final typing =
         isTyping(thread, otherUid, now) && !inbox.isBlocked(otherUid);
 
+    // Deleted for me: the preview says so rather than showing it anyway.
+    final hiddenLast =
+        last != null && inbox.prefsFor(thread.id).hidden.contains(last.id);
     final preview = switch (last) {
       null => s.sayHi,
+      _ when hiddenLast => s.youDeletedMessage,
       ChatPreview(unsent: true) => mine ? s.youUnsent : s.theyUnsent,
       final ChatPreview p => mine ? '${s.youPrefix}${p.text}' : p.text,
     };
@@ -145,7 +149,12 @@ class _ThreadRow extends StatelessWidget {
         otherUid: otherUid,
         otherUsername: otherUsername,
       ),
-      onLongPress: () => _actions(context, otherUsername, unread > 0),
+      onLongPress: () => _actions(
+        context,
+        otherUsername,
+        partner?.name.isNotEmpty == true ? partner!.name : '@$otherUsername',
+        unread > 0,
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: 10),
         child: Row(
@@ -203,7 +212,11 @@ class _ThreadRow extends StatelessWidget {
                   const SizedBox(height: 3),
                   Row(
                     children: [
-                      if (!typing && mine && last != null && !last.unsent) ...[
+                      if (!typing &&
+                          mine &&
+                          last != null &&
+                          !last.unsent &&
+                          !hiddenLast) ...[
                         MessageTicks(
                           status: statusOf(
                             ChatMessage(
@@ -238,7 +251,8 @@ class _ThreadRow extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   fontSize: 14,
-                                  fontStyle: last == null || last.unsent
+                                  fontStyle:
+                                      last == null || last.unsent || hiddenLast
                                       ? FontStyle.italic
                                       : FontStyle.normal,
                                   fontWeight: unread > 0
@@ -287,6 +301,7 @@ class _ThreadRow extends StatelessWidget {
   Future<void> _actions(
     BuildContext context,
     String otherUsername,
+    String otherName,
     bool isUnread,
   ) async {
     final action = await showModalBottomSheet<String>(
@@ -315,6 +330,17 @@ class _ThreadRow extends StatelessWidget {
               title: Text(s.viewProfile),
               onTap: () => Navigator.of(sheet).pop('profile'),
             ),
+            ListTile(
+              leading: const Icon(
+                Icons.delete_outline_rounded,
+                color: AppColors.loss,
+              ),
+              title: Text(
+                s.deleteChat,
+                style: const TextStyle(color: AppColors.loss),
+              ),
+              onTap: () => Navigator.of(sheet).pop('delete'),
+            ),
           ],
         ),
       ),
@@ -340,6 +366,41 @@ class _ThreadRow extends StatelessWidget {
             viewerUid: context.session.uid,
           ),
         );
+      case 'delete':
+        await _delete(context, otherName);
+    }
+  }
+
+  /// "Delete chat", from my side only. The other person keeps everything,
+  /// and the chat comes back here the next time either of us writes.
+  Future<void> _delete(BuildContext context, String otherName) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        backgroundColor: AppColors.elevated,
+        title: Text(s.deleteChatTitle),
+        content: Text(s.deleteChatBody(otherName)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialog).pop(false),
+            child: Text(s.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialog).pop(true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.loss),
+            child: Text(s.deleteChat),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await inbox.repository.clearChat(thread.id, inbox.uid);
+      messenger.showSnackBar(SnackBar(content: Text(s.chatDeleted)));
+    } catch (e) {
+      debugPrint('delete chat failed: $e');
+      messenger.showSnackBar(SnackBar(content: Text(s.couldNotDeleteChat)));
     }
   }
 }
