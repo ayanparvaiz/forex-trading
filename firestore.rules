@@ -286,6 +286,15 @@ service cloud.firestore {
       allow delete: if isSignedIn()
         && resource.data.authorUid == request.auth.uid;
 
+      // Whether the person asking wrote this post. Deleting a post takes its
+      // comments, likes and views with it, so its author may remove those —
+      // they are nothing without the post, and would otherwise be left
+      // behind where nobody could ever see or remove them.
+      function isPostAuthor() {
+        return get(/databases/$(database)/documents/posts/$(postId)).data.authorUid
+          == request.auth.uid;
+      }
+
       match /comments/{commentId} {
         allow read: if isSignedIn();
         allow create: if isSignedIn()
@@ -296,7 +305,7 @@ service cloud.firestore {
         allow update: if isSignedIn()
           && resource.data.authorUid == request.auth.uid;
         allow delete: if isSignedIn()
-          && resource.data.authorUid == request.auth.uid;
+          && (resource.data.authorUid == request.auth.uid || isPostAuthor());
       }
 
       // One clap document per user per post, keyed by uid, so a like cannot be
@@ -310,7 +319,7 @@ service cloud.firestore {
         allow create: if isOwner(uid)
           && request.resource.data.keys().hasOnly(['uid', 'at'])
           && request.resource.data.uid == uid;
-        allow delete: if isOwner(uid);
+        allow delete: if isOwner(uid) || (isSignedIn() && isPostAuthor());
         allow update: if false;
       }
 
@@ -320,7 +329,9 @@ service cloud.firestore {
       match /views/{uid} {
         allow read: if isSignedIn();
         allow create: if isOwner(uid);
-        allow update, delete: if false;
+        allow update: if false;
+        // Only with the post itself.
+        allow delete: if isSignedIn() && isPostAuthor();
       }
     }
 
