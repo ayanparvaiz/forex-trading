@@ -363,6 +363,25 @@ void main() {
     });
   });
 
+  group('muting', () {
+    test('muted until a time, and not after it', () {
+      final prefs = ChatPrefs(mutedUntil: t0.add(const Duration(hours: 8)));
+      expect(prefs.mutedAt(t0), isTrue);
+      expect(prefs.mutedAt(t0.add(const Duration(hours: 8))), isFalse);
+      expect(prefs.mutedForever, isFalse);
+    });
+
+    test('"Always" is muted for good', () {
+      final prefs = ChatPrefs(mutedUntil: ChatPrefs.forever);
+      expect(prefs.mutedAt(DateTime.utc(2090)), isTrue);
+      expect(prefs.mutedForever, isTrue);
+    });
+
+    test('not muted at all', () {
+      expect(ChatPrefs.none.mutedAt(t0), isFalse);
+    });
+  });
+
   group('time labels', () {
     const en = Strings(AppLanguage.en);
     const bn = Strings(AppLanguage.bn);

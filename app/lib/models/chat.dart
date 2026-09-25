@@ -106,7 +106,7 @@ class ChatMessage {
 /// The conversation is untouched — the other person keeps every message.
 /// This is just what to leave out on this person's side.
 class ChatPrefs {
-  const ChatPrefs({this.clearedAt, this.hidden = const {}});
+  const ChatPrefs({this.clearedAt, this.hidden = const {}, this.mutedUntil});
 
   static const none = ChatPrefs();
 
@@ -115,6 +115,20 @@ class ChatPrefs {
 
   /// "Delete for me": messages removed one at a time.
   final Set<String> hidden;
+
+  /// Muted until then: no banner for new messages, and not counted on the
+  /// Messages tab. Past it, the mute has simply run out.
+  final DateTime? mutedUntil;
+
+  /// What "Always" is stored as: the last year a Firestore timestamp holds.
+  static final forever = DateTime.utc(9999);
+
+  bool mutedAt(DateTime now) {
+    final until = mutedUntil;
+    return until != null && until.isAfter(now);
+  }
+
+  bool get mutedForever => (mutedUntil?.year ?? 0) >= forever.year;
 
   /// Whether [m] is shown. A message still on its way is always new, so
   /// never before a clear.
