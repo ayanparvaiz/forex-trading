@@ -851,7 +851,9 @@ class FirestoreCommunityRepository implements CommunityRepository {
       // document id is the uid, pressing the button twice cannot double it.
       final batch = _db.batch();
       if (liked) {
-        batch.set(clap, {'at': FieldValue.serverTimestamp()});
+        // The uid again, as a field: the id alone cannot be queried across
+        // posts, and deleting an account has to find every like it left.
+        batch.set(clap, {'uid': uid, 'at': FieldValue.serverTimestamp()});
         batch.update(post, {'claps': FieldValue.increment(1)});
       } else {
         batch.delete(clap);
