@@ -350,7 +350,15 @@ class _YourRankBarState extends State<_YourRankBar> {
   @override
   Widget build(BuildContext context) {
     final s = widget.s;
-    final rank = _rank;
+
+    // Decided from this device's own count, which is current, rather than
+    // waiting on the stored one, which trails it by a few seconds. Someone
+    // below the floor has no position to wait for, so they are told what
+    // gets them one instead of being shown a spinner that never resolves.
+    final toGo = CommunityRepository.minRankedTrades - widget.you.tradeCount;
+    final unranked = toGo > 0;
+
+    final rank = unranked ? null : _rank;
     final inList = rank != null && rank <= CommunityRepository.leaderboardLimit;
 
     return Container(
@@ -366,7 +374,16 @@ class _YourRankBarState extends State<_YourRankBar> {
             children: [
               SizedBox(
                 width: 46,
-                child: _failed
+                child: unranked
+                    ? const Text(
+                        '—',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textMuted,
+                        ),
+                      )
+                    : _failed
                     ? const Icon(
                         Icons.cloud_off_outlined,
                         size: 16,
@@ -410,7 +427,9 @@ class _YourRankBarState extends State<_YourRankBar> {
                     Text(
                       // Only say "outside the list" once the rank is known —
                       // guessing while it loads would flash the wrong message.
-                      rank == null || inList
+                      unranked
+                          ? s.tradesToRank(toGo)
+                          : rank == null || inList
                           ? s.topN(CommunityRepository.leaderboardLimit)
                           : s.outsideTop,
                       style: const TextStyle(
