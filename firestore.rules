@@ -622,7 +622,10 @@ service cloud.firestore {
         // so the conversation still makes sense around it. Only the sender.
         allow update: if isSignedIn()
           && resource.data.senderUid == request.auth.uid
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'unsent'])
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['text', 'unsent', 'attachment'])
+          // What was shared goes with the words.
+          && !('attachment' in request.resource.data)
           && request.resource.data.unsent == true
           && request.resource.data.text == '';
 
@@ -728,7 +731,10 @@ service cloud.firestore {
         // Unsending: the sender blanks their own, as in a chat.
         allow update: if isSignedIn()
           && resource.data.senderUid == request.auth.uid
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'unsent'])
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['text', 'unsent', 'attachment'])
+          // What was shared goes with the words.
+          && !('attachment' in request.resource.data)
           && request.resource.data.unsent == true
           && request.resource.data.text == '';
         allow delete: if false;
