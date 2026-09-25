@@ -39,8 +39,13 @@ service cloud.firestore {
         && request.resource.data[field] <= resource.data[field] + 1;
     }
 
-    // Fields only Cloud Functions may set. A client that tries to write any of
-    // them is rejected outright.
+    // Fields only the stats worker may set (worker/src/index.js, which writes
+    // with a service account and so is not subject to these rules). A client
+    // that tries to write any of them is rejected outright.
+    //
+    // ranked decides whether an account appears on the board at all, and
+    // statsUpdatedAt is what the worker's throttle reads — a client able to
+    // set it into the future could stop its own score ever being corrected.
     function serverOwnedUnchanged() {
       return unchanged('disciplineScore')
         && unchanged('totalR')
@@ -48,7 +53,9 @@ service cloud.firestore {
         && unchanged('winRate')
         && unchanged('journalStreak')
         && unchanged('badgePoints')
-        && unchanged('balance');
+        && unchanged('balance')
+        && unchanged('ranked')
+        && unchanged('statsUpdatedAt');
     }
 
     // --- Username claims ----------------------------------------------------
@@ -88,7 +95,11 @@ service cloud.firestore {
         && request.resource.data.disciplineScore == 100
         && request.resource.data.badgePoints == 0
         && request.resource.data.tradeCount == 0
-        && request.resource.data.totalR == 0;
+        && request.resource.data.totalR == 0
+        // Nobody is born onto the leaderboard; the worker ranks an account
+        // once it has closed enough trades to be judged on.
+        && !('ranked' in request.resource.data)
+        && !('statsUpdatedAt' in request.resource.data);
 
       // Settings are the trader's own; stats are not. The username is fixed at
       // creation — the claim document points at this uid and nothing updates it.
