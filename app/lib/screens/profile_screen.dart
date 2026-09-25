@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../data/chat_inbox.dart';
 import '../data/community_repository.dart';
-import '../data/safety_repository.dart';
 import '../data/firestore_community_repository.dart';
 import '../data/notification_repository.dart';
 import '../data/page.dart';
+import '../data/push_notifier.dart';
+import '../data/safety_repository.dart';
 import '../data/session_controller.dart';
 import '../firebase/firebase_bootstrap.dart';
 import '../i18n/strings.dart';
@@ -397,6 +398,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               from: _me!,
                               to: widget.username,
                             );
+                            pushNotifier?.connectionRequest(
+                              FirestoreCommunityRepository.pairId(
+                                _me!,
+                                widget.username,
+                              ),
+                            );
                             await _notify(
                               NotificationKind.connectionRequest,
                               widget.username,
@@ -406,6 +413,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             await widget.repository.acceptRequest(
                               me: _me!,
                               from: widget.username,
+                            );
+                            pushNotifier?.connectionAccepted(
+                              FirestoreCommunityRepository.pairId(
+                                _me!,
+                                widget.username,
+                              ),
                             );
                             await _notify(
                               NotificationKind.connectionAccepted,
@@ -1147,6 +1160,9 @@ class _PendingRequests extends StatelessWidget {
               IconButton(
                 onPressed: () async {
                   await repository.acceptRequest(me: username, from: trader.id);
+                  pushNotifier?.connectionAccepted(
+                    FirestoreCommunityRepository.pairId(username, trader.id),
+                  );
                   await onNotify(
                     NotificationKind.connectionAccepted,
                     trader.id,

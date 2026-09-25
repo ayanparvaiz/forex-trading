@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/community_repository.dart';
+import '../data/push_notifier.dart';
 import '../data/session_controller.dart';
 import '../i18n/strings.dart';
 import '../models/instrument.dart';
@@ -117,6 +118,9 @@ class _ComposerState extends State<_Composer> {
             lesson: _lesson.text,
             followedRules: _followedRules,
           );
+
+    // Connections hear about it on their phones.
+    if (id != null) pushNotifier?.post(id);
 
     if (!mounted) return;
     setState(() => _posting = false);
