@@ -354,6 +354,10 @@ class Strings {
         'Who followed their own rules decides the order. Ranking by profit '
         'would turn this app into a casino.',
   );
+  String tradesToRank(int n) => _t(
+    'র‍্যাংকে আসতে আরও $nটা ট্রেড বন্ধ করুন',
+    'Close $n more ${n == 1 ? 'trade' : 'trades'} to be ranked',
+  );
   String get rankedByDiscipline => _t(
     'লাভ নয় — ডিসিপ্লিন দিয়ে র‍্যাংক',
     'Ranked by discipline, not profit',
