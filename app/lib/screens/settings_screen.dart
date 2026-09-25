@@ -5,6 +5,7 @@ import '../i18n/strings.dart';
 import '../theme/app_theme.dart';
 import '../widgets/avatar_image.dart';
 import 'change_avatar_screen.dart';
+import 'change_password_screen.dart';
 import 'edit_name_screen.dart';
 
 Future<void> openSettings(BuildContext context) => Navigator.of(
@@ -80,6 +81,11 @@ class SettingsScreen extends StatelessWidget {
                       title: s.avatar,
                       trailing: AvatarImage(profile.avatarId, size: 32),
                       onTap: () => _push(context, const ChangeAvatarScreen()),
+                    ),
+                    SettingsTile(
+                      icon: Icons.password_rounded,
+                      title: s.changePassword,
+                      onTap: () => _push(context, const ChangePasswordScreen()),
                     ),
                     SettingsTile(
                       icon: Icons.translate_rounded,
