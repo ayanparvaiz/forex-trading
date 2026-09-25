@@ -471,6 +471,7 @@ class Strings {
   String get loadingOlder => _t('আগের মেসেজ…', 'Earlier messages…');
 
   String get activeNow => _t('এখন অ্যাক্টিভ', 'Active now');
+  String get typing => _t('লিখছে…', 'typing…');
 
   /// "Active 5m ago", from the time someone was last seen.
   String activeAgo(DateTime last, DateTime now) {
