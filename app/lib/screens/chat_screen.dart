@@ -11,6 +11,7 @@ import '../i18n/strings.dart';
 import '../models/chat.dart';
 import '../theme/app_theme.dart';
 import '../widgets/chat_bits.dart';
+import '../widgets/safety_actions.dart';
 import 'profile_screen.dart';
 
 /// Opens the conversation with another trader.
@@ -270,6 +271,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     if (thread == null || !isTyping(thread, widget.otherUid, now)) {
       return false;
     }
+    // Someone you have blocked can still touch the shared conversation
+    // document, but nothing they do there is shown to you.
+    if (_inbox?.isBlocked(widget.otherUid) ?? false) return false;
     final at = thread.typing[widget.otherUid]!;
     final left = typingWindow - now.difference(at);
     _typingExpiry?.cancel();
@@ -277,6 +281,38 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       if (mounted) setState(() {});
     });
     return true;
+  }
+
+  Future<void> _menu(String action) async {
+    switch (action) {
+      case 'profile':
+        openProfile(
+          context,
+          widget.otherUsername,
+          buildCommunityRepository(
+            context.session.language,
+            viewerUid: context.session.uid,
+          ),
+        );
+      case 'block':
+        await confirmBlock(
+          context,
+          otherUid: widget.otherUid,
+          otherUsername: widget.otherUsername,
+        );
+      case 'unblock':
+        await unblock(
+          context,
+          otherUid: widget.otherUid,
+          otherUsername: widget.otherUsername,
+        );
+    }
+    // A block ends the connection, and an unblock does not restore it; either
+    // way, whether this conversation can send has to be asked again.
+    if (action != 'profile' && mounted) {
+      final connected = await _repo?.isConnected(widget.chatId);
+      if (mounted) setState(() => _connected = connected ?? false);
+    }
   }
 
   void _send() {
@@ -407,6 +443,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     final now = DateTime.now();
     final presence = presenceOf(last, now);
     final typing = _otherTyping(now);
+    final blockedByMe = inbox?.isBlocked(widget.otherUid) ?? false;
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -472,6 +509,49 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             ],
           ),
         ),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            color: AppColors.elevated,
+            onSelected: (action) => _menu(action),
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'profile',
+                child: Row(
+                  children: [
+                    const Icon(Icons.person_outline, size: 19),
+                    Gap.w12,
+                    Text(s.viewProfile),
+                  ],
+                ),
+              ),
+              if (inbox?.safety != null)
+                PopupMenuItem(
+                  value: blockedByMe ? 'unblock' : 'block',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.block,
+                        size: 19,
+                        color: blockedByMe
+                            ? AppColors.textPrimary
+                            : AppColors.loss,
+                      ),
+                      Gap.w12,
+                      Text(
+                        blockedByMe ? s.unblock : s.block,
+                        style: TextStyle(
+                          color: blockedByMe
+                              ? AppColors.textPrimary
+                              : AppColors.loss,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -498,7 +578,13 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               ],
             ),
           ),
-          if (_connected == false)
+          if (blockedByMe)
+            _NotConnected(
+              text: s.blockedChatNote,
+              action: s.unblock,
+              onAction: () => _menu('unblock'),
+            )
+          else if (_connected == false)
             _NotConnected(text: s.notConnectedToMessage)
           else
             _Composer(
@@ -877,9 +963,11 @@ class _Composer extends StatelessWidget {
 }
 
 class _NotConnected extends StatelessWidget {
-  const _NotConnected({required this.text});
+  const _NotConnected({required this.text, this.action, this.onAction});
 
   final String text;
+  final String? action;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -890,10 +978,27 @@ class _NotConnected extends StatelessWidget {
         top: false,
         child: Padding(
           padding: const EdgeInsets.all(Gap.lg),
-          child: Text(
-            text,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                text,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textMuted,
+                ),
+              ),
+              if (action != null)
+                TextButton(
+                  onPressed: onAction,
+                  style: TextButton.styleFrom(foregroundColor: AppColors.brand),
+                  child: Text(
+                    action!,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+            ],
           ),
         ),
       ),
