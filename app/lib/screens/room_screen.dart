@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/chat_inbox.dart';
 import '../data/firestore_community_repository.dart';
+import '../data/push_notifier.dart';
 import '../data/room_repository.dart';
 import '../data/safety_repository.dart';
 import '../data/session_controller.dart';
@@ -439,14 +440,17 @@ class _RoomSource implements MessageSource {
   Future<void> send(String text, {ReplyRef? replyTo}) {
     final p = profile();
     if (p == null) return Future.error(StateError('signed out'));
-    return rooms.send(
-      roomId: roomId,
-      me: me,
-      name: p.displayName,
-      username: p.username,
-      text: text,
-      replyTo: replyTo,
-    );
+    // Once the server has it, the members' phones are told.
+    return rooms
+        .send(
+          roomId: roomId,
+          me: me,
+          name: p.displayName,
+          username: p.username,
+          text: text,
+          replyTo: replyTo,
+        )
+        .then((id) => pushNotifier?.room(roomId, id));
   }
 
   @override

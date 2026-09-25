@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/chat_inbox.dart';
+import '../data/push_notifier.dart';
 import '../data/room_repository.dart';
 import '../data/session_controller.dart';
 import '../models/chat.dart';
@@ -67,10 +68,11 @@ Future<void> shareIntoChats(
   );
   if (targets == null || targets.isEmpty) return;
 
-  Future<void> sendTo(ForwardTarget target) {
+  // Each one sent, then announced on the phones it went to.
+  Future<void> sendTo(ForwardTarget target) async {
     final t = target.thread;
     if (t != null) {
-      return inbox.repository.send(
+      final id = await inbox.repository.send(
         chatId: t.id,
         me: me,
         other: t.otherUid(me),
@@ -78,10 +80,12 @@ Future<void> shareIntoChats(
         forwarded: forwarded,
         attachment: attachment,
       );
+      pushNotifier?.message(t.id, id);
+      return;
     }
     final rooms = inbox.rooms;
-    if (rooms == null) return Future.error(StateError('no rooms'));
-    return rooms.send(
+    if (rooms == null) throw StateError('no rooms');
+    final id = await rooms.send(
       roomId: target.id,
       me: me,
       name: profile.displayName,
@@ -90,6 +94,7 @@ Future<void> shareIntoChats(
       forwarded: forwarded,
       attachment: attachment,
     );
+    pushNotifier?.room(target.id, id);
   }
 
   // Where it could not go: "@username", or the room's name.

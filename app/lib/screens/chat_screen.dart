@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../data/chat_inbox.dart';
 import '../data/chat_repository.dart';
 import '../data/firestore_community_repository.dart';
+import '../data/push_notifier.dart';
 import '../data/safety_repository.dart';
 import '../data/session_controller.dart';
 import '../models/chat.dart';
@@ -587,14 +588,11 @@ class _DirectSource implements MessageSource {
   @override
   Future<ChatMessage?> message(String id) => repo.message(chatId, id);
 
+  /// Once the server has it, the other person's phone is told.
   @override
-  Future<void> send(String text, {ReplyRef? replyTo}) => repo.send(
-    chatId: chatId,
-    me: me,
-    other: other,
-    text: text,
-    replyTo: replyTo,
-  );
+  Future<void> send(String text, {ReplyRef? replyTo}) => repo
+      .send(chatId: chatId, me: me, other: other, text: text, replyTo: replyTo)
+      .then((id) => pushNotifier?.message(chatId, id));
 
   @override
   Future<void> unsend(ChatMessage m, {required bool isLatest}) =>
