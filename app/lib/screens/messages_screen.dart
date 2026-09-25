@@ -174,9 +174,8 @@ class _GlobalRow extends StatelessWidget {
         true,
       ),
       final p => (
-        p.senderUid == me
-            ? '${s.youPrefix}${p.text}'
-            : '${p.senderName ?? ''}: ${p.text}',
+        (p.senderUid == me ? s.youPrefix : '${p.senderName ?? ''}: ') +
+            s.messagePreview(p.text, p.attachmentType),
         false,
       ),
     };
@@ -426,7 +425,8 @@ class _ThreadRow extends StatelessWidget {
       null => s.sayHi,
       _ when hiddenLast => s.youDeletedMessage,
       ChatPreview(unsent: true) => mine ? s.youUnsent : s.theyUnsent,
-      final ChatPreview p => mine ? '${s.youPrefix}${p.text}' : p.text,
+      final ChatPreview p =>
+        (mine ? s.youPrefix : '') + s.messagePreview(p.text, p.attachmentType),
     };
 
     return InkWell(

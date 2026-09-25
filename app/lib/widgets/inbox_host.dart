@@ -165,9 +165,10 @@ class _Banner extends StatelessWidget {
     final room = arrival.room;
     final ChatPreview? last = arrival.thread?.lastMessage ?? room?.lastMessage;
     // In a room, whose it was goes in front, as the inbox row shows it.
-    final text = room == null
-        ? last?.text ?? ''
-        : '${last?.senderName ?? ''}: ${last?.text ?? ''}';
+    final words = last == null
+        ? ''
+        : context.s.messagePreview(last.text, last.attachmentType);
+    final text = room == null ? words : '${last?.senderName ?? ''}: $words';
     return Padding(
       padding: const EdgeInsets.fromLTRB(Gap.sm, Gap.xs, Gap.sm, 0),
       child: Dismissible(

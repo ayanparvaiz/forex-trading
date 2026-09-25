@@ -435,6 +435,19 @@ class Strings {
   );
   String get sharedPost => _t('পোস্ট', 'Post');
   String get sharedRank => _t('লিডারবোর্ড র‍্যাংক', 'Leaderboard rank');
+
+  /// What an inbox row or a banner shows for a message: its words, or what
+  /// was shared with it, or both.
+  String messagePreview(String text, String? attachmentType) {
+    final label = switch (attachmentType) {
+      'post' => '📊 $sharedPost',
+      'rank' => '🏅 $sharedRank',
+      _ => null,
+    };
+    if (label == null) return text;
+    return text.isEmpty ? label : '$label · $text';
+  }
+
   String get postUnavailable =>
       _t('পোস্টটি আর নেই', 'This post is no longer available');
   String get viewPost => _t('পোস্ট দেখুন', 'View post');

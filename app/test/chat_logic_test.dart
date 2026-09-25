@@ -446,6 +446,17 @@ void main() {
       expect(back.score, 92.5);
     });
 
+    test('the inbox says what was shared', () {
+      final en = Strings(AppLanguage.en);
+      expect(en.messagePreview('', 'post'), '📊 Post');
+      expect(
+        en.messagePreview('look at this', 'post'),
+        '📊 Post · look at this',
+      );
+      expect(en.messagePreview('', 'rank'), '🏅 Leaderboard rank');
+      expect(en.messagePreview('hi', null), 'hi');
+    });
+
     test('anything else is nothing', () {
       expect(MessageAttachment.fromJson(null), isNull);
       expect(MessageAttachment.fromJson({'type': 'video'}), isNull);
