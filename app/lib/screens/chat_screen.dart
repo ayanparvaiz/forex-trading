@@ -6,11 +6,13 @@ import 'package:flutter/services.dart';
 import '../data/chat_inbox.dart';
 import '../data/chat_repository.dart';
 import '../data/firestore_community_repository.dart';
+import '../data/safety_repository.dart';
 import '../data/session_controller.dart';
 import '../i18n/strings.dart';
 import '../models/chat.dart';
 import '../theme/app_theme.dart';
 import '../widgets/chat_bits.dart';
+import '../widgets/report_sheet.dart';
 import '../widgets/safety_actions.dart';
 import 'profile_screen.dart';
 
@@ -306,6 +308,15 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           otherUid: widget.otherUid,
           otherUsername: widget.otherUsername,
         );
+      case 'report':
+        await showReportSheet(
+          context,
+          ReportTarget.user(
+            targetUid: widget.otherUid,
+            targetUsername: widget.otherUsername,
+          ),
+        );
+        return;
     }
     // A block ends the connection, and an unblock does not restore it; either
     // way, whether this conversation can send has to be asked again.
@@ -363,6 +374,16 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               title: Text(s.copy),
               onTap: () => Navigator.of(sheet).pop('copy'),
             ),
+            // Their messages can be reported, quoted exactly as sent.
+            if (!mine && _inbox?.safety != null)
+              ListTile(
+                leading: const Icon(Icons.flag_outlined, color: AppColors.loss),
+                title: Text(
+                  s.report,
+                  style: const TextStyle(color: AppColors.loss),
+                ),
+                onTap: () => Navigator.of(sheet).pop('report'),
+              ),
             if (mine && !m.pending)
               ListTile(
                 leading: const Icon(Icons.undo_rounded, color: AppColors.loss),
@@ -386,6 +407,17 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       ).showSnackBar(SnackBar(content: Text(s.copied)));
     } else if (action == 'unsend') {
       await _confirmUnsend(m);
+    } else if (action == 'report') {
+      await showReportSheet(
+        context,
+        ReportTarget.message(
+          targetUid: widget.otherUid,
+          targetUsername: widget.otherUsername,
+          chatId: widget.chatId,
+          messageId: m.id,
+          quote: m.text,
+        ),
+      );
     }
   }
 
@@ -525,6 +557,17 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                   ],
                 ),
               ),
+              if (inbox?.safety != null)
+                PopupMenuItem(
+                  value: 'report',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.flag_outlined, size: 19),
+                      Gap.w12,
+                      Text(s.report),
+                    ],
+                  ),
+                ),
               if (inbox?.safety != null)
                 PopupMenuItem(
                   value: blockedByMe ? 'unblock' : 'block',
