@@ -8,7 +8,6 @@ import '../models/post_comment.dart';
 import '../models/trader.dart';
 import 'mock_community.dart';
 import 'page.dart';
-import 'seed_accounts.dart';
 
 /// Reads and writes everything social: leaderboard, feed, connections, views.
 ///
@@ -18,6 +17,22 @@ import 'seed_accounts.dart';
 /// than remembered at each call site.
 abstract class CommunityRepository {
   Future<ResultPage<Trader>> leaderboard({Object? cursor, int limit = 12});
+
+  /// The top of the leaderboard, live.
+  ///
+  /// A listener rather than pages, because the board is capped at
+  /// [leaderboardLimit] anyway and its whole point is that it moves: when the
+  /// worker writes someone's new score, their row should move while you are
+  /// looking at it, not on the next pull-to-refresh.
+  Stream<List<Trader>> watchLeaderboard({int limit = leaderboardLimit});
+
+  /// How many posts have appeared since [since], live, up to [cap].
+  ///
+  /// A count rather than the posts themselves. Dropping new posts into a feed
+  /// while someone is reading it moves the card under their thumb; saying
+  /// "3 new posts" and letting them choose when to look is the difference
+  /// between a live feed and a jumpy one.
+  Stream<int> watchNewPostCount(DateTime since, {int cap = 20});
 
   Future<ResultPage<FeedPost>> feed({Object? cursor, int limit = 8});
 
@@ -218,6 +233,21 @@ class LocalCommunityRepository implements CommunityRepository {
   }) async {
     final ranked = MockCommunity.rank(MockCommunity.traders(language));
     return _slice(ranked, cursor, limit);
+  }
+
+  /// Nobody else posts to an on-device feed.
+  @override
+  Stream<int> watchNewPostCount(DateTime since, {int cap = 20}) =>
+      Stream.value(0);
+
+  /// One snapshot and done: nothing on this device changes anyone else's row.
+  @override
+  Stream<List<Trader>> watchLeaderboard({
+    int limit = CommunityRepository.leaderboardLimit,
+  }) async* {
+    yield MockCommunity.rank(
+      MockCommunity.traders(language),
+    ).take(limit).toList();
   }
 
   @override
@@ -451,48 +481,5 @@ class LocalCommunityRepository implements CommunityRepository {
           ..sort((a, b) => b.viewedAt.compareTo(a.viewedAt));
 
     return _slice(views, cursor, limit);
-  }
-
-  /// Gives the seeded accounts a starting web of connections and visits, so a
-  /// fresh install does not present an empty social graph.
-  Future<void> seedGraph(String me) async {
-    if ((await _connections()).isNotEmpty) return;
-
-    final others = SeedAccounts.all
-        .where((a) => a.username != me)
-        .map((a) => a.username)
-        .toList();
-
-    final connections = <Connection>[];
-    final now = DateTime.now();
-
-    // A few accepted connections, and a couple of requests waiting on you.
-    for (var i = 0; i < 5 && i < others.length; i++) {
-      connections.add(
-        Connection(
-          from: others[i],
-          to: me,
-          accepted: true,
-          requestedAt: now.subtract(Duration(days: 10 - i)),
-          respondedAt: now.subtract(Duration(days: 9 - i)),
-        ),
-      );
-    }
-    for (var i = 5; i < 8 && i < others.length; i++) {
-      connections.add(
-        Connection(
-          from: others[i],
-          to: me,
-          accepted: false,
-          requestedAt: now.subtract(Duration(hours: (i - 4) * 7)),
-        ),
-      );
-    }
-
-    await _saveConnections(connections);
-
-    for (var i = 0; i < 9 && i < others.length; i++) {
-      await recordView(viewer: others[i], profileId: me);
-    }
   }
 }

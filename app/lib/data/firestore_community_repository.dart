@@ -203,6 +203,34 @@ class FirestoreCommunityRepository implements CommunityRepository {
   }
 
   @override
+  Stream<List<Trader>> watchLeaderboard({
+    int limit = CommunityRepository.leaderboardLimit,
+  }) {
+    // Same ordering as the paged query, so the live board and any paged view
+    // of it agree about who is where. After the first snapshot Firestore sends
+    // only the rows that changed, so a board of fifty that barely moves costs
+    // almost nothing to keep open.
+    return _users
+        .orderBy('disciplineScore', descending: true)
+        .orderBy('tradeCount', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((s) => [for (final d in s.docs) _traderFrom(d.data())]);
+  }
+
+  @override
+  Stream<int> watchNewPostCount(DateTime since, {int cap = 20}) {
+    // Capped, because the badge only ever needs to say "a lot" past a point
+    // and every document in the window is a read.
+    return _posts
+        .where('postedAt', isGreaterThan: Timestamp.fromDate(since))
+        .orderBy('postedAt')
+        .limit(cap)
+        .snapshots()
+        .map((s) => s.docs.length);
+  }
+
+  @override
   Future<Trader?> trader(String username) async {
     // The claim document maps a username to a uid, so this is two key lookups
     // rather than a query — cheaper, and it needs no index.

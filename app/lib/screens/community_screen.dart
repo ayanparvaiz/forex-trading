@@ -8,7 +8,6 @@ import '../data/community_repository.dart';
 import '../data/firestore_community_repository.dart';
 import '../data/notification_repository.dart';
 import '../data/one_time_notice.dart';
-import '../data/page.dart';
 import '../data/session_controller.dart';
 import '../i18n/strings.dart';
 import '../models/app_notification.dart';
@@ -54,19 +53,20 @@ class _CommunityScreenState extends State<CommunityScreen>
     final profile = context.session.profile;
     if (profile == null) return null;
 
-    final store = AccountScope.of(context);
-    final stats = store.stats;
+    // The same formula the worker writes with, over the same trades — so this
+    // row is what the worker is about to store, shown before it has.
+    final stats = AccountScope.of(context).leaderboardStats;
 
     return Trader(
       id: profile.username,
       name: profile.displayName,
       avatarEmoji: Avatars.byId(profile.avatarId).emoji,
-      disciplineScore: store.discipline.score,
-      badgePoints: store.badgePoints,
+      disciplineScore: stats.disciplineScore,
+      badgePoints: stats.badgePoints,
       totalR: stats.totalR,
-      tradeCount: stats.total,
+      tradeCount: stats.tradeCount,
       winRate: stats.winRate,
-      journalStreak: 0,
+      journalStreak: stats.journalStreak,
       cohort: profile.cohort,
       isYou: true,
     );
@@ -167,7 +167,7 @@ class _CommunityScreenState extends State<CommunityScreen>
   }
 }
 
-class _Leaderboard extends StatelessWidget {
+class _Leaderboard extends StatefulWidget {
   const _Leaderboard({
     required this.s,
     required this.repository,
@@ -181,53 +181,107 @@ class _Leaderboard extends StatelessWidget {
   final ValueChanged<RankShare> onShareRank;
 
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Expanded(
-          child: PagedListView<Trader>(
-            // Rebuild from scratch when the language changes, since the rows
-            // and the cohort labels come back translated.
-            key: ValueKey(s.lang),
-            padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.lg),
-            pageSize: 10,
-            maxItems: CommunityRepository.leaderboardLimit,
-            fetch: ({Object? cursor, int limit = 10}) async {
-              final page = await repository.leaderboard(
-                cursor: cursor,
-                limit: limit,
-              );
-              final me = you;
-              if (me == null) return page;
+  State<_Leaderboard> createState() => _LeaderboardState();
+}
 
-              // Swap the signed-in trader's live numbers in wherever their row
-              // lands.
-              return ResultPage(
-                items: [
-                  for (final t in page.items)
-                    if (t.id == me.id) me else t,
-                ],
-                cursor: page.cursor,
-                hasMore: page.hasMore,
-              );
-            },
-            header: _RankingExplainer(s: s),
-            itemBuilder: (context, trader, index) => _LeaderboardRow(
-              rank: index + 1,
-              trader: trader,
-              s: s,
-              repository: repository,
-            ),
-          ),
-        ),
-        if (you != null)
-          _YourRankBar(
-            you: you!,
-            s: s,
-            repository: repository,
-            onShare: onShareRank,
-          ),
-      ],
+class _LeaderboardState extends State<_Leaderboard> {
+  late Stream<List<Trader>> _board = widget.repository.watchLeaderboard();
+
+  @override
+  void didUpdateWidget(_Leaderboard old) {
+    super.didUpdateWidget(old);
+    // The screen above rebuilds every second with the market tick and hands
+    // down a fresh repository each time. Resubscribing on every one of those
+    // would open a new Firestore listener a second. Only a language change
+    // alters what the board says — the cohort labels come back translated.
+    if (old.s.lang != widget.s.lang) {
+      _board = widget.repository.watchLeaderboard();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.s;
+    final you = widget.you;
+
+    return StreamBuilder<List<Trader>>(
+      stream: _board,
+      builder: (context, snapshot) {
+        // The signed-in trader's own numbers are swapped in wherever their row
+        // lands. They are computed here with the worker's formula, so they
+        // are what the worker is about to write — just sooner.
+        final rows = [
+          for (final t in snapshot.data ?? const <Trader>[])
+            if (you != null && t.id == you.id) you else t,
+        ];
+
+        // Changes whenever anyone on the board moves, which is exactly when
+        // the pinned position below may have changed too.
+        final signature = Object.hashAll([
+          for (final t in rows) Object.hash(t.id, t.disciplineScore),
+        ]);
+
+        return Column(
+          children: [
+            Expanded(child: _list(context, snapshot, rows)),
+            if (you != null)
+              _YourRankBar(
+                you: you,
+                s: s,
+                repository: widget.repository,
+                onShare: widget.onShareRank,
+                boardSignature: signature,
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _list(
+    BuildContext context,
+    AsyncSnapshot<List<Trader>> snapshot,
+    List<Trader> rows,
+  ) {
+    final s = widget.s;
+
+    Widget? status;
+    if (snapshot.hasError) {
+      debugPrint('leaderboard stream failed: ${snapshot.error}');
+      status = Text(
+        s.couldNotLoad,
+        style: const TextStyle(color: AppColors.textMuted),
+      );
+    } else if (!snapshot.hasData) {
+      status = const CircularProgressIndicator(
+        strokeWidth: 2.4,
+        color: AppColors.brand,
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.lg),
+      itemCount: status == null ? rows.length + 1 : 2,
+      itemBuilder: (context, i) {
+        if (i == 0) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: Gap.md),
+            child: _RankingExplainer(s: s),
+          );
+        }
+        if (status != null) {
+          return Padding(
+            padding: const EdgeInsets.only(top: Gap.xl),
+            child: Center(child: status),
+          );
+        }
+        return _LeaderboardRow(
+          rank: i,
+          trader: rows[i - 1],
+          s: s,
+          repository: widget.repository,
+        );
+      },
     );
   }
 }
@@ -243,12 +297,21 @@ class _YourRankBar extends StatefulWidget {
     required this.s,
     required this.repository,
     required this.onShare,
+    required this.boardSignature,
   });
 
   final Trader you;
   final Strings s;
   final CommunityRepository repository;
   final ValueChanged<RankShare> onShare;
+
+  /// Changes whenever someone on the live board moves.
+  ///
+  /// A position is relative: yours changes when somebody else passes you, even
+  /// though nothing about your own score did. The rank is an aggregate count,
+  /// which Firestore cannot stream, so it is asked again each time the board
+  /// that it is relative to changes.
+  final int boardSignature;
 
   @override
   State<_YourRankBar> createState() => _YourRankBarState();
@@ -267,8 +330,11 @@ class _YourRankBarState extends State<_YourRankBar> {
   @override
   void didUpdateWidget(_YourRankBar old) {
     super.didUpdateWidget(old);
-    // A trade just closed and the score moved — the position may have too.
-    if (old.you.disciplineScore != widget.you.disciplineScore) _load();
+    // Your score moved, or somebody else's did — either can move you.
+    if (old.you.disciplineScore != widget.you.disciplineScore ||
+        old.boardSignature != widget.boardSignature) {
+      _load();
+    }
   }
 
   Future<void> _load() async {
@@ -689,7 +755,7 @@ class _LeaderboardRow extends StatelessWidget {
   }
 }
 
-class _Feed extends StatelessWidget {
+class _Feed extends StatefulWidget {
   const _Feed({
     required this.s,
     required this.repository,
@@ -704,15 +770,118 @@ class _Feed extends StatelessWidget {
   final int version;
 
   @override
+  State<_Feed> createState() => _FeedState();
+}
+
+class _FeedState extends State<_Feed> {
+  /// When the list on screen was loaded. Posts after this are "new".
+  DateTime _loadedAt = DateTime.now();
+  late Stream<int> _newPosts = widget.repository.watchNewPostCount(_loadedAt);
+
+  /// Bumped when the reader asks for the new posts.
+  int _refreshes = 0;
+
+  @override
+  void didUpdateWidget(_Feed old) {
+    super.didUpdateWidget(old);
+    // Held across rebuilds for the same reason as the leaderboard stream: the
+    // parent rebuilds every second, and a new listener each time would cost a
+    // read a second for nothing. A post of your own or a language change is
+    // a real reload, so those start the window again.
+    if (old.version != widget.version || old.s.lang != widget.s.lang) {
+      _restartWindow();
+    }
+  }
+
+  void _restartWindow() {
+    _loadedAt = DateTime.now();
+    _newPosts = widget.repository.watchNewPostCount(_loadedAt);
+  }
+
+  void _showNewPosts() {
+    setState(() {
+      _refreshes++;
+      _restartWindow();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return PagedListView<FeedPost>(
-      key: ValueKey('${s.lang}-$version'),
-      padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.xxl),
-      pageSize: 6,
-      fetch: repository.feed,
-      itemBuilder: (context, post, _) => Padding(
-        padding: const EdgeInsets.only(bottom: Gap.xs),
-        child: _FeedCard(post: post, s: s, repository: repository),
+    final s = widget.s;
+
+    return Stack(
+      children: [
+        PagedListView<FeedPost>(
+          key: ValueKey('${s.lang}-${widget.version}-$_refreshes'),
+          padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.xxl),
+          pageSize: 6,
+          fetch: widget.repository.feed,
+          itemBuilder: (context, post, _) => Padding(
+            padding: const EdgeInsets.only(bottom: Gap.xs),
+            child: _FeedCard(post: post, s: s, repository: widget.repository),
+          ),
+        ),
+        Positioned(
+          top: Gap.sm,
+          left: 0,
+          right: 0,
+          child: StreamBuilder<int>(
+            stream: _newPosts,
+            builder: (context, snapshot) {
+              final count = snapshot.data ?? 0;
+              return AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: count == 0
+                    ? const SizedBox.shrink()
+                    : Center(
+                        key: const ValueKey('pill'),
+                        child: _NewPostsPill(
+                          text: s.newPostsCount(count),
+                          onTap: _showNewPosts,
+                        ),
+                      ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _NewPostsPill extends StatelessWidget {
+  const _NewPostsPill({required this.text, required this.onTap});
+
+  final String text;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.brand,
+      borderRadius: Radii.pill,
+      elevation: 4,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: Radii.pill,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.arrow_upward, size: 15, color: Colors.white),
+              Gap.w4,
+              Text(
+                text,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

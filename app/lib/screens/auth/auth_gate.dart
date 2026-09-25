@@ -1,9 +1,11 @@
+import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter/material.dart';
 
 import '../../data/account_scope.dart';
-import '../../data/community_repository.dart';
 import '../../data/firestore_trade_repository.dart';
+import '../../data/score_sync.dart';
 import '../../data/session_controller.dart';
+import '../../firebase/firebase_bootstrap.dart';
 import '../app_shell.dart';
 import '../splash_screen.dart';
 import 'login_screen.dart';
@@ -20,8 +22,6 @@ class AuthGate extends StatefulWidget {
 }
 
 class _AuthGateState extends State<AuthGate> {
-  String? _graphSeededFor;
-
   /// The account whose journal is currently loaded, so it loads once.
   String? _journalFor;
 
@@ -42,19 +42,19 @@ class _AuthGateState extends State<AuthGate> {
       if (uid == null) {
         store.detach();
       } else {
-        store.attach(buildTradeRepository(uid));
+        store.attach(buildTradeRepository(uid), scores: _scoreSyncFor());
       }
     });
   }
 
-  /// Gives a new account a starting web of connections, requests and visitors,
-  /// so the profile screen is not an empty room the first time it is opened.
-  void _seedGraphOnce(SessionController session) {
-    final username = session.profile?.username;
-    if (username == null || _graphSeededFor == username) return;
-    _graphSeededFor = username;
-
-    LocalCommunityRepository(language: session.language).seedGraph(username);
+  /// The worker that writes this account's leaderboard row, when there is a
+  /// shared leaderboard to write it to.
+  ScoreSync _scoreSyncFor() {
+    if (!FirebaseBootstrap.isReady) return const NoScoreSync();
+    return WorkerScoreSync(
+      endpoint: statsEndpoint,
+      idToken: () async => fb.FirebaseAuth.instance.currentUser?.getIdToken(),
+    );
   }
 
   @override
@@ -64,8 +64,6 @@ class _AuthGateState extends State<AuthGate> {
     if (session.isRestoring) {
       return const SplashScreen();
     }
-
-    _seedGraphOnce(session);
 
     // Keyed so switching accounts tears down the old screens rather than
     // reusing their state.

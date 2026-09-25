@@ -372,6 +372,13 @@ class Strings {
   String get shareToFeed => _t('ফিডে শেয়ার', 'Share to feed');
   String get publish => _t('পোস্ট করুন', 'Post');
   String get posted => _t('ফিডে পোস্ট হয়েছে', 'Posted to the feed');
+
+  /// The live count is capped at 20, so anything at the cap reads as "20+".
+  String newPostsCount(int n) {
+    final shown = n >= 20 ? '20+' : '$n';
+    return _t('$shownটা নতুন পোস্ট', '$shown new ${n == 1 ? 'post' : 'posts'}');
+  }
+
   String get result => _t('ফল', 'Result');
   String get pair => _t('পেয়ার', 'Pair');
   String get lessonRequiredToPost => _t(

@@ -259,31 +259,4 @@ void main() {
       expect(all, hasLength(19));
     });
   });
-
-  group('seedGraph', () {
-    test('gives a fresh account connections, requests and visitors', () async {
-      await repo.seedGraph('ayan');
-
-      expect(await repo.connectionCount('ayan'), 5);
-
-      final pending = await drain<Trader>(
-        ({cursor, limit = 12}) =>
-            repo.pendingRequestsFor('ayan', cursor: cursor, limit: limit),
-      );
-      expect(pending, hasLength(3));
-
-      final viewers = await drain<ProfileView>(
-        ({cursor, limit = 12}) =>
-            repo.viewersOf('ayan', cursor: cursor, limit: limit),
-      );
-      expect(viewers, hasLength(9));
-    });
-
-    test('does not run twice over an existing graph', () async {
-      await repo.sendRequest(from: 'rifat', to: 'ayan');
-      await repo.seedGraph('ayan');
-
-      expect(await repo.connectionCount('ayan'), 0);
-    });
-  });
 }
