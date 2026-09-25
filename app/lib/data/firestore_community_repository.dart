@@ -878,6 +878,7 @@ class FirestoreCommunityRepository implements CommunityRepository {
             for (final doc in snapshot.docs)
               PostComment(
                 id: doc.id,
+                authorUid: doc.data()['authorUid'] as String? ?? '',
                 authorUsername: doc.data()['authorUsername'] as String? ?? '',
                 authorName: doc.data()['authorName'] as String? ?? '',
                 authorAvatarId:

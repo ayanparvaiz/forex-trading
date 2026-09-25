@@ -7,9 +7,13 @@ class PostComment {
     required this.authorAvatarId,
     required this.body,
     required this.createdAt,
+    this.authorUid = '',
   });
 
   final String id;
+
+  /// The author's account id — what a report about this comment points at.
+  final String authorUid;
 
   /// Author details are copied in rather than joined, so drawing a thread costs
   /// one query instead of one query plus a read per comment.
