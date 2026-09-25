@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../data/chat_inbox.dart';
 import '../data/community_repository.dart';
 import '../data/firestore_community_repository.dart';
 import '../data/notification_repository.dart';
@@ -14,6 +15,7 @@ import '../theme/app_theme.dart';
 import '../widgets/avatar_image.dart';
 import '../widgets/common.dart';
 import '../widgets/paged_list.dart';
+import '../widgets/safety_actions.dart';
 import 'chat_screen.dart';
 import 'settings_screen.dart';
 
@@ -69,6 +71,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   bool get _isSelf => _me == widget.username;
 
+  /// The other person's account id — what blocking is keyed on. Looked up
+  /// with the profile; null on your own.
+  String? _otherUid;
+
   @override
   void initState() {
     super.initState();
@@ -94,6 +100,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final me = _me;
       var status = ConnectionStatus.none;
       if (me != null && me != widget.username) {
+        _otherUid ??= await widget.repository.uidFor(widget.username);
         status = await widget.repository.statusBetween(me, widget.username);
         // Opening the page is the visit. Recorded after the read so it never
         // shows the viewer their own arrival.
@@ -188,11 +195,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final s = context.s;
     final trader = _trader;
+    final inbox = InboxScope.of(context);
+    final otherUid = _otherUid;
+    final blockedByMe =
+        otherUid != null && (inbox?.isBlocked(otherUid) ?? false);
 
     return Scaffold(
       appBar: AppBar(
         title: Text(s.profile),
         actions: [
+          if (!_isSelf && otherUid != null && inbox?.safety != null)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert),
+              color: AppColors.elevated,
+              onSelected: (action) async {
+                if (action == 'block') {
+                  final done = await confirmBlock(
+                    context,
+                    otherUid: otherUid,
+                    otherUsername: widget.username,
+                  );
+                  // Blocking ended the connection; show that.
+                  if (done && mounted) _load();
+                } else if (action == 'unblock') {
+                  await unblock(
+                    context,
+                    otherUid: otherUid,
+                    otherUsername: widget.username,
+                  );
+                }
+              },
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: blockedByMe ? 'unblock' : 'block',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.block,
+                        size: 19,
+                        color: blockedByMe
+                            ? AppColors.textPrimary
+                            : AppColors.loss,
+                      ),
+                      Gap.w12,
+                      Text(
+                        blockedByMe ? s.unblock : s.block,
+                        style: TextStyle(
+                          color: blockedByMe
+                              ? AppColors.textPrimary
+                              : AppColors.loss,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           if (_isSelf && _trader != null)
             TextButton.icon(
               onPressed: () async {
@@ -252,7 +310,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: [
                 _Header(trader: trader, s: s),
                 Gap.h12,
-                if (!_isSelf) ...[
+                // Blocked: no way to connect or message, just the way back.
+                if (!_isSelf && blockedByMe) ...[
+                  _BlockedNotice(
+                    s: s,
+                    onUnblock: () => unblock(
+                      context,
+                      otherUid: otherUid,
+                      otherUsername: widget.username,
+                    ),
+                  ),
+                  Gap.h12,
+                ] else if (!_isSelf) ...[
                   Row(
                     children: [
                       Expanded(
@@ -402,6 +471,46 @@ class _Header extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Where Connect would be, on the profile of someone you have blocked.
+class _BlockedNotice extends StatelessWidget {
+  const _BlockedNotice({required this.s, required this.onUnblock});
+
+  final Strings s;
+  final VoidCallback onUnblock;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.sm, Gap.sm),
+      decoration: BoxDecoration(
+        color: AppColors.lossDim,
+        borderRadius: Radii.tile,
+        border: Border.all(color: AppColors.loss.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.block, size: 19, color: AppColors.loss),
+          Gap.w12,
+          Expanded(
+            child: Text(
+              s.youBlockedThem,
+              style: const TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: onUnblock,
+            style: TextButton.styleFrom(foregroundColor: AppColors.brand),
+            child: Text(s.unblock),
           ),
         ],
       ),
