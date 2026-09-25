@@ -9,6 +9,7 @@ import '../data/firestore_community_repository.dart';
 import '../data/notification_repository.dart';
 import '../data/one_time_notice.dart';
 import '../data/page.dart';
+import '../data/safety_repository.dart';
 import '../data/session_controller.dart';
 import '../i18n/strings.dart';
 import '../models/app_notification.dart';
@@ -19,6 +20,7 @@ import '../widgets/avatar_image.dart';
 import '../widgets/common.dart';
 import '../widgets/medal_pill.dart';
 import '../widgets/paged_list.dart';
+import '../widgets/report_sheet.dart';
 import 'post_comments_sheet.dart';
 import 'post_composer_sheet.dart';
 import 'profile_screen.dart';
@@ -945,6 +947,20 @@ class _FeedCard extends StatelessWidget {
 
   bool get _isRank => post.kind == PostKind.rank;
 
+  Future<void> _report(BuildContext context) async {
+    final uid = await repository.uidFor(post.author.id);
+    if (uid == null || !context.mounted) return;
+    await showReportSheet(
+      context,
+      ReportTarget.post(
+        targetUid: uid,
+        targetUsername: post.author.id,
+        postId: post.id,
+        quote: post.lesson,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return SectionCard(
@@ -1004,6 +1020,35 @@ class _FeedCard extends StatelessWidget {
                         color: AppColors.forValue(post.rMultiple),
                       ),
                     ),
+              // Someone else's post can be reported, quoting its lesson —
+              // the text the rules check the report against.
+              if (post.author.id != context.session.profile?.username &&
+                  InboxScope.read(context)?.safety != null)
+                SizedBox(
+                  width: 32,
+                  child: PopupMenuButton<String>(
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(
+                      Icons.more_vert,
+                      size: 19,
+                      color: AppColors.textMuted,
+                    ),
+                    color: AppColors.elevated,
+                    onSelected: (_) => _report(context),
+                    itemBuilder: (_) => [
+                      PopupMenuItem(
+                        value: 'report',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.flag_outlined, size: 19),
+                            Gap.w12,
+                            Text(s.report),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
             ],
           ),
           Gap.h12,
