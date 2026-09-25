@@ -9,6 +9,7 @@ import '../widgets/avatar_image.dart';
 import 'blocked_accounts_screen.dart';
 import 'change_avatar_screen.dart';
 import 'change_password_screen.dart';
+import 'delete_account_screen.dart';
 import 'edit_name_screen.dart';
 import 'legal_screen.dart';
 
@@ -140,6 +141,12 @@ class SettingsScreen extends StatelessWidget {
                       title: s.logOut,
                       danger: true,
                       onTap: () => _confirmLogOut(context),
+                    ),
+                    SettingsTile(
+                      icon: Icons.delete_forever_outlined,
+                      title: s.deleteAccount,
+                      danger: true,
+                      onTap: () => _push(context, const DeleteAccountScreen()),
                     ),
                   ],
                 ),
