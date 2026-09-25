@@ -13,6 +13,7 @@ import '../widgets/common.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
 import '../widgets/avatar_image.dart';
+import 'edit_profile_sheet.dart';
 
 /// Home screen: what the account is worth, and how well it is being run.
 ///
@@ -195,6 +196,21 @@ class _ProfileButton extends StatelessWidget {
                 },
                 icon: const Icon(Icons.person_outline, size: 18),
                 label: Text(s.profile),
+              ),
+              Gap.h8,
+              OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.of(sheetContext).pop();
+                  showEditProfileSheet(context);
+                },
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                label: Text(s.editProfile),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  foregroundColor: AppColors.textPrimary,
+                  side: const BorderSide(color: AppColors.border),
+                  shape: const RoundedRectangleBorder(borderRadius: Radii.tile),
+                ),
               ),
               Gap.h8,
               TextButton.icon(

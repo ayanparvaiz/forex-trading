@@ -12,6 +12,7 @@ import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/paged_list.dart';
 import '../widgets/avatar_image.dart';
+import 'edit_profile_sheet.dart';
 
 /// Opens [username]'s profile.
 ///
@@ -173,7 +174,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final trader = _trader;
 
     return Scaffold(
-      appBar: AppBar(title: Text(s.profile)),
+      appBar: AppBar(
+        title: Text(s.profile),
+        actions: [
+          if (_isSelf && _trader != null)
+            TextButton.icon(
+              onPressed: () async {
+                // Re-read after saving, so the header shows what was stored
+                // rather than what was typed.
+                if (await showEditProfileSheet(context)) _load();
+              },
+              icon: const Icon(Icons.edit_outlined, size: 17),
+              label: Text(s.edit),
+              style: TextButton.styleFrom(foregroundColor: AppColors.brand),
+            ),
+          Gap.w8,
+        ],
+      ),
       body: _loading
           ? const Center(
               child: CircularProgressIndicator(
