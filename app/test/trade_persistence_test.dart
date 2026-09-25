@@ -81,6 +81,20 @@ void main() {
       expect(after.lesson, isNull);
     });
 
+    test('times are stored in UTC, with the zone written down', () {
+      // A local time serialises as "14:30:00.000" with no zone at all, which
+      // the stats worker — running in UTC — would read as six hours off: the
+      // wrong day for a streak, the wrong number of nights for swap.
+      final json = sample(closed: true).toJson();
+
+      expect(json['openedAt'], endsWith('Z'));
+      expect(json['closedAt'], endsWith('Z'));
+
+      // And the instant survives the trip, whatever zone it comes back in.
+      final after = Trade.fromJson('t1', json);
+      expect(after.openedAt.isAtSameMomentAs(sample().openedAt), isTrue);
+    });
+
     test('an unknown violation name is dropped, not thrown', () {
       // A flag renamed in a later version should cost that one flag, not the
       // whole journal.

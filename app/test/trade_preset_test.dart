@@ -59,11 +59,7 @@ void main() {
 
     expect(reward, isNot(2.5), reason: 'the float drift this test exists for');
     expect(
-      TradePreset.matching(
-        stopPips: 25,
-        rewardRatio: reward,
-        riskPercent: 0.5,
-      ),
+      TradePreset.matching(stopPips: 25, rewardRatio: reward, riskPercent: 0.5),
       TradePreset.careful,
     );
   });

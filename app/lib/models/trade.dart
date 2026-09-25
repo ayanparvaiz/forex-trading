@@ -157,6 +157,11 @@ class Trade {
   /// Pips, risk, R and P&L are all computed from these, so storing them would
   /// only create a second copy that could drift from the first — and a journal
   /// whose numbers disagree with its own prices is worth nothing.
+  ///
+  /// Times are written in UTC. A local DateTime serialises with no zone at all
+  /// — "10:00:00.000" — so a phone in Dhaka and a server in UTC would read the
+  /// same string as two instants six hours apart, and disagree about which day
+  /// a trade closed on and how many nights it was held.
   Map<String, Object?> toJson() => {
     'symbol': symbol,
     'direction': direction.name,
@@ -164,8 +169,8 @@ class Trade {
     'entryPrice': entryPrice,
     'stopPrice': stopPrice,
     'targetPrice': targetPrice,
-    'openedAt': openedAt.toIso8601String(),
-    'closedAt': closedAt?.toIso8601String(),
+    'openedAt': openedAt.toUtc().toIso8601String(),
+    'closedAt': closedAt?.toUtc().toIso8601String(),
     'exitPrice': exitPrice,
     'exitReason': exitReason?.name,
     'balanceAtEntry': balanceAtEntry,
@@ -183,8 +188,10 @@ class Trade {
   /// Unknown enum names are dropped rather than throwing: a violation renamed
   /// in a later version should cost that one flag, not the whole journal.
   factory Trade.fromJson(String id, Map<String, Object?> json) {
+    // Back to local for display. The instant is the same either way; only
+    // the wall-clock reading changes.
     DateTime? date(Object? value) =>
-        value is String ? DateTime.tryParse(value) : null;
+        value is String ? DateTime.tryParse(value)?.toLocal() : null;
 
     double number(Object? value, [double fallback = 0]) =>
         value is num ? value.toDouble() : fallback;
