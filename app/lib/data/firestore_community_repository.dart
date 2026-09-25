@@ -395,35 +395,20 @@ class FirestoreCommunityRepository implements CommunityRepository {
     // connection back to pending, which is a way to silently un-friend someone.
     if ((await doc.get()).exists) return;
 
-    // The request opens the conversation too, in the same batch, so the two
-    // of them can talk while it is pending — the way LinkedIn lets you write
-    // a note with an invitation. A chat left over from an earlier connection
-    // is reused rather than recreated: its history is still theirs.
-    final chat = _db.collection('chats').doc(doc.id);
-    final chatExists = (await chat.get()).exists;
-
+    // Only the request. The conversation opens when it is accepted — a request
+    // is one person asking, and letting it open a chat would let anyone
+    // message anyone by sending one first. The rules refuse it regardless.
     try {
-      final batch = _db.batch()
-        ..set(doc, {
-          'users': [from, to]..sort(),
-          'uids': [fromUid, toUid],
-          'fromUser': from,
-          'toUser': to,
-          'fromUid': fromUid,
-          'toUid': toUid,
-          'accepted': false,
-          'requestedAt': FieldValue.serverTimestamp(),
-        });
-      if (!chatExists) {
-        batch.set(
-          chat,
-          ChatRepository.newChatFields(
-            users: [from, to]..sort(),
-            uids: [fromUid, toUid],
-          ),
-        );
-      }
-      await batch.commit();
+      await doc.set({
+        'users': [from, to]..sort(),
+        'uids': [fromUid, toUid],
+        'fromUser': from,
+        'toUser': to,
+        'fromUid': fromUid,
+        'toUid': toUid,
+        'accepted': false,
+        'requestedAt': FieldValue.serverTimestamp(),
+      });
     } on FirebaseException {
       // Lost a race with the other side asking first. Already related either
       // way, so there is nothing left to do.
@@ -434,11 +419,32 @@ class FirestoreCommunityRepository implements CommunityRepository {
   Future<void> acceptRequest({required String me, required String from}) async {
     // The rules enforce that only the recipient may do this; the client only
     // has to ask correctly.
+    //
+    // Accepting opens the conversation, in the same batch, so the two people
+    // are in each other's inbox the moment they are connected. A chat left
+    // over from an earlier connection between them is reused rather than
+    // recreated: its history is still theirs.
+    final doc = _connections.doc(pairId(me, from));
     try {
-      await _connections.doc(pairId(me, from)).update({
-        'accepted': true,
-        'respondedAt': FieldValue.serverTimestamp(),
-      });
+      final connection = (await doc.get()).data();
+      if (connection == null) return;
+
+      final chat = _db.collection('chats').doc(doc.id);
+      final batch = _db.batch()
+        ..update(doc, {
+          'accepted': true,
+          'respondedAt': FieldValue.serverTimestamp(),
+        });
+      if (!(await chat.get()).exists) {
+        batch.set(
+          chat,
+          ChatRepository.newChatFields(
+            users: List<String>.from(connection['users'] as List),
+            uids: List<String>.from(connection['uids'] as List),
+          ),
+        );
+      }
+      await batch.commit();
     } on FirebaseException {
       // No such request, or not ours to accept.
     }
