@@ -13,11 +13,13 @@ import '../data/safety_repository.dart';
 import '../data/session_controller.dart';
 import '../i18n/strings.dart';
 import '../models/app_notification.dart';
+import '../models/chat.dart';
 import '../models/post_comment.dart';
 import '../models/trader.dart';
 import '../theme/app_theme.dart';
 import '../widgets/avatar_image.dart';
 import '../widgets/common.dart';
+import '../widgets/forward_sheet.dart';
 import '../widgets/medal_pill.dart';
 import '../widgets/paged_list.dart';
 import '../widgets/report_sheet.dart';
@@ -352,6 +354,59 @@ class _YourRankBarState extends State<_YourRankBar> {
     }
   }
 
+  /// Your position, to the feed as a post, or straight into a chat.
+  Future<void> _share(int rank) async {
+    final s = widget.s;
+    final score = widget.you.disciplineScore;
+    // No server, no chats: straight to the feed as before.
+    if (InboxScope.read(context) == null) {
+      _toFeed(rank);
+      return;
+    }
+    final where = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheet) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: Gap.sm),
+            ListTile(
+              leading: const Icon(Icons.dynamic_feed_outlined),
+              title: Text(s.postToFeed),
+              onTap: () => Navigator.of(sheet).pop('feed'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.send_outlined),
+              title: Text(s.sendInChat),
+              onTap: () => Navigator.of(sheet).pop('chat'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (where == 'feed') _toFeed(rank);
+    if (where == 'chat') {
+      await shareIntoChats(
+        context,
+        text: '',
+        attachment: SharedRank(rank: rank, score: score),
+      );
+    }
+  }
+
+  void _toFeed(int rank) => widget.onShare(
+    RankShare(
+      rank: rank,
+      score: widget.you.disciplineScore,
+      badgeEmoji: widget.you.badge.tier.emoji,
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final s = widget.s;
@@ -457,15 +512,7 @@ class _YourRankBarState extends State<_YourRankBar> {
               // position the app is still looking up would post a number
               // nobody has seen, including its author.
               IconButton(
-                onPressed: rank == null
-                    ? null
-                    : () => widget.onShare(
-                        RankShare(
-                          rank: rank,
-                          score: widget.you.disciplineScore,
-                          badgeEmoji: widget.you.badge.tier.emoji,
-                        ),
-                      ),
+                onPressed: rank == null ? null : () => _share(rank),
                 icon: const Icon(Icons.ios_share, size: 19),
                 color: AppColors.brand,
                 disabledColor: AppColors.textMuted,
@@ -1251,6 +1298,17 @@ class _PostActionsState extends State<_PostActions> {
     if (mounted) setState(() => _liked = liked);
   }
 
+  /// Sends the post into chats — any conversation, or the Global room.
+  Future<void> _send() async {
+    final uid = await widget.repository.uidFor(widget.post.author.id);
+    if (uid == null || !mounted) return;
+    await shareIntoChats(
+      context,
+      text: '',
+      attachment: SharedPost(postId: widget.post.id, authorUid: uid),
+    );
+  }
+
   Future<void> _toggle() async {
     final session = context.session;
     final me = session.profile;
@@ -1388,6 +1446,29 @@ class _PostActionsState extends State<_PostActions> {
                 ),
               ),
             ),
+            // Into a chat, or the Global room. Messaging needs the server,
+            // so an on-device build has nowhere to send it.
+            if (InboxScope.read(context) != null) ...[
+              Gap.w4,
+              InkWell(
+                onTap: _send,
+                borderRadius: Radii.pill,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 4,
+                  ),
+                  child: Transform.rotate(
+                    angle: -0.5,
+                    child: const Icon(
+                      Icons.send_outlined,
+                      size: 16,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
         );
       },
