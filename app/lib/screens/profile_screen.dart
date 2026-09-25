@@ -80,9 +80,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   /// They have blocked you. Their page is then shown as unavailable.
   bool _blockedMe = false;
 
+  bool _started = false;
+
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Not initState. Loading asks who is signed in and who they have
+    // blocked, which initState is not allowed to ask: it threw there, the
+    // catch below took it for a failed load, and every profile opened on
+    // "Could not load" until Retry.
+    if (_started) return;
+    _started = true;
     _load();
   }
 
@@ -93,10 +101,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   /// dropped connection — looking busy long after it gave up. That has already
   /// happened twice on this screen; it is not allowed to happen a third time.
   Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _failed = false;
-    });
+    // Already showing the spinner on the first load.
+    if (!_loading || _failed) {
+      setState(() {
+        _loading = true;
+        _failed = false;
+      });
+    }
 
     try {
       final me = _me;
