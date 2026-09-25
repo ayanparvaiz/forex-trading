@@ -78,6 +78,8 @@ class ChatMessage {
     required this.pending,
     this.replyTo,
     this.forwarded = false,
+    this.senderName,
+    this.senderUsername,
     this.cursor,
   });
 
@@ -92,6 +94,12 @@ class ChatMessage {
 
   /// A copy of a message from another conversation.
   final bool forwarded;
+
+  /// In a room, who sent it — copied onto the message when it is sent, since
+  /// a room has too many people to look each one up. Null between two people,
+  /// where the screen already knows both.
+  final String? senderName;
+  final String? senderUsername;
 
   /// Written on this phone but not yet confirmed by the server.
   final bool pending;
