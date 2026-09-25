@@ -13,13 +13,13 @@ import '../models/app_notification.dart';
 import '../models/post_comment.dart';
 import '../models/trader.dart';
 import '../theme/app_theme.dart';
+import '../widgets/avatar_image.dart';
 import '../widgets/common.dart';
 import '../widgets/medal_pill.dart';
 import '../widgets/paged_list.dart';
 import 'post_comments_sheet.dart';
 import 'post_composer_sheet.dart';
 import 'profile_screen.dart';
-import '../widgets/avatar_image.dart';
 
 /// Leaderboard and shared journal feed.
 ///

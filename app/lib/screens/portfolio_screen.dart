@@ -9,11 +9,11 @@ import '../data/session_controller.dart';
 import '../i18n/strings.dart';
 import '../models/trade.dart';
 import '../theme/app_theme.dart';
+import '../widgets/avatar_image.dart';
 import '../widgets/common.dart';
+import 'edit_profile_sheet.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
-import '../widgets/avatar_image.dart';
-import 'edit_profile_sheet.dart';
 
 /// Home screen: what the account is worth, and how well it is being run.
 ///
