@@ -7,12 +7,20 @@ import 'chat_repository.dart';
 import 'room_repository.dart';
 import 'safety_repository.dart';
 
-/// A message that arrived in a conversation you are not looking at.
+/// A message that arrived in a conversation you are not looking at — a chat
+/// with someone, or the Global room.
 class ChatArrival {
-  const ChatArrival({required this.thread, required this.partner});
+  const ChatArrival({required ChatThread this.thread, required this.partner})
+    : room = null;
+  const ChatArrival.room(RoomInfo this.room) : thread = null, partner = null;
 
-  final ChatThread thread;
+  final ChatThread? thread;
   final ChatPartner? partner;
+  final RoomInfo? room;
+
+  /// Which message it was, so the same one is never announced twice.
+  String get messageId =>
+      thread?.lastMessage?.id ?? room?.lastMessage?.id ?? '';
 }
 
 /// Everything about your conversations that has to stay alive while the app
@@ -113,6 +121,9 @@ class ChatInbox extends ChangeNotifier with WidgetsBindingObserver {
   RoomInfo? _global;
   RoomInfo? get global => _global;
 
+  /// Past the first snapshot: from here on, a new message is news.
+  bool _roomSeen = false;
+
   RoomMembership? _membership;
   RoomMembership? get globalMembership => _membership;
 
@@ -133,8 +144,25 @@ class ChatInbox extends ChangeNotifier with WidgetsBindingObserver {
     final rooms = this.rooms;
     if (rooms == null) return;
     _roomSub = rooms.watchRoom(RoomRepository.globalId).listen((room) {
+      final arrived =
+          room != null &&
+          isRoomArrival(
+            first: !_roomSeen,
+            beforeId: _global?.lastMessage?.id,
+            room: room,
+            me: uid,
+            joined: joinedGlobal,
+            openChatId: openChatId,
+          );
+      _roomSeen = true;
       _global = room;
       _refreshGlobalUnread();
+      if (arrived &&
+          _foreground &&
+          !isBlocked(room.lastMessage!.senderUid) &&
+          !prefsFor(room.id).mutedAt(DateTime.now())) {
+        _arrivals.add(ChatArrival.room(room));
+      }
       notifyListeners();
     }, onError: (Object e) => debugPrint('global room stream failed: $e'));
     _memberSub = rooms.watchMembership(RoomRepository.globalId, uid).listen((

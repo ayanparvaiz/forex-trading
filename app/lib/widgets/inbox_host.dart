@@ -9,8 +9,10 @@ import '../data/safety_repository.dart';
 import '../data/session_controller.dart';
 import '../models/chat.dart';
 import '../screens/chat_screen.dart';
+import '../screens/room_screen.dart';
 import '../theme/app_theme.dart';
 import 'avatar_image.dart';
+import 'chat_bits.dart';
 
 /// Keeps the signed-in trader's inbox alive above every screen, and shows a
 /// banner when a message arrives in a conversation you are not looking at.
@@ -77,13 +79,16 @@ class _InboxHostState extends State<InboxHost> {
     final me = session.uid;
     final nav = widget.navigatorKey.currentContext;
     if (me == null || nav == null) return;
+    final thread = arrival.thread;
+    if (thread == null) {
+      openGlobalChat(nav);
+      return;
+    }
     openChat(
       nav,
-      chatId: arrival.thread.id,
-      otherUid: arrival.thread.otherUid(me),
-      otherUsername: arrival.thread.otherUsername(
-        session.profile?.username ?? '',
-      ),
+      chatId: thread.id,
+      otherUid: thread.otherUid(me),
+      otherUsername: thread.otherUsername(session.profile?.username ?? ''),
     );
   }
 
@@ -128,7 +133,7 @@ class _InboxHostState extends State<InboxHost> {
                 child: banner == null
                     ? const SizedBox.shrink()
                     : _Banner(
-                        key: ValueKey(banner.thread.lastMessage?.id),
+                        key: ValueKey(banner.messageId),
                         arrival: banner,
                         onTap: () => _openBanner(banner),
                         onDismiss: _dismiss,
@@ -157,7 +162,12 @@ class _Banner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final partner = arrival.partner;
-    final ChatPreview? last = arrival.thread.lastMessage;
+    final room = arrival.room;
+    final ChatPreview? last = arrival.thread?.lastMessage ?? room?.lastMessage;
+    // In a room, whose it was goes in front, as the inbox row shows it.
+    final text = room == null
+        ? last?.text ?? ''
+        : '${last?.senderName ?? ''}: ${last?.text ?? ''}';
     return Padding(
       padding: const EdgeInsets.fromLTRB(Gap.sm, Gap.xs, Gap.sm, 0),
       child: Dismissible(
@@ -176,7 +186,10 @@ class _Banner extends StatelessWidget {
               padding: const EdgeInsets.all(Gap.md),
               child: Row(
                 children: [
-                  AvatarImage(partner?.avatarId, size: 40),
+                  if (room != null)
+                    const RoomAvatar(size: 40)
+                  else
+                    AvatarImage(partner?.avatarId, size: 40),
                   Gap.w12,
                   Expanded(
                     child: Column(
@@ -184,7 +197,9 @@ class _Banner extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          partner?.name ?? '',
+                          room != null
+                              ? context.s.globalChat
+                              : partner?.name ?? '',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
@@ -195,7 +210,7 @@ class _Banner extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          last?.text ?? '',
+                          text,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
