@@ -182,6 +182,23 @@ service cloud.firestore {
                   && request.resource.data.hidden.size() <= 5000));
       }
 
+      // --- Devices ----------------------------------------------------------
+      //
+      // The phones this account gets push notifications on, keyed by their
+      // FCM token. Yours alone to see: a token is an address, and nobody
+      // else has any business sending to it. The worker, which does the
+      // sending, reads them with its own authority. Turning notifications
+      // off on a phone deletes its entry.
+      match /devices/{token} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && request.resource.data.keys().hasOnly(['uid', 'platform', 'language', 'updatedAt'])
+          && request.resource.data.uid == uid
+          && request.resource.data.platform in ['ios', 'android']
+          && request.resource.data.language in ['bn', 'en']
+          && request.resource.data.updatedAt == request.time;
+      }
+
       // --- Trades -----------------------------------------------------------
       //
       // Private by default. Sharing copies a redacted version into /posts

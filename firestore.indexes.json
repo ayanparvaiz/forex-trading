@@ -192,6 +192,17 @@
   ],
   "fieldOverrides": [
     {
+      "comment": "Push notifications: the phones of everyone being told, thirty at a time.",
+      "collectionGroup": "devices",
+      "fieldPath": "uid",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "order": "DESCENDING", "queryScope": "COLLECTION" },
+        { "arrayConfig": "CONTAINS", "queryScope": "COLLECTION" },
+        { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }
+      ]
+    },
+    {
       "comment": "Deleting an account: every comment it left, on anyone's post.",
       "collectionGroup": "comments",
       "fieldPath": "authorUid",
