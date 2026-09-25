@@ -702,6 +702,57 @@ class Strings {
     'Not saved — check your connection and try again.',
   );
 
+  // --- Deleting your account ----------------------------------------------
+
+  // Named as the privacy policy names it: "Settings → Delete account".
+  String get deleteAccount => _t('অ্যাকাউন্ট ডিলিট', 'Delete account');
+  String get deleteAccountHeading => _t(
+    'এটা আপনার অ্যাকাউন্ট চিরতরে মুছে দেবে',
+    'This deletes your account for good',
+  );
+  String get deleteWhatProfile => _t(
+    'প্রোফাইল, ট্রেড, স্কোর আর র‍্যাঙ্ক',
+    'Your profile, trades, scores and rank',
+  );
+  String get deleteWhatPosts =>
+      _t('আপনার পোস্ট, কমেন্ট আর লাইক', 'Your posts, comments and likes');
+  String get deleteWhatChats => _t(
+    'কানেকশন আর মেসেজ — যার সাথে কথা হয়েছে, তার দিক থেকেও',
+    'Your connections and conversations — for the other person too',
+  );
+  String get deleteWhatNotifications =>
+      _t('নোটিফিকেশন আর প্রোফাইল ভিউ', 'Your notifications and profile views');
+  String deleteUsernameRetired(String username) => _t(
+    '@$username নামটা আর কেউ নিতে পারবে না — আপনিও এই নামে আবার অ্যাকাউন্ট '
+        'খুলতে পারবেন না।',
+    'Nobody can take @$username after you — you cannot sign up with it '
+        'again either.',
+  );
+  String get deleteReportsKept => _t(
+    'আপনার করা রিপোর্ট মডারেশনের জন্য থেকে যেতে পারে। বিস্তারিত প্রাইভেসি '
+        'পলিসিতে।',
+    'Reports you have made may be kept for moderation. The privacy policy '
+        'has the details.',
+  );
+  String get deleteEnterPassword =>
+      _t('নিশ্চিত করতে পাসওয়ার্ড দিন', 'Enter your password to confirm');
+  String get wrongPassword => _t('পাসওয়ার্ড ভুল', 'Wrong password');
+  String get deleteMyAccount =>
+      _t('আমার অ্যাকাউন্ট ডিলিট করুন', 'Delete my account');
+  String get deleteConfirmTitle =>
+      _t('সত্যিই ডিলিট করবেন?', 'Delete for good?');
+  String deleteConfirmBody(String username) => _t(
+    '@$username আর এর সবকিছু মুছে যাবে। এটা আর ফেরানো যাবে না।',
+    '@$username and everything in it will be deleted. There is no undo.',
+  );
+  String get deleting => _t('ডিলিট হচ্ছে…', 'Deleting…');
+  String get accountDeleted =>
+      _t('আপনার অ্যাকাউন্ট ডিলিট হয়েছে।', 'Your account has been deleted.');
+  String get couldNotDelete => _t(
+    'শেষ করা যায়নি — ইন্টারনেট দেখে আবার চেষ্টা করুন।',
+    'Could not finish — check your connection and try again.',
+  );
+
   // --- Notifications ------------------------------------------------------
 
   String get notifications => _t('নোটিফিকেশন', 'Notifications');
