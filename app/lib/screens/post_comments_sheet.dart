@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../data/chat_inbox.dart';
 import '../data/community_repository.dart';
 import '../data/notification_repository.dart';
 import '../data/session_controller.dart';
 import '../models/app_notification.dart';
 import '../models/post_comment.dart';
 import '../theme/app_theme.dart';
-import 'profile_screen.dart';
 import '../widgets/avatar_image.dart';
+import 'profile_screen.dart';
 
 /// Opens the comment thread for a post.
 Future<void> showPostComments(
@@ -134,7 +135,13 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                     );
                   }
 
-                  final comments = snapshot.data!;
+                  // Nothing from anyone you have blocked.
+                  final blocked =
+                      InboxScope.of(context)?.blockedUsernames ?? const {};
+                  final comments = [
+                    for (final c in snapshot.data!)
+                      if (!blocked.contains(c.authorUsername)) c,
+                  ];
                   if (comments.isEmpty) {
                     return Center(
                       child: Padding(
