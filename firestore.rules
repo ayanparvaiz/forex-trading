@@ -275,9 +275,16 @@ service cloud.firestore {
 
       // One clap document per user per post, keyed by uid, so a like cannot be
       // spammed however many times the button is pressed.
+      //
+      // The uid is also stored as a field, and has to match: a document id
+      // cannot be queried across posts, so deleting an account finds its
+      // likes by this field.
       match /claps/{uid} {
         allow read: if isSignedIn();
-        allow create, delete: if isOwner(uid);
+        allow create: if isOwner(uid)
+          && request.resource.data.keys().hasOnly(['uid', 'at'])
+          && request.resource.data.uid == uid;
+        allow delete: if isOwner(uid);
         allow update: if false;
       }
 
