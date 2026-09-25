@@ -26,6 +26,7 @@ import '../widgets/report_sheet.dart';
 import 'post_comments_sheet.dart';
 import 'post_composer_sheet.dart';
 import 'profile_screen.dart';
+import 'search_screen.dart';
 
 /// Leaderboard and shared journal feed.
 ///
@@ -121,6 +122,11 @@ class _CommunityScreenState extends State<CommunityScreen>
       appBar: AppBar(
         title: Text(s.navCommunity),
         actions: [
+          IconButton(
+            onPressed: () => openSearch(context),
+            icon: const Icon(Icons.search_rounded),
+            tooltip: s.search,
+          ),
           Padding(
             padding: const EdgeInsets.only(right: Gap.lg),
             child: FilledButton.icon(

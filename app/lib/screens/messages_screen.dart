@@ -14,6 +14,7 @@ import '../widgets/mute_sheet.dart';
 import 'chat_screen.dart';
 import 'profile_screen.dart';
 import 'room_screen.dart';
+import 'search_screen.dart';
 
 /// Your conversations, most recent first, under the Global room.
 ///
@@ -76,7 +77,17 @@ class _MessagesScreenState extends State<MessagesScreen> {
     if (inbox != null) _scheduleTypingExpiry(inbox);
 
     return Scaffold(
-      appBar: AppBar(title: Text(s.messages)),
+      appBar: AppBar(
+        title: Text(s.messages),
+        actions: [
+          IconButton(
+            onPressed: () => openSearch(context),
+            icon: const Icon(Icons.search_rounded),
+            tooltip: s.search,
+          ),
+          Gap.w4,
+        ],
+      ),
       body: switch (inbox) {
         null => _Empty(
           icon: Icons.cloud_off_outlined,
