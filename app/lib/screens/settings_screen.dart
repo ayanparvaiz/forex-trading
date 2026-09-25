@@ -4,6 +4,8 @@ import '../data/session_controller.dart';
 import '../i18n/strings.dart';
 import '../theme/app_theme.dart';
 import '../widgets/avatar_image.dart';
+import 'change_avatar_screen.dart';
+import 'edit_name_screen.dart';
 
 Future<void> openSettings(BuildContext context) => Navigator.of(
   context,
@@ -68,6 +70,18 @@ class SettingsScreen extends StatelessWidget {
                   title: s.sectionAccount,
                   children: [
                     SettingsTile(
+                      icon: Icons.badge_outlined,
+                      title: s.displayName,
+                      subtitle: profile.displayName,
+                      onTap: () => _push(context, const EditNameScreen()),
+                    ),
+                    SettingsTile(
+                      icon: Icons.face_retouching_natural_outlined,
+                      title: s.avatar,
+                      trailing: AvatarImage(profile.avatarId, size: 32),
+                      onTap: () => _push(context, const ChangeAvatarScreen()),
+                    ),
+                    SettingsTile(
                       icon: Icons.translate_rounded,
                       title: s.language,
                       trailing: _LanguageSwitch(s: s),
@@ -89,6 +103,11 @@ class SettingsScreen extends StatelessWidget {
             ),
     );
   }
+
+  static Future<void> _push(BuildContext context, Widget screen) =>
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => screen));
 
   Future<void> _confirmLogOut(BuildContext context) async {
     final s = context.s;
