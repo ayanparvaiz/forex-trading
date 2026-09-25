@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../data/chat_inbox.dart';
 import '../data/session_controller.dart';
 import '../screens/community_screen.dart';
 import '../screens/journal_screen.dart';
+import '../screens/messages_screen.dart';
 import '../screens/portfolio_screen.dart';
 import '../screens/trade_screen.dart';
+import '../theme/app_theme.dart';
 
 /// Bottom navigation host.
 ///
@@ -23,6 +26,9 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     final s = context.s;
+    // Conversations with something unread, as WhatsApp counts them — chats,
+    // not messages, so ten messages from one person do not read as ten people.
+    final unread = InboxScope.of(context)?.unreadChats ?? 0;
 
     return Scaffold(
       body: IndexedStack(
@@ -32,6 +38,7 @@ class _AppShellState extends State<AppShell> {
           TradeScreen(),
           JournalScreen(),
           CommunityScreen(),
+          MessagesScreen(),
         ],
       ),
       bottomNavigationBar: NavigationBar(
@@ -57,6 +64,23 @@ class _AppShellState extends State<AppShell> {
             icon: const Icon(Icons.groups_outlined),
             selectedIcon: const Icon(Icons.groups),
             label: s.navCommunity,
+          ),
+          NavigationDestination(
+            icon: Badge(
+              isLabelVisible: unread > 0,
+              label: Text('$unread'),
+              backgroundColor: AppColors.profit,
+              textColor: AppColors.bg,
+              child: const Icon(Icons.chat_bubble_outline_rounded),
+            ),
+            selectedIcon: Badge(
+              isLabelVisible: unread > 0,
+              label: Text('$unread'),
+              backgroundColor: AppColors.profit,
+              textColor: AppColors.bg,
+              child: const Icon(Icons.chat_bubble_rounded),
+            ),
+            label: s.navMessages,
           ),
         ],
       ),
