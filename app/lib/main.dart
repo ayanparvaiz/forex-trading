@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'data/account_scope.dart';
 import 'data/account_store.dart';
 import 'data/auth_repository.dart';
 import 'data/firebase_auth_repository.dart';
+import 'data/mock_market.dart';
+import 'data/reference_rates.dart';
 import 'data/seed_accounts.dart';
 import 'data/session_controller.dart';
 import 'firebase/firebase_bootstrap.dart';
@@ -20,11 +24,18 @@ Future<void> main() async {
   // the mock feed, which is exactly what a fresh clone should do.
   await FirebaseBootstrap.ensureInitialized();
 
-  runApp(const ForexTradingApp());
+  // The rates from last time, so the market starts at the right level before
+  // today's arrive — or without them, offline.
+  final rates = await ReferenceRatesSource().cached();
+
+  runApp(ForexTradingApp(rates: rates));
 }
 
 class ForexTradingApp extends StatefulWidget {
-  const ForexTradingApp({super.key});
+  const ForexTradingApp({super.key, this.rates});
+
+  /// Where the practice market starts, until today's rates come in.
+  final ReferenceRates? rates;
 
   @override
   State<ForexTradingApp> createState() => _ForexTradingAppState();
@@ -40,7 +51,12 @@ class _ForexTradingAppState extends State<ForexTradingApp> {
       : LocalAuthRepository();
 
   late final SessionController _session = SessionController(_auth);
-  late final AccountStore _store = AccountStore();
+  late final AccountStore _store = AccountStore(
+    market: MockMarket(
+      anchors: widget.rates?.pairs,
+      anchorDate: widget.rates?.date,
+    ),
+  );
   final _navigator = GlobalKey<NavigatorState>();
 
   @override
@@ -65,6 +81,16 @@ class _ForexTradingAppState extends State<ForexTradingApp> {
 
   Future<void> _start() async {
     final held = Future<void>.delayed(_minimumSplash);
+
+    // Today's reference rates, fetched while the splash is up and applied
+    // whenever they arrive. Never waited for: the market already has a level.
+    final source = ReferenceRatesSource();
+    unawaited(
+      source.fetch().then((rates) {
+        source.close();
+        if (rates != null && mounted) _store.applyReferenceRates(rates);
+      }),
+    );
 
     // Demo accounts are only seeded into local storage. On Firestore the
     // twenty accounts are seeded once, server-side — creating twenty auth

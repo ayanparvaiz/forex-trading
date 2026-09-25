@@ -8,6 +8,7 @@ import '../models/badge.dart';
 import '../models/instrument.dart';
 import '../models/trade.dart';
 import 'mock_market.dart';
+import 'reference_rates.dart';
 import 'score_sync.dart';
 import 'trade_repository.dart';
 
@@ -22,8 +23,9 @@ import 'trade_repository.dart';
 /// from them on read, never stored beside them, so no number here can ever
 /// disagree with the trades that produced it.
 ///
-/// The prices, on the other hand, are not real: [MockMarket] generates them on
-/// the device. This is a practice account, and that part is the point.
+/// The prices, on the other hand, are practice prices: [MockMarket] moves them
+/// on the device, from the day's real reference rates. This is a practice
+/// account, and that part is the point.
 class AccountStore extends ChangeNotifier {
   AccountStore({MockMarket? market, TradeRepository? trades})
     : market = market ?? MockMarket(),
@@ -37,6 +39,22 @@ class AccountStore extends ChangeNotifier {
 
   final MockMarket market;
   Timer? _ticker;
+
+  /// The day's reference rates: each pair heads for its rate — at once when
+  /// nothing is open on it, gradually when something is, so no open
+  /// position's result leaps because a number arrived.
+  void applyReferenceRates(ReferenceRates rates) {
+    for (final instrument in Instrument.all) {
+      final price = rates.pairs[instrument.symbol];
+      if (price == null) continue;
+      final open = openTrades.any(
+        (t) => t.instrument.symbol == instrument.symbol,
+      );
+      market.setAnchor(instrument, price, jump: !open);
+    }
+    market.anchorDate = rates.date;
+    notifyListeners();
+  }
 
   TradeRepository _repository;
   ScoreSync _scores = const NoScoreSync();
