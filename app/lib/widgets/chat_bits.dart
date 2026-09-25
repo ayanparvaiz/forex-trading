@@ -341,3 +341,27 @@ class _SwipeToReplyState extends State<SwipeToReply>
     );
   }
 }
+
+/// The Global room's picture: a globe, since it is everyone.
+class RoomAvatar extends StatelessWidget {
+  const RoomAvatar({super.key, this.size = 48});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.brand, AppColors.brandDim],
+        ),
+      ),
+      child: Icon(Icons.public_rounded, size: size * 0.56, color: Colors.white),
+    );
+  }
+}

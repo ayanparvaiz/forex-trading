@@ -519,6 +519,10 @@ class Strings {
     'এখনো কেউ কিছু লেখেনি। প্রথম মেসেজটা আপনিই দিন 👋',
     'Nobody has written yet. Say the first hello 👋',
   );
+  String get deleteRoomBody => _t(
+    'মেসেজগুলো শুধু আপনার দিক থেকে মুছে যাবে — অন্যদের কাছে সব থেকে যাবে।',
+    'The messages go from your side only — everyone else keeps them.',
+  );
   String get joinedGlobal =>
       _t('গ্লোবাল চ্যাটে জয়েন করেছেন', 'You joined Global');
   String get leftGlobal =>
