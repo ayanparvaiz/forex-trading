@@ -500,6 +500,44 @@ class Strings {
   String get originalMissing =>
       _t('মূল মেসেজটি পাওয়া যাচ্ছে না', 'Original message not found');
 
+  // The Global room.
+  String get globalChat => _t('গ্লোবাল', 'Global');
+  String get joinNow => _t('এখনই জয়েন করুন', 'Join now');
+  String get join => _t('জয়েন', 'Join');
+  String get leave => _t('লিভ', 'Leave');
+  String members(int n) =>
+      _t('$n জন সদস্য', n == 1 ? '1 member' : '$n members');
+  String get globalAbout =>
+      _t('সব ট্রেডারের জন্য একটা চ্যাট।', 'One chat for every trader here.');
+  String get joinToWrite => _t(
+    'মেসেজ পাঠাতে জয়েন করুন। জয়েন করলে নতুন মেসেজের নোটিফিকেশন আর আনরিড '
+        'সংখ্যা পাবেন।',
+    "Join to send messages. Members get notified of new messages and see "
+        'what they have not read.',
+  );
+  String get globalEmpty => _t(
+    'এখনো কেউ কিছু লেখেনি। প্রথম মেসেজটা আপনিই দিন 👋',
+    'Nobody has written yet. Say the first hello 👋',
+  );
+  String get joinedGlobal =>
+      _t('গ্লোবাল চ্যাটে জয়েন করেছেন', 'You joined Global');
+  String get leftGlobal =>
+      _t('গ্লোবাল চ্যাট থেকে বের হয়েছেন', 'You left Global');
+  String get couldNotJoin => _t(
+    'হয়নি — ইন্টারনেট দেখে আবার চেষ্টা করুন।',
+    "Didn't work — check your connection and try again.",
+  );
+  String get leaveGlobalTitle =>
+      _t('গ্লোবাল চ্যাট থেকে বের হবেন?', 'Leave Global?');
+  String get leaveGlobalBody => _t(
+    'আর নোটিফিকেশন বা আনরিড সংখ্যা আসবে না, আর মেসেজ পাঠাতে পারবেন না। '
+        'পড়তে পারবেন, আর যেকোনো সময় আবার জয়েন করতে পারবেন। আপনার আগের '
+        'মেসেজগুলো থেকে যাবে।',
+    "You won't be notified or see unread counts, and you can't send "
+        'messages. You can still read it and join again any time. What you '
+        'have written stays.',
+  );
+
   // Muting.
   String get mute => _t('মিউট', 'Mute');
   String get unmute => _t('আনমিউট', 'Unmute');
