@@ -312,7 +312,10 @@ class ChatRepository {
   /// my inbox until someone writes again. Its unread count goes too — a
   /// deleted chat should not keep a number on the tab. Not marked read: the
   /// other person's ticks say whether I read it, and I did not.
-  Future<void> clearChat(String chatId, String me) {
+  ///
+  /// [countsUnread] is false for a room, which keeps no count on a shared
+  /// document — its read mark is moved separately.
+  Future<void> clearChat(String chatId, String me, {bool countsUnread = true}) {
     final batch = _db.batch()
       // The hidden list is replaced, not added to: messages deleted one by
       // one before the clear go with everything else. Merged, so a mute
@@ -320,10 +323,12 @@ class ChatRepository {
       ..set(_prefs(me).doc(chatId), {
         'clearedAt': FieldValue.serverTimestamp(),
         'hidden': <String>[],
-      }, SetOptions(merge: true))
-      ..update(_chats.doc(chatId), {
+      }, SetOptions(merge: true));
+    if (countsUnread) {
+      batch.update(_chats.doc(chatId), {
         FieldPath(['unread', me]): 0,
       });
+    }
     return batch.commit();
   }
 
