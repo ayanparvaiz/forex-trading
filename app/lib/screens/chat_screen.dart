@@ -14,6 +14,7 @@ import '../models/chat.dart';
 import '../theme/app_theme.dart';
 import '../widgets/chat_bits.dart';
 import '../widgets/forward_sheet.dart';
+import '../widgets/mute_sheet.dart';
 import '../widgets/report_sheet.dart';
 import '../widgets/safety_actions.dart';
 import 'profile_screen.dart';
@@ -337,6 +338,22 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
   Future<void> _menu(String action) async {
     switch (action) {
+      case 'mute':
+        final repo = _repo;
+        final s = context.s;
+        final messenger = ScaffoldMessenger.of(context);
+        final until = await pickMuteUntil(context);
+        if (until == null || repo == null) return;
+        await repo
+            .mute(widget.chatId, _me, until)
+            .catchError((Object e) => debugPrint('mute failed: $e'));
+        messenger.showSnackBar(
+          SnackBar(content: Text(s.mutedUntil(until, DateTime.now()))),
+        );
+      case 'unmute':
+        await _repo
+            ?.unmute(widget.chatId, _me)
+            .catchError((Object e) => debugPrint('unmute failed: $e'));
       case 'profile':
         openProfile(
           context,
@@ -773,6 +790,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     final presence = presenceOf(last, now);
     final typing = _otherTyping(now);
     final blockedByMe = inbox?.isBlocked(widget.otherUid) ?? false;
+    final prefs = _prefs;
+    final muted = prefs.mutedAt(now);
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -799,16 +818,31 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      _partner?.name.isNotEmpty == true
-                          ? _partner!.name
-                          : '@${widget.otherUsername}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            _partner?.name.isNotEmpty == true
+                                ? _partner!.name
+                                : '@${widget.otherUsername}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        if (muted)
+                          const Padding(
+                            padding: EdgeInsets.only(left: 5),
+                            child: Icon(
+                              Icons.notifications_off,
+                              size: 15,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                      ],
                     ),
                     if (typing)
                       Text(
@@ -844,6 +878,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             color: AppColors.elevated,
             onSelected: (action) => _menu(action),
             itemBuilder: (_) => [
+              PopupMenuItem(
+                value: muted ? 'unmute' : 'mute',
+                child: MuteMenuRow(s: s, prefs: prefs, now: now),
+              ),
               PopupMenuItem(
                 value: 'profile',
                 child: Row(

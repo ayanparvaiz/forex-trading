@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/session_controller.dart';
+import '../i18n/strings.dart';
 import '../models/chat.dart';
 import '../theme/app_theme.dart';
 
@@ -54,4 +55,51 @@ Future<DateTime?> pickMuteUntil(BuildContext context) {
       ),
     ),
   );
+}
+
+/// A menu row that mutes, or — when muted — unmutes and says until when.
+class MuteMenuRow extends StatelessWidget {
+  const MuteMenuRow({
+    super.key,
+    required this.s,
+    required this.prefs,
+    required this.now,
+  });
+
+  final Strings s;
+  final ChatPrefs prefs;
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = prefs.mutedAt(now);
+    return Row(
+      children: [
+        Icon(
+          muted
+              ? Icons.notifications_active_outlined
+              : Icons.notifications_off_outlined,
+          size: 19,
+        ),
+        Gap.w12,
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(muted ? s.unmute : s.muteNotifications),
+              if (muted)
+                Text(
+                  s.mutedUntil(prefs.mutedUntil!, now),
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
