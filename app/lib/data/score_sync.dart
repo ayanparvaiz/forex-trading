@@ -70,6 +70,10 @@ class WorkerScoreSync implements ScoreSync {
 
       final request = await _client.postUrl(endpoint);
       request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+      // Named rather than left as dart:io's default. Cloudflare's bot check
+      // blocks some stock client strings outright — Python's is refused with
+      // error 1010 — and whether Dart's stays allowed is not ours to decide.
+      request.headers.set(HttpHeaders.userAgentHeader, 'forex-trading-app');
       final response = await request.close();
       final body = await response.transform(utf8.decoder).join();
 
@@ -108,6 +112,7 @@ class WorkerScoreSync implements ScoreSync {
 final Uri statsEndpoint = Uri.parse(
   const String.fromEnvironment(
     'STATS_ENDPOINT',
-    defaultValue: 'https://forex-trading-stats.workers.dev/recompute',
+    defaultValue:
+        'https://forex-trading-stats.forex-trading-stats.workers.dev/recompute',
   ),
 );
