@@ -287,10 +287,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                       ),
-                      // Next to Connect, as on LinkedIn — once there is a
-                      // connection to talk through. A request opens the
-                      // conversation, so this appears the moment one is sent.
-                      if (_status != ConnectionStatus.none &&
+                      // Beside the connection button, as on LinkedIn — and
+                      // only once connected. Accepting a request is what opens
+                      // the conversation, so a pending request, either way,
+                      // shows no way to message yet.
+                      if (_status == ConnectionStatus.connected &&
                           FirebaseBootstrap.isReady) ...[
                         Gap.w12,
                         _MessageButton(label: s.message, onTap: _message),
@@ -407,8 +408,8 @@ class _Header extends StatelessWidget {
   }
 }
 
-/// A square message button, so it fits beside even the two-button
-/// accept/decline row without squeezing either.
+/// A square message button beside the connected state, leaving the wide
+/// button its label.
 class _MessageButton extends StatelessWidget {
   const _MessageButton({required this.label, required this.onTap});
 
