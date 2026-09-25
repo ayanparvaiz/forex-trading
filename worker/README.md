@@ -25,6 +25,33 @@ Authorization: Bearer <Firebase ID token>
 The service account bypasses Firestore rules. That is the point: it is the
 only writer allowed to set the score fields.
 
+## Deleting an account
+
+```
+POST /delete-account
+Authorization: Bearer <Firebase ID token, from a sign-in in the last 5 minutes>
+```
+
+Erases the caller's account from Firestore: everything section 7 of the
+privacy policy lists (`app/lib/legal/legal_text.dart`). Most of it is not the
+account's own to delete under the rules, since a conversation belongs to two
+people and a like sits on someone else's post, so it runs here. The code and
+its order are in `src/erase.js`.
+
+- The token must come from a password typed in the last 5 minutes
+  (`auth_time`). The app signs in again on the delete screen right before
+  calling.
+- One request makes at most 40 Firestore calls, because the free plan allows
+  50 outgoing requests. `{"done": false}` means "call again"; each call starts
+  from the top and skips what is already gone. The app repeats until
+  `{"done": true}`, then deletes the Firebase Auth sign-in itself.
+- The username is **retired**, not freed. The claim stays, pointing at nobody,
+  so nobody else can register the name.
+- Reports stay, and so do views on other people's posts (reach), which carry
+  only a uid that no longer belongs to anyone.
+- It needs three collection-group indexes, in `firestore.indexes.json` under
+  `fieldOverrides`.
+
 ## The formula exists twice
 
 `src/stats.js` mirrors `app/lib/core/leaderboard_stats.dart`. Both are tested
