@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import '../data/chat_inbox.dart';
 import '../data/community_repository.dart';
 import '../data/notification_repository.dart';
+import '../data/safety_repository.dart';
 import '../data/session_controller.dart';
 import '../models/app_notification.dart';
 import '../models/post_comment.dart';
 import '../theme/app_theme.dart';
 import '../widgets/avatar_image.dart';
+import '../widgets/report_sheet.dart';
 import 'profile_screen.dart';
 
 /// Opens the comment thread for a post.
@@ -178,6 +180,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                     itemCount: comments.length,
                     itemBuilder: (context, i) => _CommentRow(
                       comment: comments[i],
+                      postId: widget.postId,
                       repository: widget.repository,
                     ),
                   );
@@ -240,61 +243,104 @@ class _CommentsSheetState extends State<_CommentsSheet> {
 }
 
 class _CommentRow extends StatelessWidget {
-  const _CommentRow({required this.comment, required this.repository});
+  const _CommentRow({
+    required this.comment,
+    required this.postId,
+    required this.repository,
+  });
 
   final PostComment comment;
+  final String postId;
   final CommunityRepository repository;
+
+  /// Long-pressing someone else's comment offers to report it, quoted exactly.
+  bool _reportable(BuildContext context) =>
+      comment.authorUid.isNotEmpty &&
+      comment.authorUid != context.session.uid &&
+      InboxScope.read(context)?.safety != null;
+
+  Future<void> _actions(BuildContext context) async {
+    final s = context.s;
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheet) => SafeArea(
+        child: ListTile(
+          leading: const Icon(Icons.flag_outlined, color: AppColors.loss),
+          title: Text(s.report, style: const TextStyle(color: AppColors.loss)),
+          onTap: () => Navigator.of(sheet).pop('report'),
+        ),
+      ),
+    );
+    if (action != 'report' || !context.mounted) return;
+    await showReportSheet(
+      context,
+      ReportTarget.comment(
+        targetUid: comment.authorUid,
+        targetUsername: comment.authorUsername,
+        postId: postId,
+        commentId: comment.id,
+        quote: comment.body,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final s = context.s;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: Gap.lg),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          GestureDetector(
-            onTap: () =>
-                openProfile(context, comment.authorUsername, repository),
-            child: AvatarImage(comment.authorAvatarId, size: 34),
-          ),
-          Gap.w12,
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        comment.authorName,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Gap.w8,
-                    Text(
-                      s.timeAgo(comment.createdAt),
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                  ],
-                ),
-                Gap.h4,
-                Text(
-                  comment.body,
-                  style: const TextStyle(fontSize: 13.5, height: 1.45),
-                ),
-              ],
+    return GestureDetector(
+      onLongPress: _reportable(context) ? () => _actions(context) : null,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: Gap.lg),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            GestureDetector(
+              onTap: () =>
+                  openProfile(context, comment.authorUsername, repository),
+              child: AvatarImage(comment.authorAvatarId, size: 34),
             ),
-          ),
-        ],
+            Gap.w12,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          comment.authorName,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Gap.w8,
+                      Text(
+                        s.timeAgo(comment.createdAt),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Gap.h4,
+                  Text(
+                    comment.body,
+                    style: const TextStyle(fontSize: 13.5, height: 1.45),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
