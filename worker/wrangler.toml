@@ -1,0 +1,13 @@
+name = "forex-trading-stats"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+# Not a secret: the project id is in every Firebase config file already.
+[vars]
+FIREBASE_PROJECT_ID = "forex-9f21b"
+
+# Secrets, set once with:
+#   npx wrangler secret put FIREBASE_CLIENT_EMAIL
+#   npx wrangler secret put FIREBASE_PRIVATE_KEY
+# They belong to a service account that can read and write Firestore and
+# nothing else. They are never committed.

@@ -49,3 +49,8 @@ app/ios/Runner/GoogleService-Info.plist
 .vscode/
 *.iml
 .DS_Store
+
+# Cloudflare worker
+worker/node_modules/
+worker/.wrangler/
+worker/.dev.vars
