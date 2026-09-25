@@ -1,8 +1,11 @@
 {
   "comment": [
-    "Composite indexes only. Firestore creates single-field indexes on its own",
-    "and rejects any attempt to declare one, so a query ordered by a single",
-    "field needs no entry here."
+    "Firestore creates single-field indexes on its own, for one collection at",
+    "a time, and rejects composite entries that declare one — so a query",
+    "ordered by a single field needs no entry in indexes. The exception is a",
+    "query across every collection of one name (a collection group): those",
+    "need the field turned on for that scope in fieldOverrides, where the",
+    "three collection-scope defaults have to be restated or they are dropped."
   ],
   "indexes": [
     {
@@ -187,5 +190,39 @@
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "comment": "Deleting an account: every comment it left, on anyone's post.",
+      "collectionGroup": "comments",
+      "fieldPath": "authorUid",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "order": "DESCENDING", "queryScope": "COLLECTION" },
+        { "arrayConfig": "CONTAINS", "queryScope": "COLLECTION" },
+        { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }
+      ]
+    },
+    {
+      "comment": "Deleting an account: every like it left, on anyone's post.",
+      "collectionGroup": "claps",
+      "fieldPath": "uid",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "order": "DESCENDING", "queryScope": "COLLECTION" },
+        { "arrayConfig": "CONTAINS", "queryScope": "COLLECTION" },
+        { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }
+      ]
+    },
+    {
+      "comment": "Deleting an account: other people's blocks of it.",
+      "collectionGroup": "blocks",
+      "fieldPath": "username",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "order": "DESCENDING", "queryScope": "COLLECTION" },
+        { "arrayConfig": "CONTAINS", "queryScope": "COLLECTION" },
+        { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }
+      ]
+    }
+  ]
 }
