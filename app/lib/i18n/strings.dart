@@ -406,6 +406,39 @@ class Strings {
   );
   String get alreadyShared => _t('শেয়ার করা হয়েছে', 'Shared');
 
+  // --- Deleting and sharing posts ------------------------------------------
+
+  String get deletePost => _t('পোস্ট ডিলিট', 'Delete post');
+  String get deletePostTitle => _t('পোস্টটি ডিলিট করবেন?', 'Delete this post?');
+  String get deletePostBody => _t(
+    'লাইক আর কমেন্টসহ পোস্টটা সবার কাছ থেকে মুছে যাবে। এটা আর ফেরানো যাবে না।',
+    "It goes for everyone, with its likes and comments. This can't be "
+        'undone.',
+  );
+  String get postDeleted => _t('পোস্ট ডিলিট হয়েছে', 'Post deleted');
+  String get couldNotDeletePost => _t(
+    'ডিলিট হয়নি — ইন্টারনেট দেখে আবার চেষ্টা করুন।',
+    'Not deleted — check your connection and try again.',
+  );
+  String get sendInChat => _t('চ্যাটে পাঠান', 'Send in a chat');
+  String get postToFeed => _t('ফিডে পোস্ট করুন', 'Post to the feed');
+  String get sendTo => _t('কাকে পাঠাবেন?', 'Send to…');
+  String sentTo(int n) => _t(
+    n == 1 ? 'পাঠানো হয়েছে' : '$nটা চ্যাটে পাঠানো হয়েছে',
+    n == 1 ? 'Sent' : 'Sent to $n chats',
+  );
+
+  /// [where] is "@username", or the room's name.
+  String sendFailed(String where) => _t(
+    '$where-এ পাঠানো যায়নি — হয়তো কানেকশন নেই।',
+    "Couldn't send to $where — you may not be connected.",
+  );
+  String get sharedPost => _t('পোস্ট', 'Post');
+  String get sharedRank => _t('লিডারবোর্ড র‍্যাংক', 'Leaderboard rank');
+  String get postUnavailable =>
+      _t('পোস্টটি আর নেই', 'This post is no longer available');
+  String get viewPost => _t('পোস্ট দেখুন', 'View post');
+
   // --- Sharing your rank --------------------------------------------------
 
   String get shareYourRank => _t('র‍্যাংক শেয়ার', 'Share your rank');
