@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -94,6 +95,23 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   /// Wakes the screen when the other person's typing mark runs out, so
   /// "typing…" goes away even if nothing else changes.
   Timer? _typingExpiry;
+
+  /// The message being replied to, shown above the box until it is sent or
+  /// dismissed.
+  ChatMessage? _replyTo;
+  final _inputFocus = FocusNode();
+
+  /// Originals of replies that are not among the loaded messages, fetched
+  /// once each. A key with a null value is one that could not be found.
+  final Map<String, ChatMessage?> _quoted = {};
+  final Set<String> _fetchingQuoted = {};
+
+  /// Each bubble's key, so tapping a quote can scroll to its original.
+  final Map<String, GlobalKey> _bubbleKeys = {};
+
+  /// The message just scrolled to from a quote, lit up for a moment.
+  String? _flashId;
+  Timer? _flashTimer;
 
   @override
   void initState() {
@@ -362,6 +380,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     // The send itself removes the typing mark, in the same batch; forget it
     // here first so clearing the box does not write a second removal.
     _typingSentAt = null;
+    final reply = _replyTo;
+    setState(() => _replyTo = null);
     _input.clear();
     if (_scroll.hasClients) _scroll.jumpTo(0);
 
@@ -373,12 +393,165 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           me: _me,
           other: widget.otherUid,
           text: text,
+          replyTo: reply == null
+              ? null
+              : ReplyRef(id: reply.id, senderUid: reply.senderUid),
         )
         .catchError((Object e) {
           debugPrint('send failed: $e');
           messenger.showSnackBar(SnackBar(content: Text(s.messageNotSent)));
           if (_input.text.isEmpty) _input.text = text;
+          if (mounted && _replyTo == null && reply != null) {
+            setState(() => _replyTo = reply);
+          }
         });
+  }
+
+  // --- Replies ---------------------------------------------------------------
+
+  /// Replying needs what sending needs.
+  bool get _canReply =>
+      _connected == true && !(_inbox?.isBlocked(widget.otherUid) ?? false);
+
+  void _startReply(ChatMessage m) {
+    if (!_canReply || m.unsent) return;
+    setState(() => _replyTo = m);
+    _inputFocus.requestFocus();
+  }
+
+  String _nameOf(String uid, Strings s) {
+    if (uid == _me) return s.you;
+    final name = _partner?.name ?? '';
+    return name.isNotEmpty ? name : '@${widget.otherUsername}';
+  }
+
+  /// The message a reply answers: from those loaded, or fetched once.
+  ChatMessage? _original(ReplyRef ref) {
+    for (final m in _messages) {
+      if (m.id == ref.id) return m;
+    }
+    if (_quoted.containsKey(ref.id)) return _quoted[ref.id];
+    if (_fetchingQuoted.add(ref.id)) {
+      _repo
+          ?.message(widget.chatId, ref.id)
+          .then((m) {
+            if (mounted) setState(() => _quoted[ref.id] = m);
+          })
+          .catchError((Object e) {
+            debugPrint('quoted message failed: $e');
+            if (mounted) setState(() => _quoted[ref.id] = null);
+          });
+    }
+    return null;
+  }
+
+  /// The quote inside a reply's bubble. It shows the original as it is now,
+  /// so an unsent original reads as unsent here too.
+  Widget _quoteFor(ReplyRef ref, Strings s) {
+    final original = _original(ref);
+    final loading = original == null && !_quoted.containsKey(ref.id);
+    final (text, italic) = switch (original) {
+      null when loading => ('…', true),
+      null => (s.originalMissing, true),
+      ChatMessage(unsent: true) => (
+        original.senderUid == _me ? s.youUnsent : s.theyUnsent,
+        true,
+      ),
+      final m => (m.text, false),
+    };
+    return ReplyQuote(
+      name: _nameOf(ref.senderUid, s),
+      text: text,
+      italic: italic,
+      accent: quoteAccent(mine: ref.senderUid == _me),
+      onTap: original == null ? null : () => _jumpTo(ref.id),
+    );
+  }
+
+  /// Scrolls to the message [id] and lights it up.
+  ///
+  /// The list only builds what is near the screen, so a message far up has
+  /// no bubble to scroll to yet: this steps upward — loading older pages
+  /// when it reaches the top — until the bubble exists, then centres it.
+  Future<void> _jumpTo(String id) async {
+    for (final m in _messages) {
+      // Deleted for me: there is nothing on screen to go to.
+      if (m.id == id && !_prefs.shows(m)) return;
+    }
+    for (var i = 0; i < 60 && mounted; i++) {
+      final target = _bubbleKeys[id]?.currentContext;
+      if (target != null && target.mounted) {
+        await Scrollable.ensureVisible(
+          target,
+          alignment: 0.5,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+        if (mounted) _flash(id);
+        return;
+      }
+      if (!_scroll.hasClients) return;
+      final pos = _scroll.position;
+      if (pos.pixels >= pos.maxScrollExtent - 1) {
+        if (_loadingOlder) {
+          await Future<void>.delayed(const Duration(milliseconds: 120));
+          continue;
+        }
+        if (_nothingOlder) return;
+        await _loadOlder();
+      } else {
+        _scroll.jumpTo(
+          math.min(
+            pos.pixels + pos.viewportDimension * 0.8,
+            pos.maxScrollExtent,
+          ),
+        );
+      }
+      await WidgetsBinding.instance.endOfFrame;
+    }
+  }
+
+  void _flash(String id) {
+    _flashTimer?.cancel();
+    setState(() => _flashId = id);
+    _flashTimer = Timer(const Duration(milliseconds: 1400), () {
+      if (mounted) setState(() => _flashId = null);
+    });
+  }
+
+  /// The strip above the box while a reply is being written.
+  Widget? _replyBar(Strings s) {
+    final r = _replyTo;
+    if (r == null) return null;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(Gap.sm, Gap.sm, Gap.sm, 0),
+      padding: const EdgeInsets.fromLTRB(6, 6, 0, 6),
+      decoration: BoxDecoration(
+        color: AppColors.elevated,
+        borderRadius: Radii.tile,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: ReplyQuote(
+              name: _nameOf(r.senderUid, s),
+              text: r.text,
+              accent: quoteAccent(mine: r.senderUid == _me),
+              maxLines: 1,
+            ),
+          ),
+          IconButton(
+            onPressed: () => setState(() => _replyTo = null),
+            tooltip: s.cancel,
+            icon: const Icon(
+              Icons.close_rounded,
+              size: 20,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _showActions(ChatMessage m) async {
@@ -395,6 +568,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: Gap.sm),
+            if (_canReply && !m.unsent)
+              ListTile(
+                leading: const Icon(Icons.reply_rounded),
+                title: Text(s.reply),
+                onTap: () => Navigator.of(sheet).pop('reply'),
+              ),
             if (!m.unsent)
               ListTile(
                 leading: const Icon(Icons.copy_rounded),
@@ -437,7 +616,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     );
     if (!mounted) return;
 
-    if (action == 'copy') {
+    if (action == 'reply') {
+      _startReply(m);
+    } else if (action == 'copy') {
       await Clipboard.setData(ClipboardData(text: m.text));
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -522,6 +703,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   void dispose() {
     _clearTyping();
     _typingExpiry?.cancel();
+    _flashTimer?.cancel();
+    _inputFocus.dispose();
     WidgetsBinding.instance.removeObserver(this);
     if (_inbox?.openChatId == widget.chatId) _inbox?.openChatId = null;
     _threadSub?.cancel();
@@ -700,9 +883,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           else
             _Composer(
               controller: _input,
+              focusNode: _inputFocus,
               hint: s.typeMessage,
               enabled: _connected == true,
               onSend: _send,
+              above: _replyBar(s),
             ),
         ],
       ),
@@ -787,14 +972,25 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         }
         final m = item.message!;
         final mine = m.senderUid == _me;
-        return _Bubble(
-          message: m,
-          mine: mine,
-          tail: item.groupEnd,
-          time: s.clock(m.sentAt),
-          unsentLabel: mine ? s.youUnsent : s.theyUnsent,
-          status: mine && thread != null ? statusOf(m, thread, _me) : null,
-          onLongPress: () => _showActions(m),
+        final reply = m.replyTo;
+        return KeyedSubtree(
+          key: _bubbleKeys.putIfAbsent(m.id, GlobalKey.new),
+          child: SwipeToReply(
+            enabled: _canReply && !m.unsent,
+            onReply: () => _startReply(m),
+            child: _Bubble(
+              message: m,
+              mine: mine,
+              tail: item.groupEnd,
+              time: s.clock(m.sentAt),
+              unsentLabel: mine ? s.youUnsent : s.theyUnsent,
+              status: mine && thread != null ? statusOf(m, thread, _me) : null,
+              quote: reply == null || m.unsent ? null : _quoteFor(reply, s),
+              forwardedLabel: m.forwarded && !m.unsent ? s.forwarded : null,
+              highlight: _flashId == m.id,
+              onLongPress: () => _showActions(m),
+            ),
+          ),
         );
       },
     );
@@ -879,6 +1075,9 @@ class _Bubble extends StatelessWidget {
     required this.unsentLabel,
     required this.status,
     required this.onLongPress,
+    this.quote,
+    this.forwardedLabel,
+    this.highlight = false,
   });
 
   final ChatMessage message;
@@ -888,6 +1087,15 @@ class _Bubble extends StatelessWidget {
   final String unsentLabel;
   final MessageStatus? status;
   final VoidCallback? onLongPress;
+
+  /// The message this one replies to, drawn above its text.
+  final Widget? quote;
+
+  /// "Forwarded", above everything, on a copy from another chat.
+  final String? forwardedLabel;
+
+  /// Lit up for a moment after a quote was tapped to get here.
+  final bool highlight;
 
   @override
   Widget build(BuildContext context) {
@@ -957,7 +1165,52 @@ class _Bubble extends StatelessWidget {
             ),
           );
 
-    return Padding(
+    // A reply or a forward stacks its label and quote above the text, all
+    // as wide as the widest of them.
+    final Widget content = quote == null && forwardedLabel == null
+        ? body
+        : IntrinsicWidth(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (forwardedLabel != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 3),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.shortcut_rounded,
+                          size: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          forwardedLabel!,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (quote != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 5),
+                    child: quote,
+                  ),
+                body,
+              ],
+            ),
+          );
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      color: highlight
+          ? AppColors.brand.withValues(alpha: 0.16)
+          : Colors.transparent,
       padding: EdgeInsets.only(top: tail ? 6 : 2),
       child: Align(
         alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
@@ -980,7 +1233,7 @@ class _Bubble extends StatelessWidget {
                 children: [
                   Padding(
                     padding: const EdgeInsets.only(bottom: 2),
-                    child: body,
+                    child: content,
                   ),
                   Positioned(right: 0, bottom: 0, child: meta),
                 ],
@@ -996,15 +1249,21 @@ class _Bubble extends StatelessWidget {
 class _Composer extends StatelessWidget {
   const _Composer({
     required this.controller,
+    required this.focusNode,
     required this.hint,
     required this.enabled,
     required this.onSend,
+    this.above,
   });
 
   final TextEditingController controller;
+  final FocusNode focusNode;
   final String hint;
   final bool enabled;
   final VoidCallback onSend;
+
+  /// Shown over the box: the message being replied to.
+  final Widget? above;
 
   @override
   Widget build(BuildContext context) {
@@ -1012,71 +1271,84 @@ class _Composer extends StatelessWidget {
       color: AppColors.bg,
       child: SafeArea(
         top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(Gap.sm, Gap.sm, Gap.sm, Gap.sm),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  enabled: enabled,
-                  minLines: 1,
-                  maxLines: 5,
-                  maxLength: 2000,
-                  keyboardType: TextInputType.multiline,
-                  textCapitalization: TextCapitalization.sentences,
-                  style: const TextStyle(fontSize: 15, height: 1.35),
-                  decoration: InputDecoration(
-                    hintText: hint,
-                    counterText: '',
-                    filled: true,
-                    fillColor: AppColors.elevated,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 11,
-                    ),
-                    border: const OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(22)),
-                      borderSide: BorderSide.none,
-                    ),
-                    enabledBorder: const OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(22)),
-                      borderSide: BorderSide.none,
-                    ),
-                    focusedBorder: const OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(22)),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ?above,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                Gap.sm,
+                Gap.sm,
+                Gap.sm,
+                Gap.sm,
               ),
-              const SizedBox(width: 6),
-              ListenableBuilder(
-                listenable: controller,
-                builder: (context, _) {
-                  final ready = enabled && controller.text.trim().isNotEmpty;
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(
-                      color: ready ? AppColors.brand : AppColors.elevated,
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      onPressed: ready ? onSend : null,
-                      icon: Icon(
-                        Icons.send_rounded,
-                        size: 21,
-                        color: ready ? Colors.white : AppColors.textMuted,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      enabled: enabled,
+                      minLines: 1,
+                      maxLines: 5,
+                      maxLength: 2000,
+                      keyboardType: TextInputType.multiline,
+                      textCapitalization: TextCapitalization.sentences,
+                      style: const TextStyle(fontSize: 15, height: 1.35),
+                      decoration: InputDecoration(
+                        hintText: hint,
+                        counterText: '',
+                        filled: true,
+                        fillColor: AppColors.elevated,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 11,
+                        ),
+                        border: const OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(22)),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: const OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(22)),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: const OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(22)),
+                          borderSide: BorderSide.none,
+                        ),
                       ),
                     ),
-                  );
-                },
+                  ),
+                  const SizedBox(width: 6),
+                  ListenableBuilder(
+                    listenable: controller,
+                    builder: (context, _) {
+                      final ready =
+                          enabled && controller.text.trim().isNotEmpty;
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: ready ? AppColors.brand : AppColors.elevated,
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          onPressed: ready ? onSend : null,
+                          icon: Icon(
+                            Icons.send_rounded,
+                            size: 21,
+                            color: ready ? Colors.white : AppColors.textMuted,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
