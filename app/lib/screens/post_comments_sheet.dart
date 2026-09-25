@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../data/avatars.dart';
 import '../data/community_repository.dart';
 import '../data/notification_repository.dart';
 import '../data/session_controller.dart';
@@ -8,6 +7,7 @@ import '../models/app_notification.dart';
 import '../models/post_comment.dart';
 import '../theme/app_theme.dart';
 import 'profile_screen.dart';
+import '../widgets/avatar_image.dart';
 
 /// Opens the comment thread for a post.
 Future<void> showPostComments(
@@ -250,10 +250,7 @@ class _CommentRow extends StatelessWidget {
           GestureDetector(
             onTap: () =>
                 openProfile(context, comment.authorUsername, repository),
-            child: Text(
-              Avatars.byId(comment.authorAvatarId).emoji,
-              style: const TextStyle(fontSize: 22),
-            ),
+            child: AvatarImage(comment.authorAvatarId, size: 34),
           ),
           Gap.w12,
           Expanded(

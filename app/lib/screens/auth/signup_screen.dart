@@ -8,6 +8,7 @@ import '../../data/session_controller.dart';
 import '../../i18n/strings.dart';
 import '../../models/user_profile.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/avatar_image.dart';
 
 /// Whether the typed username can be used.
 enum _NameStatus { empty, invalid, checking, available, taken }
@@ -447,9 +448,10 @@ class _SignupScreenState extends State<SignupScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      avatar.emoji,
-                      style: TextStyle(fontSize: selected ? 32 : 28),
+                    AnimatedScale(
+                      scale: selected ? 1.08 : 1,
+                      duration: const Duration(milliseconds: 140),
+                      child: AvatarImage(avatar.id, size: 52),
                     ),
                     const SizedBox(height: 3),
                     Text(

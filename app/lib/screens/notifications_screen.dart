@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../data/avatars.dart';
 import '../data/community_repository.dart';
 import '../data/firestore_community_repository.dart';
 import '../data/notification_repository.dart';
@@ -8,6 +7,7 @@ import '../data/session_controller.dart';
 import '../models/app_notification.dart';
 import '../theme/app_theme.dart';
 import 'profile_screen.dart';
+import '../widgets/avatar_image.dart';
 
 /// Bell with a live unread count.
 ///
@@ -250,10 +250,7 @@ class _NotificationRow extends StatelessWidget {
             Stack(
               clipBehavior: Clip.none,
               children: [
-                Text(
-                  Avatars.byId(item.actorAvatarId).emoji,
-                  style: const TextStyle(fontSize: 26),
-                ),
+                AvatarImage(item.actorAvatarId, size: 40),
                 Positioned(
                   right: -4,
                   bottom: -2,

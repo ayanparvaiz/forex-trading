@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../core/calculations.dart';
 import '../data/account_scope.dart';
 import '../data/account_store.dart';
-import '../data/avatars.dart';
 import '../data/firestore_community_repository.dart';
 import '../data/notification_repository.dart';
 import '../data/session_controller.dart';
@@ -13,6 +12,7 @@ import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
+import '../widgets/avatar_image.dart';
 
 /// Home screen: what the account is worth, and how well it is being run.
 ///
@@ -85,10 +85,7 @@ class _ProfileButton extends StatelessWidget {
           shape: BoxShape.circle,
         ),
         alignment: Alignment.center,
-        child: Text(
-          Avatars.byId(avatarId).emoji,
-          style: const TextStyle(fontSize: 18),
-        ),
+        child: AvatarImage(avatarId, size: 36),
       ),
     );
   }
@@ -112,10 +109,7 @@ class _ProfileButton extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Text(
-                    Avatars.byId(avatarId).emoji,
-                    style: const TextStyle(fontSize: 34),
-                  ),
+                  AvatarImage(avatarId, size: 52),
                   Gap.w12,
                   Expanded(
                     child: Column(

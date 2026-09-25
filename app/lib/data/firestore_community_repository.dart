@@ -159,7 +159,7 @@ class FirestoreCommunityRepository implements CommunityRepository {
     return Trader(
       id: data['username'] as String? ?? '',
       name: data['displayName'] as String? ?? '',
-      avatarEmoji: Avatars.from(data['avatarId']).emoji,
+      avatarId: Avatars.from(data['avatarId']).id,
       disciplineScore: (data['disciplineScore'] as num?)?.toDouble() ?? 0,
       badgePoints: (data['badgePoints'] as num?)?.toInt() ?? 0,
       totalR: (data['totalR'] as num?)?.toDouble() ?? 0,

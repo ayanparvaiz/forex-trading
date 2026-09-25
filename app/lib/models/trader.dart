@@ -5,7 +5,7 @@ class Trader {
   const Trader({
     required this.id,
     required this.name,
-    required this.avatarEmoji,
+    required this.avatarId,
     required this.disciplineScore,
     required this.badgePoints,
     required this.totalR,
@@ -19,7 +19,9 @@ class Trader {
   /// Username — unique, and the account they log in with.
   final String id;
   final String name;
-  final String avatarEmoji;
+
+  /// Permanent avatar number; see Avatars. Drawn with AvatarImage.
+  final int avatarId;
 
   /// Net winning trades. Drives the badge.
   final int badgePoints;

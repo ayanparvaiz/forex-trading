@@ -2,7 +2,6 @@ import '../i18n/strings.dart';
 import '../models/trader.dart';
 import '../models/user_profile.dart';
 import 'auth_repository.dart';
-import 'avatars.dart';
 
 /// One of the twenty accounts the app ships with.
 ///
@@ -49,7 +48,7 @@ class SeedAccount {
   Trader toTrader({bool isYou = false, required String cohort}) => Trader(
     id: username,
     name: name,
-    avatarEmoji: Avatars.byId(avatarId).emoji,
+    avatarId: avatarId,
     disciplineScore: disciplineScore,
     badgePoints: badgePoints,
     totalR: totalR,

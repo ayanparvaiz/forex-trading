@@ -1,6 +1,15 @@
+/// Which shelf of the picker an avatar sits on.
+enum AvatarKind { animal, character }
+
 /// One of the pickable profile avatars.
 class Avatar {
-  const Avatar(this.id, this.slug, this.emoji, this.bn, this.en);
+  const Avatar(
+    this.id,
+    this.slug,
+    this.bn,
+    this.en, {
+    this.kind = AvatarKind.animal,
+  });
 
   /// Permanent number stored on the profile.
   ///
@@ -15,45 +24,79 @@ class Avatar {
   /// bare number tells you nothing.
   final String slug;
 
-  final String emoji;
   final String bn;
   final String en;
+  final AvatarKind kind;
+
+  /// Drawn by tool/make_avatars.py, one file per id.
+  String get asset => 'assets/avatars/${id.toString().padLeft(2, '0')}.svg';
 
   String label(bool bangla) => bangla ? bn : en;
 }
 
-/// Twenty avatars to choose from at signup.
+/// The avatars to choose from.
 ///
-/// Emoji rather than illustrations: they render identically on every device,
-/// add nothing to the bundle, cost no network round trip, and sidestep the
-/// question of what a "default" face should look like.
+/// Drawn for this app rather than borrowed: sixteen animals, most with a
+/// trading meaning — the bull and the bear, the whale, the turtle of the
+/// Turtle Traders, the elephant that never forgets, the lucky cat of
+/// shopkeepers — and eight original anime-style characters. Emoji looked different on every
+/// phone and like nobody's in particular on any of them.
+///
+/// Where a subject survived from the emoji set it kept its number, so a
+/// tiger is still a tiger. The ones that were retired handed their numbers to
+/// new designs rather than leaving holes.
 class Avatars {
   const Avatars._();
 
   static const all = <Avatar>[
-    Avatar(1, 'owl', '🦉', 'পেঁচা', 'Owl'),
-    Avatar(2, 'tiger', '🐅', 'বাঘ', 'Tiger'),
-    Avatar(3, 'fox', '🦊', 'শেয়াল', 'Fox'),
-    Avatar(4, 'wolf', '🐺', 'নেকড়ে', 'Wolf'),
-    Avatar(5, 'lion', '🦁', 'সিংহ', 'Lion'),
-    Avatar(6, 'panda', '🐼', 'পান্ডা', 'Panda'),
-    Avatar(7, 'koala', '🐨', 'কোয়ালা', 'Koala'),
-    Avatar(8, 'eagle', '🦅', 'ঈগল', 'Eagle'),
-    Avatar(9, 'shark', '🦈', 'হাঙর', 'Shark'),
-    Avatar(10, 'dragon', '🐉', 'ড্রাগন', 'Dragon'),
-    Avatar(11, 'butterfly', '🦋', 'প্রজাপতি', 'Butterfly'),
-    Avatar(12, 'octopus', '🐙', 'অক্টোপাস', 'Octopus'),
-    Avatar(13, 'dino', '🦖', 'ডাইনোসর', 'Dino'),
-    Avatar(14, 'dolphin', '🐬', 'ডলফিন', 'Dolphin'),
-    Avatar(15, 'cat', '🐈‍⬛', 'বিড়াল', 'Cat'),
-    Avatar(16, 'moon', '🌙', 'চাঁদ', 'Moon'),
-    Avatar(17, 'bolt', '⚡', 'বজ্র', 'Bolt'),
-    Avatar(18, 'fire', '🔥', 'আগুন', 'Fire'),
-    Avatar(19, 'gem', '💎', 'হীরা', 'Gem'),
-    Avatar(20, 'rocket', '🚀', 'রকেট', 'Rocket'),
+    // Animals.
+    Avatar(7, 'bull', 'ষাঁড়', 'Bull'),
+    Avatar(24, 'bear', 'ভালুক', 'Bear'),
+    Avatar(11, 'whale', 'তিমি', 'Whale'),
+    Avatar(12, 'turtle', 'কচ্ছপ', 'Turtle'),
+    Avatar(13, 'elephant', 'হাতি', 'Elephant'),
+    Avatar(15, 'lucky-cat', 'লাকি ক্যাট', 'Lucky cat'),
+    Avatar(1, 'owl', 'পেঁচা', 'Owl'),
+    Avatar(2, 'tiger', 'বাঘ', 'Tiger'),
+    Avatar(3, 'fox', 'শেয়াল', 'Fox'),
+    Avatar(4, 'wolf', 'নেকড়ে', 'Wolf'),
+    Avatar(5, 'lion', 'সিংহ', 'Lion'),
+    Avatar(6, 'panda', 'পান্ডা', 'Panda'),
+    Avatar(8, 'eagle', 'ঈগল', 'Eagle'),
+    Avatar(9, 'shark', 'হাঙর', 'Shark'),
+    Avatar(14, 'rabbit', 'খরগোশ', 'Rabbit'),
+    Avatar(10, 'dragon', 'ড্রাগন', 'Dragon'),
+    // Characters.
+    Avatar(16, 'kira', 'কিরা', 'Kira', kind: AvatarKind.character),
+    Avatar(17, 'ren', 'রেন', 'Ren', kind: AvatarKind.character),
+    Avatar(18, 'kage', 'কাগে', 'Kage', kind: AvatarKind.character),
+    Avatar(19, 'yuki', 'ইউকি', 'Yuki', kind: AvatarKind.character),
+    Avatar(20, 'nova', 'নোভা', 'Nova', kind: AvatarKind.character),
+    Avatar(21, 'rin', 'রিন', 'Rin', kind: AvatarKind.character),
+    Avatar(22, 'zed', 'জেড', 'Zed', kind: AvatarKind.character),
+    Avatar(23, 'taro', 'তারো', 'Taro', kind: AvatarKind.character),
   ];
 
-  static const fallback = Avatar(1, 'owl', '🦉', 'পেঁচা', 'Owl');
+  static const fallback = Avatar(1, 'owl', 'পেঁচা', 'Owl');
+
+  static Iterable<Avatar> ofKind(AvatarKind kind) =>
+      all.where((a) => a.kind == kind);
+
+  /// Slugs from the emoji set, which some early profiles stored instead of a
+  /// number. Each maps to the id it always had, whatever is drawn there now.
+  static const _legacySlugs = {
+    'koala': 7,
+    'butterfly': 11,
+    'octopus': 12,
+    'dino': 13,
+    'dolphin': 14,
+    'cat': 15,
+    'moon': 16,
+    'bolt': 17,
+    'fire': 18,
+    'gem': 19,
+    'rocket': 20,
+  };
 
   /// Looks up by the stored number.
   ///
@@ -68,6 +111,8 @@ class Avatars {
   }
 
   static Avatar bySlug(String slug) {
+    final legacy = _legacySlugs[slug];
+    if (legacy != null) return byId(legacy);
     for (final a in all) {
       if (a.slug == slug) return a;
     }

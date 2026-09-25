@@ -11,6 +11,7 @@ import '../models/trader.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/paged_list.dart';
+import '../widgets/avatar_image.dart';
 
 /// Opens [username]'s profile.
 ///
@@ -309,10 +310,7 @@ class _Header extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
-            child: Text(
-              trader.avatarEmoji,
-              style: const TextStyle(fontSize: 34),
-            ),
+            child: AvatarImage(trader.avatarId, size: 64),
           ),
           Gap.w16,
           Expanded(
@@ -783,7 +781,7 @@ class _PersonRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: Gap.sm),
         child: Row(
           children: [
-            Text(trader.avatarEmoji, style: const TextStyle(fontSize: 22)),
+            AvatarImage(trader.avatarId, size: 36),
             Gap.w12,
             Expanded(
               child: Column(

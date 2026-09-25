@@ -9,7 +9,7 @@ void main() {
   const author = Trader(
     id: 'rifat',
     name: 'রিফাত',
-    avatarEmoji: '🦉',
+    avatarId: 1,
     disciplineScore: 96,
     badgePoints: 9,
     totalR: -4.2,

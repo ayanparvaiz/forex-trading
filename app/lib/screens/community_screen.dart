@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../data/account_scope.dart';
-import '../data/avatars.dart';
 import '../data/community_repository.dart';
 import '../data/firestore_community_repository.dart';
 import '../data/notification_repository.dart';
@@ -20,6 +19,7 @@ import '../widgets/paged_list.dart';
 import 'post_comments_sheet.dart';
 import 'post_composer_sheet.dart';
 import 'profile_screen.dart';
+import '../widgets/avatar_image.dart';
 
 /// Leaderboard and shared journal feed.
 ///
@@ -61,7 +61,7 @@ class _CommunityScreenState extends State<CommunityScreen>
     return Trader(
       id: profile.username,
       name: profile.displayName,
-      avatarEmoji: Avatars.byId(profile.avatarId).emoji,
+      avatarId: profile.avatarId,
       disciplineScore: stats.disciplineScore,
       badgePoints: stats.badgePoints,
       totalR: stats.totalR,
@@ -409,10 +409,7 @@ class _YourRankBarState extends State<_YourRankBar> {
                         ),
                       ),
               ),
-              Text(
-                widget.you.avatarEmoji,
-                style: const TextStyle(fontSize: 22),
-              ),
+              AvatarImage(widget.you.avatarId, size: 34),
               Gap.w12,
               Expanded(
                 child: Column(
@@ -678,7 +675,7 @@ class _LeaderboardRow extends StatelessWidget {
                 ),
               ),
             ),
-            Text(trader.avatarEmoji, style: const TextStyle(fontSize: 22)),
+            AvatarImage(trader.avatarId, size: 36),
             Gap.w12,
             Expanded(
               child: Column(
@@ -936,10 +933,7 @@ class _FeedCard extends StatelessWidget {
             children: [
               GestureDetector(
                 onTap: () => openProfile(context, post.author.id, repository),
-                child: Text(
-                  post.author.avatarEmoji,
-                  style: const TextStyle(fontSize: 26),
-                ),
+                child: AvatarImage(post.author.avatarId, size: 40),
               ),
               Gap.w12,
               Expanded(
