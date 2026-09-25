@@ -406,6 +406,30 @@ class Strings {
   );
   String get alreadyShared => _t('শেয়ার করা হয়েছে', 'Shared');
 
+  // --- Search ---------------------------------------------------------------
+
+  String get search => _t('সার্চ', 'Search');
+  String get searchHint =>
+      _t('নাম বা @ইউজারনেম দিয়ে খুঁজুন', 'Search by name or @username');
+  String get recentSearches => _t('সাম্প্রতিক', 'Recent');
+  String get clearAll => _t('সব মুছুন', 'Clear all');
+  String get suggestedForYou => _t('আপনার জন্য', 'Suggested for you');
+  String get people => _t('মানুষ', 'People');
+  String get posts => _t('পোস্ট', 'Posts');
+  String get connectedLabel => _t('কানেক্টেড', 'Connected');
+  String mutualConnections(int n) => _t(
+    '$n জন মিউচুয়াল কানেকশন',
+    n == 1 ? '1 mutual connection' : '$n mutual connections',
+  );
+  String newMessages(int n) =>
+      _t('$nটা নতুন মেসেজ', n == 1 ? '1 new message' : '$n new messages');
+  String noOneFound(String q) =>
+      _t('"$q" নামে কাউকে পাওয়া যায়নি', 'No one found for "$q"');
+  String get noSuggestionsYet => _t(
+    'কারো সাথে কানেক্ট করলে বা লিডারবোর্ডে কেউ থাকলে এখানে দেখাবে।',
+    'People you connect with, and people on the leaderboard, show up here.',
+  );
+
   // --- Deleting and sharing posts ------------------------------------------
 
   String get deletePost => _t('পোস্ট ডিলিট', 'Delete post');
