@@ -150,6 +150,24 @@ service cloud.firestore {
         allow update: if false;
       }
 
+      // --- Chat preferences -------------------------------------------------
+      //
+      // What you have deleted "for me": one document per conversation, with
+      // the moment you cleared the whole chat and the messages you removed
+      // one by one. Nothing is deleted from the conversation itself — the
+      // other person keeps every message — and nobody but you can see what
+      // you have hidden.
+      match /chatPrefs/{chatId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && request.resource.data.keys().hasOnly(['clearedAt', 'hidden'])
+          && (!('clearedAt' in request.resource.data)
+              || request.resource.data.clearedAt is timestamp)
+          && (!('hidden' in request.resource.data)
+              || (request.resource.data.hidden is list
+                  && request.resource.data.hidden.size() <= 5000));
+      }
+
       // --- Trades -----------------------------------------------------------
       //
       // Private by default. Sharing copies a redacted version into /posts
@@ -492,6 +510,17 @@ service cloud.firestore {
                 && n.lastMessage.unsent == getAfter(/databases/$(database)/documents/chats/$(chatId)/messages/$(n.lastMessage.id)).data.unsent));
     }
 
+    // A reply names the message it answers. It has to be a real message in
+    // the same conversation, by the person it says — so no reply can put
+    // words in anyone's mouth. The text is not copied: the app shows the
+    // original, so unsending it also removes it from every reply.
+    function replyOk(chatId, r) {
+      return r is map
+        && r.keys().hasOnly(['id', 'senderUid'])
+        && r.keys().hasAll(['id', 'senderUid'])
+        && get(/databases/$(database)/documents/chats/$(chatId)/messages/$(r.id)).data.senderUid == r.senderUid;
+    }
+
     match /chats/{chatId} {
       // A missing chat is a normal answer — it is how the app knows to open
       // one — so get is allowed on nothing, like connections.
@@ -532,7 +561,13 @@ service cloud.firestore {
 
         allow create: if isSignedIn()
           && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.uids
-          && request.resource.data.keys().hasOnly(['senderUid', 'text', 'sentAt', 'unsent'])
+          && request.resource.data.keys()
+               .hasOnly(['senderUid', 'text', 'sentAt', 'unsent', 'replyTo', 'forwarded'])
+          && (!('replyTo' in request.resource.data)
+              || replyOk(chatId, request.resource.data.replyTo))
+          // Only ever true: it marks a copy of a message from another chat.
+          && (!('forwarded' in request.resource.data)
+              || request.resource.data.forwarded == true)
           && request.resource.data.senderUid == request.auth.uid
           && request.resource.data.text is string
           && request.resource.data.text.size() > 0
