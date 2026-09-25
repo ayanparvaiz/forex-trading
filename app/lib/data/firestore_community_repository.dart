@@ -628,6 +628,36 @@ class FirestoreCommunityRepository implements CommunityRepository {
     }
   }
 
+  @override
+  Future<FeedPost?> post(String postId) async {
+    final doc = await _posts.doc(postId).get();
+    final authorUid = doc.data()?['authorUid'] as String?;
+    if (authorUid == null) return null;
+    final authors = await _tradersByUid([authorUid]);
+    return authors.isEmpty ? null : _postFrom(doc, authors.first);
+  }
+
+  /// Everything under the post first — comments, likes, views — and the post
+  /// last. Stopped part-way, the post is still there, and deleting it again
+  /// finishes the job.
+  @override
+  Future<void> deletePost(String postId) async {
+    final post = _posts.doc(postId);
+    for (final sub in const ['comments', 'claps', 'views']) {
+      for (;;) {
+        final page = await post.collection(sub).limit(400).get();
+        if (page.docs.isEmpty) break;
+        final batch = _db.batch();
+        for (final d in page.docs) {
+          batch.delete(d.reference);
+        }
+        await batch.commit();
+        if (page.docs.length < 400) break;
+      }
+    }
+    await post.delete();
+  }
+
   /// The fields every post carries whatever it is about.
   Map<String, Object?> _envelope(String uid, String username, DateTime now) => {
     'authorUid': uid,
@@ -969,10 +999,10 @@ class FirestoreCommunityRepository implements CommunityRepository {
   }
 
   FeedPost _postFrom(
-    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+    DocumentSnapshot<Map<String, dynamic>> doc,
     Trader author,
   ) {
-    final data = doc.data();
+    final data = doc.data() ?? const <String, dynamic>{};
 
     // Posts written before rank sharing existed carry no kind at all, so the
     // absence of the field means "trade" rather than meaning nothing.

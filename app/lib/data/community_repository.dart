@@ -154,6 +154,14 @@ abstract class CommunityRepository {
     required double score,
     required String lesson,
   });
+
+  /// One post, for opening it from a chat it was shared into. Null when it
+  /// has been deleted.
+  Future<FeedPost?> post(String postId);
+
+  /// Deletes your own post, and every comment, like and view on it — they
+  /// mean nothing without it.
+  Future<void> deletePost(String postId);
 }
 
 /// On-device implementation over the seeded accounts.
@@ -326,6 +334,18 @@ class LocalCommunityRepository implements CommunityRepository {
     required double score,
     required String lesson,
   }) async => null;
+
+  @override
+  Future<FeedPost?> post(String postId) async {
+    for (final p in MockCommunity.liveFeed(language)) {
+      if (p.id == postId) return p;
+    }
+    return null;
+  }
+
+  /// Nothing to delete: this device never publishes to the feed.
+  @override
+  Future<void> deletePost(String postId) async {}
 
   @override
   Future<int?> rankOf(String username) async {
