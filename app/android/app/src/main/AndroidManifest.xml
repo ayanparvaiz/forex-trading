@@ -2,7 +2,7 @@
     <!-- Android 13 and later ask before showing notifications. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
-        android:label="forex_trading"
+        android:label="Forex Social"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
         <activity
