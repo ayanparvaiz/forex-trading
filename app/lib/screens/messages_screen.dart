@@ -9,6 +9,7 @@ import '../i18n/strings.dart';
 import '../models/chat.dart';
 import '../theme/app_theme.dart';
 import '../widgets/chat_bits.dart';
+import '../widgets/mute_sheet.dart';
 import 'chat_screen.dart';
 import 'profile_screen.dart';
 
@@ -133,8 +134,12 @@ class _ThreadRow extends StatelessWidget {
         isTyping(thread, otherUid, now) && !inbox.isBlocked(otherUid);
 
     // Deleted for me: the preview says so rather than showing it anyway.
-    final hiddenLast =
-        last != null && inbox.prefsFor(thread.id).hidden.contains(last.id);
+    final prefs = inbox.prefsFor(thread.id);
+    final hiddenLast = last != null && prefs.hidden.contains(last.id);
+    // Muted: still listed and still counted in the row, just quieter — grey
+    // where it would be green, as WhatsApp does.
+    final muted = prefs.mutedAt(now);
+    final loud = unread > 0 && !muted;
     final preview = switch (last) {
       null => s.sayHi,
       _ when hiddenLast => s.youDeletedMessage,
@@ -154,6 +159,7 @@ class _ThreadRow extends StatelessWidget {
         otherUsername,
         partner?.name.isNotEmpty == true ? partner!.name : '@$otherUsername',
         unread > 0,
+        prefs,
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: 10),
@@ -199,12 +205,8 @@ class _ThreadRow extends StatelessWidget {
                         s.threadTime(thread.updatedAt, now),
                         style: TextStyle(
                           fontSize: 12,
-                          fontWeight: unread > 0
-                              ? FontWeight.w700
-                              : FontWeight.w400,
-                          color: unread > 0
-                              ? AppColors.profit
-                              : AppColors.textMuted,
+                          fontWeight: loud ? FontWeight.w700 : FontWeight.w400,
+                          color: loud ? AppColors.profit : AppColors.textMuted,
                         ),
                       ),
                     ],
@@ -264,6 +266,14 @@ class _ThreadRow extends StatelessWidget {
                                 ),
                               ),
                       ),
+                      if (muted) ...[
+                        Gap.w8,
+                        const Icon(
+                          Icons.notifications_off,
+                          size: 16,
+                          color: AppColors.textMuted,
+                        ),
+                      ],
                       if (unread > 0) ...[
                         Gap.w8,
                         Container(
@@ -272,8 +282,10 @@ class _ThreadRow extends StatelessWidget {
                             horizontal: 6,
                             vertical: 2,
                           ),
-                          decoration: const BoxDecoration(
-                            color: AppColors.profit,
+                          decoration: BoxDecoration(
+                            color: muted
+                                ? AppColors.textMuted
+                                : AppColors.profit,
                             borderRadius: Radii.pill,
                           ),
                           child: Text(
@@ -303,7 +315,10 @@ class _ThreadRow extends StatelessWidget {
     String otherUsername,
     String otherName,
     bool isUnread,
+    ChatPrefs prefs,
   ) async {
+    final now = DateTime.now();
+    final muted = prefs.mutedAt(now);
     final action = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: AppColors.surface,
@@ -324,6 +339,18 @@ class _ThreadRow extends StatelessWidget {
               title: Text(isUnread ? s.markRead : s.markUnread),
               onTap: () =>
                   Navigator.of(sheet).pop(isUnread ? 'read' : 'unread'),
+            ),
+            ListTile(
+              leading: Icon(
+                muted
+                    ? Icons.notifications_active_outlined
+                    : Icons.notifications_off_outlined,
+              ),
+              title: Text(muted ? s.unmute : s.muteNotifications),
+              subtitle: muted
+                  ? Text(s.mutedUntil(prefs.mutedUntil!, now))
+                  : null,
+              onTap: () => Navigator.of(sheet).pop(muted ? 'unmute' : 'mute'),
             ),
             ListTile(
               leading: const Icon(Icons.person_outline),
@@ -366,6 +393,20 @@ class _ThreadRow extends StatelessWidget {
             viewerUid: context.session.uid,
           ),
         );
+      case 'mute':
+        final messenger = ScaffoldMessenger.of(context);
+        final until = await pickMuteUntil(context);
+        if (until == null) return;
+        await inbox.repository
+            .mute(thread.id, me, until)
+            .catchError((Object e) => debugPrint('mute failed: $e'));
+        messenger.showSnackBar(
+          SnackBar(content: Text(s.mutedUntil(until, DateTime.now()))),
+        );
+      case 'unmute':
+        await inbox.repository
+            .unmute(thread.id, me)
+            .catchError((Object e) => debugPrint('unmute failed: $e'));
       case 'delete':
         await _delete(context, otherName);
     }
