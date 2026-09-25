@@ -212,9 +212,25 @@ class ChatRepository {
         FieldPath(['unread', other]): FieldValue.increment(1),
         // Writing in a conversation is reading it.
         FieldPath(['readAt', me]): FieldValue.serverTimestamp(),
+        // And sending ends the typing, in the same write, so "typing…" and
+        // the message it was about never show at the same time.
+        FieldPath(['typing', me]): FieldValue.delete(),
       });
     return batch.commit();
   }
+
+  /// I am typing. Called at most every [typingRefresh] while the box has
+  /// text — one small write per few seconds of typing, not per keystroke.
+  Future<void> setTyping(String chatId, String me) =>
+      _chats.doc(chatId).update({
+        FieldPath(['typing', me]): FieldValue.serverTimestamp(),
+      });
+
+  /// I have stopped: the box is empty, or I have left the conversation.
+  Future<void> clearTyping(String chatId, String me) =>
+      _chats.doc(chatId).update({
+        FieldPath(['typing', me]): FieldValue.delete(),
+      });
 
   /// Blanks a message for both people. The preview follows when it was the
   /// newest one, because the rules require the preview to match its message.
@@ -356,6 +372,7 @@ class ChatRepository {
       },
       readAt: marks(data['readAt']),
       deliveredAt: marks(data['deliveredAt']),
+      typing: marks(data['typing']),
     );
   }
 
