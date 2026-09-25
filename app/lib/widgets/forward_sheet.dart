@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/chat_inbox.dart';
+import '../data/room_repository.dart';
 import '../data/session_controller.dart';
 import '../models/chat.dart';
 import '../theme/app_theme.dart';
@@ -10,15 +11,27 @@ import 'chat_bits.dart';
 /// WhatsApp — enough to share, too few to spam with.
 const maxForwardTargets = 5;
 
-/// Picks the conversations to forward a message to. Null if dismissed.
+/// Somewhere a message can be forwarded to: a chat, or the Global room.
+class ForwardTarget {
+  const ForwardTarget.chat(ChatThread this.thread) : isRoom = false;
+  const ForwardTarget.global() : thread = null, isRoom = true;
+
+  final ChatThread? thread;
+  final bool isRoom;
+
+  String get id => thread?.id ?? RoomRepository.globalId;
+}
+
+/// Picks where to forward a message. Null if dismissed.
 ///
-/// Your conversations, less anyone you have blocked. One you are no longer
-/// connected to is still listed — the send is refused and the caller says so.
-Future<List<ChatThread>?> pickForwardTargets(
+/// The Global room when you have joined it, then your conversations, less
+/// anyone you have blocked. One you are no longer connected to is still
+/// listed — the send is refused and the caller says so.
+Future<List<ForwardTarget>?> pickForwardTargets(
   BuildContext context,
   ChatInbox inbox,
 ) {
-  return showModalBottomSheet<List<ChatThread>>(
+  return showModalBottomSheet<List<ForwardTarget>>(
     context: context,
     isScrollControlled: true,
     backgroundColor: AppColors.surface,
@@ -47,9 +60,11 @@ class _ForwardSheetState extends State<_ForwardSheet> {
     final inbox = widget.inbox;
     final me = inbox.uid;
     final myUsername = context.session.profile?.username ?? '';
-    final threads = [
+    final targets = [
+      if (inbox.rooms != null && inbox.joinedGlobal)
+        const ForwardTarget.global(),
       for (final t in inbox.threads)
-        if (!inbox.isBlocked(t.otherUid(me))) t,
+        if (!inbox.isBlocked(t.otherUid(me))) ForwardTarget.chat(t),
     ];
     final full = _chosen.length >= maxForwardTargets;
 
@@ -83,7 +98,7 @@ class _ForwardSheetState extends State<_ForwardSheet> {
               ),
             ),
             Gap.h8,
-            if (threads.isEmpty)
+            if (targets.isEmpty)
               Padding(
                 padding: const EdgeInsets.all(Gap.xl),
                 child: Text(
@@ -96,25 +111,34 @@ class _ForwardSheetState extends State<_ForwardSheet> {
               Flexible(
                 child: ListView.builder(
                   shrinkWrap: true,
-                  itemCount: threads.length,
+                  itemCount: targets.length,
                   itemBuilder: (context, i) {
-                    final t = threads[i];
-                    final partner = inbox.partner(t.otherUid(me));
-                    final username = t.otherUsername(myUsername);
-                    final chosen = _chosen.contains(t.id);
+                    final target = targets[i];
+                    final t = target.thread;
+                    final partner = t == null
+                        ? null
+                        : inbox.partner(t.otherUid(me));
+                    final username = t?.otherUsername(myUsername) ?? '';
+                    final chosen = _chosen.contains(target.id);
                     final canPick = chosen || !full;
                     return ListTile(
                       enabled: canPick,
                       onTap: () => setState(
-                        () => chosen ? _chosen.remove(t.id) : _chosen.add(t.id),
+                        () => chosen
+                            ? _chosen.remove(target.id)
+                            : _chosen.add(target.id),
                       ),
-                      leading: ChatAvatar(
-                        avatarId: partner?.avatarId ?? 1,
-                        activeNow: false,
-                        size: 42,
-                      ),
+                      leading: t == null
+                          ? const RoomAvatar(size: 42)
+                          : ChatAvatar(
+                              avatarId: partner?.avatarId ?? 1,
+                              activeNow: false,
+                              size: 42,
+                            ),
                       title: Text(
-                        partner?.name.isNotEmpty == true
+                        t == null
+                            ? s.globalChat
+                            : partner?.name.isNotEmpty == true
                             ? partner!.name
                             : '@$username',
                         maxLines: 1,
@@ -122,7 +146,9 @@ class _ForwardSheetState extends State<_ForwardSheet> {
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                       subtitle: Text(
-                        '@$username',
+                        t == null
+                            ? s.members(inbox.global?.memberCount ?? 0)
+                            : '@$username',
                         style: const TextStyle(
                           fontSize: 12.5,
                           color: AppColors.textMuted,
@@ -149,7 +175,7 @@ class _ForwardSheetState extends State<_ForwardSheet> {
                 onPressed: _chosen.isEmpty
                     ? null
                     : () => Navigator.of(context).pop([
-                        for (final t in threads)
+                        for (final t in targets)
                           if (_chosen.contains(t.id)) t,
                       ]),
                 icon: const Icon(Icons.send_rounded, size: 18),

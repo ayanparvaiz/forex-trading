@@ -493,9 +493,11 @@ class Strings {
     n == 1 ? 'ফরোয়ার্ড হয়েছে' : '$nটা চ্যাটে ফরোয়ার্ড হয়েছে',
     n == 1 ? 'Forwarded' : 'Forwarded to $n chats',
   );
-  String forwardFailed(String username) => _t(
-    '@$username-কে পাঠানো যায়নি — হয়তো কানেকশন নেই।',
-    "Couldn't forward to @$username — you may not be connected.",
+
+  /// [where] is "@username", or the room's name.
+  String forwardFailed(String where) => _t(
+    '$where-এ পাঠানো যায়নি — হয়তো কানেকশন নেই।',
+    "Couldn't forward to $where — you may not be connected.",
   );
   String get originalMissing =>
       _t('মূল মেসেজটি পাওয়া যাচ্ছে না', 'Original message not found');
