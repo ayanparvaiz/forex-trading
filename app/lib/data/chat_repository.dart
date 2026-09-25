@@ -299,18 +299,28 @@ class ChatRepository {
         'hidden': FieldValue.arrayRemove([messageId]),
       }, SetOptions(merge: true));
 
+  /// Mutes the conversation until [until] — [ChatPrefs.forever] for always.
+  Future<void> mute(String chatId, String me, DateTime until) => _prefs(me)
+      .doc(chatId)
+      .set({'mutedUntil': Timestamp.fromDate(until)}, SetOptions(merge: true));
+
+  Future<void> unmute(String chatId, String me) => _prefs(me).doc(chatId).set({
+    'mutedUntil': FieldValue.delete(),
+  }, SetOptions(merge: true));
+
   /// "Delete chat": everything so far goes from my side, and the chat leaves
   /// my inbox until someone writes again. Its unread count goes too — a
   /// deleted chat should not keep a number on the tab. Not marked read: the
   /// other person's ticks say whether I read it, and I did not.
   Future<void> clearChat(String chatId, String me) {
     final batch = _db.batch()
-      // Replaced, not merged: messages hidden one by one before the clear
-      // are cleared along with everything else.
+      // The hidden list is replaced, not added to: messages deleted one by
+      // one before the clear go with everything else. Merged, so a mute
+      // stays as it was.
       ..set(_prefs(me).doc(chatId), {
         'clearedAt': FieldValue.serverTimestamp(),
         'hidden': <String>[],
-      })
+      }, SetOptions(merge: true))
       ..update(_chats.doc(chatId), {
         FieldPath(['unread', me]): 0,
       });
@@ -471,6 +481,7 @@ class ChatRepository {
           ? DateTime.now()
           : null,
       hidden: {...List<String>.from(data['hidden'] as List? ?? const [])},
+      mutedUntil: (data['mutedUntil'] as Timestamp?)?.toDate(),
     );
   }
 }
