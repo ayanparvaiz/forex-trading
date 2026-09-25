@@ -96,7 +96,15 @@ class ChatInbox extends ChangeNotifier with WidgetsBindingObserver {
   DateTime? lastActive(String otherUid) => _presence[otherUid];
 
   /// Conversations with something unread — the number on the tab.
-  int get unreadChats => threads.where((t) => t.unreadFor(uid) > 0).length;
+  ///
+  /// Muted ones are left out, as in WhatsApp: muting is asking not to be
+  /// nudged, and a number on the tab is a nudge.
+  int get unreadChats {
+    final now = DateTime.now();
+    return threads
+        .where((t) => t.unreadFor(uid) > 0 && !prefsFor(t.id).mutedAt(now))
+        .length;
+  }
 
   /// The conversation currently on screen, if any. Its messages get no
   /// banner, because you are already reading them.
@@ -147,6 +155,8 @@ class ChatInbox extends ChangeNotifier with WidgetsBindingObserver {
         // sending anything new; this covers a message that crossed with the
         // block.
         if (isBlocked(t.otherUid(uid))) continue;
+        // Nor does a conversation you have muted.
+        if (prefsFor(t.id).mutedAt(DateTime.now())) continue;
         _arrivals.add(
           ChatArrival(thread: t, partner: _partners[t.otherUid(uid)]),
         );
