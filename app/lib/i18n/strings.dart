@@ -572,6 +572,20 @@ class Strings {
     return dayLabel(l, now);
   }
 
+  // --- Settings -----------------------------------------------------------
+
+  String get settings => _t('সেটিংস', 'Settings');
+  String get sectionAccount => _t('অ্যাকাউন্ট', 'Account');
+  String get sectionPrivacy => _t('প্রাইভেসি ও নিরাপত্তা', 'Privacy & safety');
+  String get sectionAbout => _t('সম্পর্কে', 'About');
+  String get language => _t('ভাষা', 'Language');
+  String get logOutTitle => _t('লগআউট করবেন?', 'Log out?');
+  String get logOutBody => _t(
+    'আবার ঢুকতে ইউজারনেম আর পাসওয়ার্ড লাগবে — পাসওয়ার্ড রিসেটের কোনো উপায় নেই।',
+    'You will need your username and password to get back in — there is no '
+        'password reset.',
+  );
+
   // --- Editing your profile ------------------------------------------------
 
   String get editProfile => _t('প্রোফাইল এডিট', 'Edit profile');
