@@ -702,6 +702,16 @@ class Strings {
     'Not saved — check your connection and try again.',
   );
 
+  // Shown to someone the other person has blocked. Deliberately the same
+  // words an account that is simply gone would get: nobody is told they were
+  // blocked.
+  String get accountUnavailable =>
+      _t('এই অ্যাকাউন্টটা দেখা যাচ্ছে না', "This account isn't available");
+  String get cantReplyHere => _t(
+    'এই কথোপকথনে আর উত্তর দেওয়া যাবে না।',
+    "You can't reply to this conversation.",
+  );
+
   // --- Deleting your account ----------------------------------------------
 
   // Named as the privacy policy names it: "Settings → Delete account".
