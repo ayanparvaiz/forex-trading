@@ -37,6 +37,7 @@ class Strings {
   String get navTrade => _t('ট্রেড', 'Trade');
   String get navJournal => _t('জার্নাল', 'Journal');
   String get navCommunity => _t('কমিউনিটি', 'Community');
+  String get navMessages => _t('মেসেজ', 'Messages');
 
   // --- Auth: shared -------------------------------------------------------
 
@@ -425,6 +426,149 @@ class Strings {
   // --- Profile and connections --------------------------------------------
 
   String get profile => _t('প্রোফাইল', 'Profile');
+
+  // --- Messaging ----------------------------------------------------------
+
+  String get messages => _t('মেসেজ', 'Messages');
+  String get message => _t('মেসেজ', 'Message');
+  String get noChatsTitle => _t('এখনো কোনো মেসেজ নেই', 'No messages yet');
+  String get noChatsHint => _t(
+    'কাউকে কানেকশন রিকোয়েস্ট পাঠালেই তার সাথে চ্যাট এখানে খুলে যাবে।',
+    'Send someone a connection request and a chat with them opens here.',
+  );
+  String get messagingNeedsServer => _t(
+    'মেসেজের জন্য সার্ভার লাগে — এই বিল্ডে Firebase সেট করা নেই।',
+    'Messaging needs the server, and this build has no Firebase set up.',
+  );
+  String get typeMessage => _t('মেসেজ লিখুন…', 'Message…');
+  String get youPrefix => _t('আপনি: ', 'You: ');
+  String get youUnsent =>
+      _t('আপনি একটি মেসেজ আনসেন্ড করেছেন', 'You unsent a message');
+  String get theyUnsent =>
+      _t('মেসেজটি আনসেন্ড করা হয়েছে', 'This message was unsent');
+  String get unsend => _t('আনসেন্ড', 'Unsend');
+  String get unsendTitle =>
+      _t('মেসেজটি আনসেন্ড করবেন?', 'Unsend this message?');
+  String get unsendBody => _t(
+    'দুজনের কাছ থেকেই সরে যাবে। "আনসেন্ড করা হয়েছে" লেখা থাকবে।',
+    'It will be removed for both of you, leaving a note that it was unsent.',
+  );
+  String get cancel => _t('বাতিল', 'Cancel');
+  String get copy => _t('কপি', 'Copy');
+  String get copied => _t('কপি হয়েছে', 'Copied');
+  String get markUnread => _t('আনরিড করুন', 'Mark as unread');
+  String get markRead => _t('রিড করুন', 'Mark as read');
+  String get viewProfile => _t('প্রোফাইল দেখুন', 'View profile');
+  String get sayHi =>
+      _t('আপনারা কানেক্টেড। হাই বলুন 👋', "You're connected. Say hi 👋");
+  String get notConnectedToMessage => _t(
+    'কানেকশন নেই — মেসেজ পাঠাতে আবার কানেক্ট করুন।',
+    "You're not connected — connect again to send messages.",
+  );
+  String get messageNotSent =>
+      _t('মেসেজ যায়নি — আবার চেষ্টা করুন।', 'Message not sent — try again.');
+  String get loadingOlder => _t('আগের মেসেজ…', 'Earlier messages…');
+
+  String get activeNow => _t('এখন অ্যাক্টিভ', 'Active now');
+
+  /// "Active 5m ago", from the time someone was last seen.
+  String activeAgo(DateTime last, DateTime now) {
+    final d = now.difference(last);
+    if (d.inMinutes < 60) {
+      final m = d.inMinutes.clamp(1, 59);
+      return _t('$m মিনিট আগে অ্যাক্টিভ', 'Active ${m}m ago');
+    }
+    if (d.inHours < 24) {
+      return _t('${d.inHours} ঘণ্টা আগে অ্যাক্টিভ', 'Active ${d.inHours}h ago');
+    }
+    if (d.inDays == 1) return _t('গতকাল অ্যাক্টিভ', 'Active yesterday');
+    if (d.inDays < 7) {
+      return _t('${d.inDays} দিন আগে অ্যাক্টিভ', 'Active ${d.inDays}d ago');
+    }
+    return _t('${shortDate(last)}-এ অ্যাক্টিভ', 'Active ${shortDate(last)}');
+  }
+
+  String get today => _t('আজ', 'Today');
+  String get yesterday => _t('গতকাল', 'Yesterday');
+
+  static const _monthsEn = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  static const _monthsBn = [
+    'জানু',
+    'ফেব্রু',
+    'মার্চ',
+    'এপ্রি',
+    'মে',
+    'জুন',
+    'জুলা',
+    'আগ',
+    'সেপ্টে',
+    'অক্টো',
+    'নভে',
+    'ডিসে',
+  ];
+  static const _daysEn = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  static const _daysBn = [
+    'সোম',
+    'মঙ্গল',
+    'বুধ',
+    'বৃহস্পতি',
+    'শুক্র',
+    'শনি',
+    'রবি',
+  ];
+
+  /// "25 Sep".
+  String shortDate(DateTime t) {
+    final l = t.toLocal();
+    return '${l.day} ${isBangla ? _monthsBn[l.month - 1] : _monthsEn[l.month - 1]}';
+  }
+
+  /// "10:24 PM". Twelve-hour, which is how time is read here.
+  String clock(DateTime t) {
+    final l = t.toLocal();
+    final h = l.hour % 12 == 0 ? 12 : l.hour % 12;
+    final m = l.minute.toString().padLeft(2, '0');
+    return '$h:$m ${l.hour < 12 ? 'AM' : 'PM'}';
+  }
+
+  /// The separator between days in a conversation.
+  String dayLabel(DateTime day, DateTime now) {
+    final d = DateTime(day.year, day.month, day.day);
+    final today0 = DateTime(now.year, now.month, now.day);
+    final diff = today0.difference(d).inDays;
+    if (diff == 0) return today;
+    if (diff == 1) return yesterday;
+    if (diff < 7) {
+      return isBangla ? _daysBn[d.weekday - 1] : _daysEn[d.weekday - 1];
+    }
+    return shortDate(d);
+  }
+
+  /// The time on an inbox row: a clock today, then "Yesterday", a weekday,
+  /// or a date — the way every messaging app does it.
+  String threadTime(DateTime t, DateTime now) {
+    final l = t.toLocal();
+    final diff = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).difference(DateTime(l.year, l.month, l.day)).inDays;
+    if (diff == 0) return clock(l);
+    return dayLabel(l, now);
+  }
 
   // --- Editing your profile ------------------------------------------------
 
