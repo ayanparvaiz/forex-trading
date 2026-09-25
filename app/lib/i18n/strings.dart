@@ -11,7 +11,7 @@ enum AppLanguage {
   final String flag;
 
   static AppLanguage fromCode(String? code) =>
-      code == 'en' ? AppLanguage.en : AppLanguage.bn;
+      code == 'bn' ? AppLanguage.bn : AppLanguage.en;
 
   String get code => name;
 }
@@ -84,12 +84,6 @@ class Strings {
       _t('ইউজারনেম বা পাসওয়ার্ড ভুল।', 'Wrong username or password.');
 
   /// Shown instead of a password-reset flow, because there isn't one.
-  String get noPasswordReset => _t(
-    'পাসওয়ার্ড ভুলে গেলে রিসেট করার উপায় নেই — এখানে কোনো ইমেইল বা ফোন '
-        'নম্বর নেওয়া হয় না। নতুন একটা অ্যাকাউন্ট খুলে নিন, কিছু হারাবে না।',
-    'There is no password reset — this app never asks for your email or '
-        'phone. Just make a new account; you lose nothing but demo trades.',
-  );
 
   // --- Auth: signup steps -------------------------------------------------
 

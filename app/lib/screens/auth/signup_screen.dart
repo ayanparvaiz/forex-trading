@@ -214,7 +214,8 @@ class _SignupScreenState extends State<SignupScreen> {
       title: s.chooseLanguage,
       subtitle: s.chooseLanguageHint,
       children: [
-        for (final language in AppLanguage.values)
+        // English first: it is the default.
+        for (final language in const [AppLanguage.en, AppLanguage.bn])
           Padding(
             padding: const EdgeInsets.only(bottom: Gap.md),
             child: _ChoiceCard(

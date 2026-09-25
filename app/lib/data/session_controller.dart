@@ -24,7 +24,9 @@ class SessionController extends ChangeNotifier {
 
   bool get isSignedIn => _profile != null;
 
-  AppLanguage _language = AppLanguage.bn;
+  /// English until someone chooses: the first screen a new person sees is
+  /// in English, and Bangla is one tap away on it.
+  AppLanguage _language = AppLanguage.en;
   AppLanguage get language => _language;
 
   Strings get strings => Strings(_language);
