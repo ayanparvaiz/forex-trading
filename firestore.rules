@@ -395,9 +395,13 @@ service cloud.firestore {
     //
     // A conversation shares its id with the connection between the same two
     // people ("alice-bob", usernames sorted), so one lookup answers "may these
-    // two talk?". A chat can only be opened while a connection exists, pending
-    // or accepted, and messages can only be sent while it still does —
-    // removing the connection keeps the history and closes the conversation.
+    // two talk?". Only an accepted connection opens one, and messages can only
+    // be sent while it stays accepted — removing the connection keeps the
+    // history and closes the conversation.
+    //
+    // Accepted, not merely requested. A request is one person asking; letting
+    // it open a conversation would let anyone message anyone by sending a
+    // request first, which is what the accept step exists to prevent.
     //
     // Ticks are not stored per message. Each chat holds two timestamps per
     // person: when their app last received the conversation (deliveredAt) and
@@ -454,9 +458,11 @@ service cloud.firestore {
         && request.resource.data.uids.size() == 2
         && request.resource.data.users.size() == 2
         && chatId == request.resource.data.users[0] + '-' + request.resource.data.users[1]
-        // The same two people as the connection, and the connection is real —
-        // created earlier, or in the same batch as this chat.
+        // The same two people as the connection, and the connection is
+        // accepted — before this write, or by the acceptance in the same
+        // batch, which is how the app opens it.
         && existsAfter(/databases/$(database)/documents/connections/$(chatId))
+        && getAfter(/databases/$(database)/documents/connections/$(chatId)).data.accepted == true
         && getAfter(/databases/$(database)/documents/connections/$(chatId)).data.users == request.resource.data.users
         && getAfter(/databases/$(database)/documents/connections/$(chatId)).data.uids.hasAll(request.resource.data.uids)
         && request.resource.data.lastMessage == null
@@ -485,8 +491,8 @@ service cloud.firestore {
           && request.resource.data.text.size() <= 2000
           && request.resource.data.sentAt == request.time
           && request.resource.data.unsent == false
-          // Still related. Removing the connection closes the conversation.
-          && exists(/databases/$(database)/documents/connections/$(chatId));
+          // Still connected. Removing the connection closes the conversation.
+          && get(/databases/$(database)/documents/connections/$(chatId)).data.accepted == true;
 
         // Unsending blanks the text and flags it; the message keeps its place
         // so the conversation still makes sense around it. Only the sender.
