@@ -589,6 +589,12 @@ class Strings {
   // --- Editing your profile ------------------------------------------------
 
   String get editProfile => _t('প্রোফাইল এডিট', 'Edit profile');
+  String get avatar => _t('অ্যাভাটার', 'Avatar');
+  String get nameVisibleTo => _t(
+    'লিডারবোর্ড, ফিড আর মেসেজে সবাই এই নামটাই দেখবে।',
+    'This is the name people see on the leaderboard, in the feed and in '
+        'messages.',
+  );
   String get edit => _t('এডিট', 'Edit');
   String get displayName => _t('নাম', 'Name');
   String get usernameFixed =>
