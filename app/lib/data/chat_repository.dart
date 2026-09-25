@@ -85,17 +85,18 @@ class ChatRepository {
   Stream<ChatThread?> watchThread(String chatId) =>
       _chats.doc(chatId).snapshots().map(_threadFrom);
 
-  /// Makes sure the conversation for an existing connection exists.
+  /// Makes sure the conversation for an accepted connection exists.
   ///
-  /// Chats are opened by the connection request itself; this covers the
-  /// connections made before messaging existed. False when there is no
-  /// connection to open one for.
+  /// Accepting a request opens the chat; this covers connections accepted
+  /// before messaging existed. An existing chat is returned whatever the
+  /// connection's state, because its history stays readable after a
+  /// disconnect. False when there is no chat and no accepted connection.
   Future<bool> ensureChat(String chatId) async {
     if ((await _chats.doc(chatId).get()).exists) return true;
 
     final connection = await _connections.doc(chatId).get();
     final data = connection.data();
-    if (data == null) return false;
+    if (data == null || data['accepted'] != true) return false;
 
     try {
       await _chats
@@ -113,13 +114,18 @@ class ChatRepository {
     return true;
   }
 
-  /// Opens a conversation for every connection that does not have one yet,
-  /// so everyone you are connected to is in the inbox without anyone having
-  /// to open their profile first. Two queries, and a write only where
-  /// something is missing.
+  /// Opens a conversation for every accepted connection that does not have
+  /// one yet — the ones accepted before messaging existed — so everyone you
+  /// are connected to is in the inbox. Two queries, and a write only where
+  /// something is missing. Pending requests are left alone: they get a
+  /// conversation when they are accepted, not before.
   Future<void> ensureChatsForConnections(String uid) async {
+    // Ordered so the query uses the index the profile screen already needs
+    // for "your connections, newest first".
     final connections = await _connections
         .where('uids', arrayContains: uid)
+        .where('accepted', isEqualTo: true)
+        .orderBy('requestedAt', descending: true)
         .limit(100)
         .get();
     final existing = await _chats
@@ -146,10 +152,10 @@ class ChatRepository {
     }
   }
 
-  /// Whether the two people are still connected — pending or accepted —
+  /// Whether the two people are connected — accepted, not just requested —
   /// which is what sending needs.
   Future<bool> isConnected(String chatId) async =>
-      (await _connections.doc(chatId).get()).exists;
+      (await _connections.doc(chatId).get()).data()?['accepted'] == true;
 
   // --- Messages -------------------------------------------------------------
 
