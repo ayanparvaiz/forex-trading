@@ -11,6 +11,7 @@ import 'screens/auth/auth_gate.dart';
 import 'screens/splash_screen.dart';
 import 'theme/app_theme.dart';
 import 'widgets/inbox_host.dart';
+import 'widgets/push_host.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -105,8 +106,10 @@ class _ForexTradingAppState extends State<ForexTradingApp> {
           // Above the Navigator, so every route — tabs, conversations,
           // profiles — can reach the inbox, and a new-message banner draws
           // over whichever one is showing.
-          builder: (context, child) =>
-              InboxHost(navigatorKey: _navigator, child: child!),
+          builder: (context, child) => InboxHost(
+            navigatorKey: _navigator,
+            child: PushHost(navigatorKey: _navigator, child: child!),
+          ),
           home: _booting ? const SplashScreen() : const AuthGate(),
         ),
       ),
