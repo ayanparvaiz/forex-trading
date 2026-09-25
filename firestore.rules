@@ -524,6 +524,31 @@ service cloud.firestore {
                 && n.lastMessage.unsent == getAfter(/databases/$(database)/documents/chats/$(chatId)/messages/$(n.lastMessage.id)).data.unsent));
     }
 
+    // Something shared into a conversation: a feed post, or your place on the
+    // leaderboard. A post has to exist and be by the person named — so a
+    // card can never pin a post on the wrong author. A rank has the same
+    // shape a rank post in the feed must have.
+    function attachmentOk(a) {
+      return a is map && (
+        (a.keys().hasOnly(['type', 'postId', 'authorUid'])
+          && a.keys().hasAll(['type', 'postId', 'authorUid'])
+          && a.type == 'post'
+          && get(/databases/$(database)/documents/posts/$(a.postId)).data.authorUid == a.authorUid)
+        || (a.keys().hasOnly(['type', 'rank', 'score'])
+          && a.keys().hasAll(['type', 'rank', 'score'])
+          && a.type == 'rank'
+          && a.rank is int && a.rank > 0
+          && a.score is number && a.score >= 0 && a.score <= 100));
+    }
+
+    // A message has words, or something shared, or both.
+    function messageBodyOk(m) {
+      return m.text is string
+        && m.text.size() <= 2000
+        && (m.text.size() > 0 || 'attachment' in m)
+        && (!('attachment' in m) || attachmentOk(m.attachment));
+    }
+
     // A reply names the message it answers. It has to be a real message in
     // the same conversation, by the person it says — so no reply can put
     // words in anyone's mouth. The text is not copied: the app shows the
@@ -576,16 +601,14 @@ service cloud.firestore {
         allow create: if isSignedIn()
           && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.uids
           && request.resource.data.keys()
-               .hasOnly(['senderUid', 'text', 'sentAt', 'unsent', 'replyTo', 'forwarded'])
+               .hasOnly(['senderUid', 'text', 'sentAt', 'unsent', 'replyTo', 'forwarded', 'attachment'])
           && (!('replyTo' in request.resource.data)
               || replyOk(chatId, request.resource.data.replyTo))
           // Only ever true: it marks a copy of a message from another chat.
           && (!('forwarded' in request.resource.data)
               || request.resource.data.forwarded == true)
           && request.resource.data.senderUid == request.auth.uid
-          && request.resource.data.text is string
-          && request.resource.data.text.size() > 0
-          && request.resource.data.text.size() <= 2000
+          && messageBodyOk(request.resource.data)
           && request.resource.data.sentAt == request.time
           && request.resource.data.unsent == false
           // Still connected. Removing the connection closes the conversation.
@@ -633,7 +656,8 @@ service cloud.firestore {
       let n = request.resource.data;
       let msg = getAfter(/databases/$(database)/documents/rooms/$(roomId)/messages/$(n.lastMessage.id)).data;
       return n.diff(o).affectedKeys().hasOnly(['lastMessage', 'updatedAt'])
-        && n.lastMessage.keys().hasOnly(['id', 'senderUid', 'senderName', 'text', 'unsent'])
+        && n.lastMessage.keys().hasOnly(['id', 'senderUid', 'senderName', 'text', 'unsent', 'attachmentType'])
+        && n.lastMessage.get('attachmentType', null) == msg.get('attachment', {}).get('type', null)
         && n.lastMessage.senderUid == request.auth.uid
         && msg.senderUid == request.auth.uid
         && n.lastMessage.senderName == msg.senderName
@@ -687,15 +711,13 @@ service cloud.firestore {
           && isMember(roomId)
           && request.resource.data.keys().hasOnly([
                'senderUid', 'senderName', 'senderUsername', 'text', 'sentAt', 'unsent',
-               'replyTo', 'forwarded'])
+               'replyTo', 'forwarded', 'attachment'])
           && request.resource.data.senderUid == request.auth.uid
           && request.resource.data.senderUsername
                == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.username
           && request.resource.data.senderName
                == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.displayName
-          && request.resource.data.text is string
-          && request.resource.data.text.size() > 0
-          && request.resource.data.text.size() <= 2000
+          && messageBodyOk(request.resource.data)
           && request.resource.data.sentAt == request.time
           && request.resource.data.unsent == false
           && (!('replyTo' in request.resource.data)
