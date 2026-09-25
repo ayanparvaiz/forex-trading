@@ -66,6 +66,8 @@ void main() {
     bool canSend = true,
     bool showSenderNames = false,
     Widget? bottom,
+    ValueChanged<ChatMessage>? onOpenSender,
+    ValueChanged<String>? onOpenPost,
   }) async {
     SharedPreferences.setMockInitialValues({});
     final session = SessionController(
@@ -86,6 +88,8 @@ void main() {
               emptyText: 'Say hi',
               showSenderNames: showSenderNames,
               bottom: bottom,
+              onOpenSender: onOpenSender,
+              onOpenPost: onOpenPost,
             ),
           ),
         ),
@@ -108,7 +112,10 @@ void main() {
     source.latest.add([msg('m1', 0, from: 'ana', text: 'EUR/USD long?')]);
     await tester.pumpAndSettle();
 
-    await tester.drag(find.textContaining('EUR/USD long?'), const Offset(120, 0));
+    await tester.drag(
+      find.textContaining('EUR/USD long?'),
+      const Offset(120, 0),
+    );
     await tester.pumpAndSettle();
     // The strip over the box quotes it, under the sender's name.
     expect(find.text('Ana'), findsOneWidget);
@@ -207,5 +214,74 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(source.unsent, [('m2', true)]);
+  });
+
+  testWidgets('a shared rank is a card that opens its sender', (tester) async {
+    ChatMessage? opened;
+    final source = await pump(tester, onOpenSender: (m) => opened = m);
+    source.latest.add([
+      ChatMessage(
+        id: 'r1',
+        senderUid: 'ana',
+        text: '',
+        sentAt: t0,
+        unsent: false,
+        pending: false,
+        attachment: const SharedRank(rank: 4, score: 92),
+      ),
+    ]);
+    await tester.pumpAndSettle();
+    expect(find.text('#4 on the board'), findsOneWidget);
+    expect(find.textContaining('Discipline 92'), findsOneWidget);
+
+    await tester.tap(find.text('#4 on the board'));
+    expect(opened?.id, 'r1');
+
+    // With no words to copy, there is no Copy.
+    await tester.longPress(find.text('#4 on the board'));
+    await tester.pumpAndSettle();
+    expect(find.text('Copy'), findsNothing);
+    expect(find.text('Forward'), findsNothing); // no inbox in this test
+  });
+
+  testWidgets('a shared post that is gone says so, and does not open', (
+    tester,
+  ) async {
+    String? opened;
+    final source = await pump(tester, onOpenPost: (id) => opened = id);
+    source.latest.add([
+      ChatMessage(
+        id: 'p1',
+        senderUid: 'ana',
+        text: 'look',
+        sentAt: t0,
+        unsent: false,
+        pending: false,
+        attachment: const SharedPost(postId: 'no-such-post', authorUid: 'x'),
+      ),
+    ]);
+    await tester.pumpAndSettle();
+    expect(find.text('This post is no longer available'), findsOneWidget);
+    await tester.tap(find.text('This post is no longer available'));
+    expect(opened, isNull);
+  });
+
+  testWidgets('replying to a card quotes what it was', (tester) async {
+    final source = await pump(tester);
+    source.latest.add([
+      ChatMessage(
+        id: 'r1',
+        senderUid: 'ana',
+        text: '',
+        sentAt: t0,
+        unsent: false,
+        pending: false,
+        attachment: const SharedRank(rank: 2, score: 95),
+      ),
+    ]);
+    await tester.pumpAndSettle();
+    await tester.drag(find.text('#2 on the board'), const Offset(120, 0));
+    await tester.pumpAndSettle();
+    expect(find.text('🏅 Leaderboard rank'), findsOneWidget);
   });
 }

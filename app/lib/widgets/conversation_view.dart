@@ -5,12 +5,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/chat_inbox.dart';
+import '../data/community_repository.dart';
+import '../data/firestore_community_repository.dart';
 import '../data/session_controller.dart';
 import '../i18n/strings.dart';
 import '../models/chat.dart';
+import '../models/trader.dart';
 import '../theme/app_theme.dart';
 import 'chat_bits.dart';
 import 'forward_sheet.dart';
+import 'shared_cards.dart';
 
 /// Where one conversation's messages come from and go to — a chat between
 /// two people, or a room everyone can join — so [ConversationView] can show
@@ -81,6 +85,8 @@ class ConversationView extends StatefulWidget {
     this.onDraftChanged,
     this.onBeforeSend,
     this.onMessages,
+    this.onOpenPost,
+    this.onOpenSender,
   });
 
   final MessageSource source;
@@ -123,6 +129,12 @@ class ConversationView extends StatefulWidget {
   /// Every time the loaded messages change, newest first.
   final ValueChanged<List<ChatMessage>>? onMessages;
 
+  /// A shared post was tapped: open it.
+  final ValueChanged<String>? onOpenPost;
+
+  /// Someone was tapped — their name in a room, or a rank they shared.
+  final ValueChanged<ChatMessage>? onOpenSender;
+
   @override
   State<ConversationView> createState() => _ConversationViewState();
 }
@@ -154,6 +166,12 @@ class _ConversationViewState extends State<ConversationView> {
   /// The message just scrolled to from a quote, lit up for a moment.
   String? _flashId;
   Timer? _flashTimer;
+
+  /// Posts shared in this conversation, fetched once each. A key with a
+  /// null value is a post that has been deleted.
+  final Map<String, FeedPost?> _sharedPosts = {};
+  final Set<String> _fetchingPosts = {};
+  CommunityRepository? _community;
 
   String get _me => widget.me;
   MessageSource get _source => widget.source;
@@ -283,6 +301,50 @@ class _ConversationViewState extends State<ConversationView> {
 
   String _nameOf(String uid, ChatMessage? m) => widget.nameOf(uid, m);
 
+  /// A message as one line: its words, or what was shared with it.
+  String _snippet(ChatMessage m, Strings s) =>
+      m.text.isNotEmpty ? m.text : s.messagePreview('', m.attachment?.type);
+
+  /// A shared post: from those fetched, or fetched once.
+  FeedPost? _postFor(String postId) {
+    if (_sharedPosts.containsKey(postId)) return _sharedPosts[postId];
+    if (_fetchingPosts.add(postId)) {
+      final session = context.session;
+      final community = _community ??= buildCommunityRepository(
+        session.language,
+        viewerUid: session.uid,
+      );
+      community
+          .post(postId)
+          .then((p) {
+            if (mounted) setState(() => _sharedPosts[postId] = p);
+          })
+          .catchError((Object e) {
+            debugPrint('shared post failed: $e');
+            if (mounted) setState(() => _sharedPosts[postId] = null);
+          });
+    }
+    return null;
+  }
+
+  Widget _attachmentFor(ChatMessage m, Strings s) => switch (m.attachment!) {
+    SharedPost(:final postId) => SharedPostCard(
+      post: _postFor(postId),
+      loading: !_sharedPosts.containsKey(postId),
+      s: s,
+      onTap: widget.onOpenPost == null
+          ? null
+          : () => widget.onOpenPost!(postId),
+    ),
+    SharedRank(:final rank, :final score) => SharedRankCard(
+      rank: rank,
+      score: score,
+      name: _nameOf(m.senderUid, m),
+      s: s,
+      onTap: widget.onOpenSender == null ? null : () => widget.onOpenSender!(m),
+    ),
+  };
+
   /// The message a reply answers: from those loaded, or fetched once.
   ChatMessage? _original(ReplyRef ref) {
     for (final m in _messages) {
@@ -315,7 +377,7 @@ class _ConversationViewState extends State<ConversationView> {
         original.senderUid == _me ? s.youUnsent : s.theyUnsent,
         true,
       ),
-      final m => (m.text, false),
+      final m => (_snippet(m, s), false),
     };
     return ReplyQuote(
       name: _nameOf(ref.senderUid, original),
@@ -393,7 +455,7 @@ class _ConversationViewState extends State<ConversationView> {
           Expanded(
             child: ReplyQuote(
               name: _nameOf(r.senderUid, r),
-              text: r.text,
+              text: _snippet(r, s),
               accent: quoteAccent(mine: r.senderUid == _me),
               maxLines: 1,
             ),
@@ -450,7 +512,7 @@ class _ConversationViewState extends State<ConversationView> {
               const SizedBox(height: Gap.sm),
               if (widget.canSend && !m.unsent)
                 tile(Icons.reply_rounded, s.reply, () => pick('reply')),
-              if (!m.unsent)
+              if (!m.unsent && m.text.isNotEmpty)
                 tile(Icons.copy_rounded, s.copy, () => pick('copy')),
               if (!m.unsent && _inbox != null)
                 tile(Icons.shortcut_rounded, s.forward, () => pick('forward')),
@@ -700,6 +762,12 @@ class _ConversationViewState extends State<ConversationView> {
                   ? _nameOf(m.senderUid, m)
                   : null,
               quote: reply == null || m.unsent ? null : _quoteFor(reply, s),
+              attachment: m.attachment == null || m.unsent
+                  ? null
+                  : _attachmentFor(m, s),
+              onSenderTap: widget.onOpenSender == null
+                  ? null
+                  : () => widget.onOpenSender!(m),
               forwardedLabel: m.forwarded && !m.unsent ? s.forwarded : null,
               highlight: _flashId == m.id,
               onLongPress: () => _showActions(m),
@@ -829,7 +897,9 @@ class _Bubble extends StatelessWidget {
     required this.status,
     required this.onLongPress,
     this.senderName,
+    this.onSenderTap,
     this.quote,
+    this.attachment,
     this.forwardedLabel,
     this.highlight = false,
   });
@@ -844,6 +914,10 @@ class _Bubble extends StatelessWidget {
 
   /// In a room, the sender's name on the first of their run.
   final String? senderName;
+  final VoidCallback? onSenderTap;
+
+  /// A post or rank shared with it, as a card above the words.
+  final Widget? attachment;
 
   /// The message this one replies to, drawn above its text.
   final Widget? quote;
@@ -925,7 +999,10 @@ class _Bubble extends StatelessWidget {
     // A name, a forward label or a quote stacks above the text, all as wide
     // as the widest of them.
     final Widget content =
-        quote == null && forwardedLabel == null && senderName == null
+        quote == null &&
+            forwardedLabel == null &&
+            senderName == null &&
+            attachment == null
         ? body
         : IntrinsicWidth(
             child: Column(
@@ -935,14 +1012,17 @@ class _Bubble extends StatelessWidget {
                 if (senderName != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 2),
-                    child: Text(
-                      senderName!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: senderColor(message.senderUid),
+                    child: GestureDetector(
+                      onTap: onSenderTap,
+                      child: Text(
+                        senderName!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: senderColor(message.senderUid),
+                        ),
                       ),
                     ),
                   ),
@@ -972,6 +1052,11 @@ class _Bubble extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 5),
                     child: quote,
+                  ),
+                if (attachment != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: attachment,
                   ),
                 body,
               ],
