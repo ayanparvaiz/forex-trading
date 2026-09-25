@@ -480,6 +480,46 @@ class Strings {
       _t('মেসেজ যায়নি — আবার চেষ্টা করুন।', 'Message not sent — try again.');
   String get loadingOlder => _t('আগের মেসেজ…', 'Earlier messages…');
 
+  // Replying and forwarding.
+  String get reply => _t('রিপ্লাই', 'Reply');
+  String get forward => _t('ফরোয়ার্ড', 'Forward');
+  String get forwarded => _t('ফরোয়ার্ড করা', 'Forwarded');
+  String get forwardTo => _t('কাকে পাঠাবেন?', 'Forward to…');
+  String get forwardLimit =>
+      _t('একবারে ৫টা চ্যাট পর্যন্ত', 'Up to 5 chats at a time');
+  String get noChatsToForward =>
+      _t('পাঠানোর মতো কোনো চ্যাট নেই', 'No conversations to forward to');
+  String forwardedTo(int n) => _t(
+    n == 1 ? 'ফরোয়ার্ড হয়েছে' : '$nটা চ্যাটে ফরোয়ার্ড হয়েছে',
+    n == 1 ? 'Forwarded' : 'Forwarded to $n chats',
+  );
+  String forwardFailed(String username) => _t(
+    '@$username-কে পাঠানো যায়নি — হয়তো কানেকশন নেই।',
+    "Couldn't forward to @$username — you may not be connected.",
+  );
+  String get originalMissing =>
+      _t('মূল মেসেজটি পাওয়া যাচ্ছে না', 'Original message not found');
+
+  // Deleting for yourself.
+  String get deleteForMe => _t('আমার দিক থেকে ডিলিট', 'Delete for me');
+  String get messageDeleted => _t('মেসেজ ডিলিট হয়েছে', 'Message deleted');
+  String get undo => _t('ফেরান', 'Undo');
+  String get youDeletedMessage =>
+      _t('আপনি মেসেজটি ডিলিট করেছেন', 'You deleted this message');
+  String get deleteChat => _t('চ্যাট ডিলিট', 'Delete chat');
+  String get deleteChatTitle => _t('চ্যাটটি ডিলিট করবেন?', 'Delete this chat?');
+  String deleteChatBody(String name) => _t(
+    'মেসেজগুলো শুধু আপনার দিক থেকে মুছে যাবে — $name-এর কাছে সব থেকে যাবে। '
+        'নতুন মেসেজ এলে চ্যাটটা আবার দেখাবে।',
+    'The messages go from your side only — $name keeps them all. The chat '
+        'comes back when a new message arrives.',
+  );
+  String get chatDeleted => _t('চ্যাট ডিলিট হয়েছে', 'Chat deleted');
+  String get couldNotDeleteChat => _t(
+    'ডিলিট হয়নি — ইন্টারনেট দেখে আবার চেষ্টা করুন।',
+    'Not deleted — check your connection and try again.',
+  );
+
   String get activeNow => _t('এখন অ্যাক্টিভ', 'Active now');
   String get typing => _t('লিখছে…', 'typing…');
 
