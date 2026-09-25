@@ -589,6 +589,27 @@ class Strings {
   // --- Editing your profile ------------------------------------------------
 
   String get avatar => _t('অ্যাভাটার', 'Avatar');
+  String get changePassword => _t('পাসওয়ার্ড বদলান', 'Change password');
+  String get currentPassword => _t('বর্তমান পাসওয়ার্ড', 'Current password');
+  String get newPassword => _t('নতুন পাসওয়ার্ড', 'New password');
+  String get confirmNewPassword =>
+      _t('নতুন পাসওয়ার্ড আবার লিখুন', 'Confirm new password');
+  String get passwordsDontMatch =>
+      _t('দুটো পাসওয়ার্ড মিলছে না', 'The two passwords do not match');
+  String get sameAsCurrent =>
+      _t('এটা তো বর্তমান পাসওয়ার্ডই', 'That is your current password');
+  String get wrongCurrentPassword =>
+      _t('বর্তমান পাসওয়ার্ড ভুল', 'Current password is wrong');
+  String get tooManyAttempts => _t(
+    'অনেকবার ভুল হয়েছে — কিছুক্ষণ পরে আবার চেষ্টা করুন।',
+    'Too many attempts — try again in a little while.',
+  );
+  String get passwordChanged =>
+      _t('পাসওয়ার্ড বদলানো হয়েছে', 'Password changed');
+  String get rememberPassword => _t(
+    'নতুন পাসওয়ার্ড মনে রাখুন — এই অ্যাপে পাসওয়ার্ড রিসেটের কোনো উপায় নেই।',
+    'Remember the new one — this app has no password reset.',
+  );
   String get nameVisibleTo => _t(
     'লিডারবোর্ড, ফিড আর মেসেজে সবাই এই নামটাই দেখবে।',
     'This is the name people see on the leaderboard, in the feed and in '
