@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../models/chat.dart';
 import '../theme/app_theme.dart';
@@ -151,6 +152,191 @@ class _TypingBubbleState extends State<TypingBubble>
           color: Color.lerp(AppColors.textMuted, AppColors.textSecondary, lift),
           shape: BoxShape.circle,
         ),
+      ),
+    );
+  }
+}
+
+/// The colour a quoted message is marked with: one for you, one for the
+/// other person, so a reply shows at a glance whose words it answers.
+Color quoteAccent({required bool mine}) =>
+    mine ? AppColors.profit : AppColors.discipline;
+
+/// A quoted message: a coloured edge, whose it was, and a line or two of it.
+/// Inside a reply bubble, and above the message box while writing one.
+class ReplyQuote extends StatelessWidget {
+  const ReplyQuote({
+    super.key,
+    required this.name,
+    required this.text,
+    required this.accent,
+    this.italic = false,
+    this.maxLines = 2,
+    this.onTap,
+  });
+
+  final String name;
+  final String text;
+  final Color accent;
+
+  /// For a message that is gone or not yet loaded, rather than its words.
+  final bool italic;
+  final int maxLines;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(8, 5, 8, 6),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.22),
+          borderRadius: const BorderRadius.all(Radius.circular(8)),
+          border: Border(left: BorderSide(color: accent, width: 3.5)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: accent,
+              ),
+            ),
+            const SizedBox(height: 1),
+            Text(
+              text,
+              maxLines: maxLines,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.3,
+                fontStyle: italic ? FontStyle.italic : FontStyle.normal,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Swipe a message to the right to reply to it, as in WhatsApp.
+///
+/// The message follows the finger a short way and a reply arrow fades in
+/// behind it; past the trigger point the phone ticks once, and letting go
+/// there replies. Anywhere short of it, the message just springs back.
+class SwipeToReply extends StatefulWidget {
+  const SwipeToReply({
+    super.key,
+    required this.enabled,
+    required this.onReply,
+    required this.child,
+  });
+
+  final bool enabled;
+  final VoidCallback onReply;
+  final Widget child;
+
+  @override
+  State<SwipeToReply> createState() => _SwipeToReplyState();
+}
+
+class _SwipeToReplyState extends State<SwipeToReply>
+    with SingleTickerProviderStateMixin {
+  static const _trigger = 56.0;
+  static const _max = 76.0;
+
+  // Made up front, not lazily: a lazy one would first be made in dispose()
+  // when swiping was never on, and a ticker cannot be made then.
+  late final AnimationController _back;
+
+  @override
+  void initState() {
+    super.initState();
+    _back = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 180),
+    )..addListener(_springBack);
+  }
+
+  double _dx = 0;
+  double _releasedAt = 0;
+  bool _armed = false;
+
+  void _springBack() {
+    setState(
+      () => _dx = _releasedAt * (1 - Curves.easeOut.transform(_back.value)),
+    );
+  }
+
+  void _update(DragUpdateDetails d) {
+    _back.stop();
+    setState(() => _dx = (_dx + d.delta.dx).clamp(0.0, _max));
+    if (!_armed && _dx >= _trigger) {
+      _armed = true;
+      HapticFeedback.lightImpact();
+    } else if (_armed && _dx < _trigger) {
+      _armed = false;
+    }
+  }
+
+  void _release({required bool reply}) {
+    if (reply && _armed) widget.onReply();
+    _armed = false;
+    _releasedAt = _dx;
+    _back.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _back.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.enabled) return widget.child;
+    final progress = (_dx / _trigger).clamp(0.0, 1.0);
+    return GestureDetector(
+      onHorizontalDragUpdate: _update,
+      onHorizontalDragEnd: (_) => _release(reply: true),
+      onHorizontalDragCancel: () => _release(reply: false),
+      child: Stack(
+        alignment: Alignment.centerLeft,
+        children: [
+          if (_dx > 0)
+            Positioned(
+              left: 4,
+              child: Opacity(
+                opacity: progress,
+                child: Transform.scale(
+                  scale: 0.6 + 0.4 * progress,
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: const BoxDecoration(
+                      color: AppColors.elevated,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.reply_rounded,
+                      size: 19,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          Transform.translate(offset: Offset(_dx, 0), child: widget.child),
+        ],
       ),
     );
   }
