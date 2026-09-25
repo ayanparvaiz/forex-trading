@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 
 import '../models/chat.dart';
 import 'chat_repository.dart';
+import 'safety_repository.dart';
 
 /// A message that arrived in a conversation you are not looking at.
 class ChatArrival {
@@ -25,8 +26,12 @@ class ChatArrival {
 /// notifications, a message to a closed app shows one grey tick until its
 /// recipient opens the app, which is what the tick means.
 class ChatInbox extends ChangeNotifier with WidgetsBindingObserver {
-  ChatInbox({required this.repository, required this.uid}) {
+  ChatInbox({required this.repository, required this.uid, this.safety}) {
     WidgetsBinding.instance.addObserver(this);
+    _blocksSub = safety?.watchBlocks(uid).listen((blocked) {
+      _blocked = {for (final b in blocked) b.uid: b};
+      notifyListeners();
+    }, onError: (Object e) => debugPrint('blocks stream failed: $e'));
     _threadsSub = repository
         .watchThreads(uid)
         .listen(_onThreads, onError: _onError);
@@ -42,6 +47,22 @@ class ChatInbox extends ChangeNotifier with WidgetsBindingObserver {
 
   final ChatRepository repository;
   final String uid;
+
+  /// Blocks, kept here because this is the one object alive for the whole
+  /// signed-in session and every screen can reach — the feed, the chat and
+  /// profiles all need to know who you have blocked.
+  final SafetyRepository? safety;
+
+  StreamSubscription<List<BlockedAccount>>? _blocksSub;
+  Map<String, BlockedAccount> _blocked = const {};
+
+  List<BlockedAccount> get blocked => _blocked.values.toList();
+  bool isBlocked(String otherUid) => _blocked.containsKey(otherUid);
+
+  /// Usernames you have blocked — the feed identifies authors by username.
+  Set<String> get blockedUsernames => {
+    for (final b in _blocked.values) b.username,
+  };
 
   List<ChatThread> _threads = const [];
   List<ChatThread> get threads => _threads;
@@ -102,6 +123,10 @@ class ChatInbox extends ChangeNotifier with WidgetsBindingObserver {
 
     if (_foreground) {
       for (final t in arrivals) {
+        // Nobody you have blocked gets a banner. The rules already stop them
+        // sending anything new; this covers a message that crossed with the
+        // block.
+        if (isBlocked(t.otherUid(uid))) continue;
         _arrivals.add(
           ChatArrival(thread: t, partner: _partners[t.otherUid(uid)]),
         );
@@ -204,6 +229,7 @@ class ChatInbox extends ChangeNotifier with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _threadsSub?.cancel();
+    _blocksSub?.cancel();
     _presenceSub?.cancel();
     _heartbeat?.cancel();
     _deliveryTimer?.cancel();
