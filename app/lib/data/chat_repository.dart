@@ -179,7 +179,7 @@ class ChatRepository {
         .orderBy('sentAt', descending: true)
         .limit(pageSize)
         .snapshots(includeMetadataChanges: true)
-        .map((s) => [for (final d in s.docs) _messageFrom(d)]);
+        .map((s) => [for (final d in s.docs) messageFromDoc(d)]);
   }
 
   /// The page before [cursor], newest first. Fetched once rather than
@@ -191,13 +191,13 @@ class ChatRepository {
         .startAfterDocument(cursor as DocumentSnapshot)
         .limit(pageSize)
         .get();
-    return [for (final d in snapshot.docs) _messageFrom(d)];
+    return [for (final d in snapshot.docs) messageFromDoc(d)];
   }
 
   /// One message, for a reply whose original is not among those loaded.
   Future<ChatMessage?> message(String chatId, String messageId) async {
     final doc = await _messages(chatId).doc(messageId).get();
-    return doc.exists ? _messageFrom(doc) : null;
+    return doc.exists ? messageFromDoc(doc) : null;
   }
 
   /// Sends a message and moves the conversation's preview in one batch.
@@ -448,28 +448,6 @@ class ChatRepository {
     );
   }
 
-  ChatMessage _messageFrom(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data() ?? const <String, dynamic>{};
-    final sentAt = data['sentAt'];
-    final reply = data['replyTo'];
-    return ChatMessage(
-      id: doc.id,
-      senderUid: data['senderUid'] as String? ?? '',
-      text: data['text'] as String? ?? '',
-      sentAt: sentAt is Timestamp ? sentAt.toDate() : DateTime.now(),
-      unsent: data['unsent'] as bool? ?? false,
-      pending: doc.metadata.hasPendingWrites,
-      replyTo: reply is Map && reply['id'] is String
-          ? ReplyRef(
-              id: reply['id'] as String,
-              senderUid: reply['senderUid'] as String? ?? '',
-            )
-          : null,
-      forwarded: data['forwarded'] == true,
-      cursor: doc,
-    );
-  }
-
   ChatPrefs _prefsFrom(Map<String, dynamic> data) {
     final cleared = data['clearedAt'];
     return ChatPrefs(
@@ -484,6 +462,31 @@ class ChatRepository {
       mutedUntil: (data['mutedUntil'] as Timestamp?)?.toDate(),
     );
   }
+}
+
+/// A message document, from a chat or a room, as the app reads it.
+ChatMessage messageFromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+  final data = doc.data() ?? const <String, dynamic>{};
+  final sentAt = data['sentAt'];
+  final reply = data['replyTo'];
+  return ChatMessage(
+    id: doc.id,
+    senderUid: data['senderUid'] as String? ?? '',
+    text: data['text'] as String? ?? '',
+    sentAt: sentAt is Timestamp ? sentAt.toDate() : DateTime.now(),
+    unsent: data['unsent'] as bool? ?? false,
+    pending: doc.metadata.hasPendingWrites,
+    replyTo: reply is Map && reply['id'] is String
+        ? ReplyRef(
+            id: reply['id'] as String,
+            senderUid: reply['senderUid'] as String? ?? '',
+          )
+        : null,
+    forwarded: data['forwarded'] == true,
+    senderName: data['senderName'] as String?,
+    senderUsername: data['senderUsername'] as String?,
+    cursor: doc,
+  );
 }
 
 /// Firestore when it is configured; nothing otherwise. See [ChatRepository].
