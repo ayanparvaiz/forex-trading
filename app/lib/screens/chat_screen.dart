@@ -222,9 +222,20 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     if (jump != _showJump) setState(() => _showJump = jump);
   }
 
+  /// What I have deleted for myself here.
+  ChatPrefs get _prefs => _inbox?.prefsFor(widget.chatId) ?? ChatPrefs.none;
+
+  /// Nothing older to load: the server has no more, or everything older was
+  /// deleted with the chat.
+  bool get _nothingOlder =>
+      _noMoreOlder ||
+      (_messages.isNotEmpty && _prefs.clearedBy(_messages.last.sentAt));
+
   Future<void> _loadOlder() async {
     final repo = _repo;
-    if (repo == null || _loadingOlder || _noMoreOlder || !_firstPageIn) return;
+    if (repo == null || _loadingOlder || _nothingOlder || !_firstPageIn) {
+      return;
+    }
     // The oldest message the server has confirmed. A pending one has no
     // server time yet, so it cannot say where the previous page ends.
     Object? cursor;
@@ -384,13 +395,14 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: Gap.sm),
-            ListTile(
-              leading: const Icon(Icons.copy_rounded),
-              title: Text(s.copy),
-              onTap: () => Navigator.of(sheet).pop('copy'),
-            ),
+            if (!m.unsent)
+              ListTile(
+                leading: const Icon(Icons.copy_rounded),
+                title: Text(s.copy),
+                onTap: () => Navigator.of(sheet).pop('copy'),
+              ),
             // Their messages can be reported, quoted exactly as sent.
-            if (!mine && _inbox?.safety != null)
+            if (!mine && !m.unsent && _inbox?.safety != null)
               ListTile(
                 leading: const Icon(Icons.flag_outlined, color: AppColors.loss),
                 title: Text(
@@ -399,7 +411,18 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 ),
                 onTap: () => Navigator.of(sheet).pop('report'),
               ),
-            if (mine && !m.pending)
+            ListTile(
+              leading: const Icon(
+                Icons.delete_outline_rounded,
+                color: AppColors.loss,
+              ),
+              title: Text(
+                s.deleteForMe,
+                style: const TextStyle(color: AppColors.loss),
+              ),
+              onTap: () => Navigator.of(sheet).pop('hide'),
+            ),
+            if (mine && !m.pending && !m.unsent)
               ListTile(
                 leading: const Icon(Icons.undo_rounded, color: AppColors.loss),
                 title: Text(
@@ -420,6 +443,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(s.copied)));
+    } else if (action == 'hide') {
+      _hide(m);
     } else if (action == 'unsend') {
       await _confirmUnsend(m);
     } else if (action == 'report') {
@@ -434,6 +459,31 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         ),
       );
     }
+  }
+
+  /// "Delete for me": gone from this side at once, with a moment to take it
+  /// back. The other person still has it.
+  void _hide(ChatMessage m) {
+    final repo = _repo;
+    if (repo == null) return;
+    final s = context.s;
+    repo
+        .hideMessage(widget.chatId, _me, m.id)
+        .catchError((Object e) => debugPrint('delete for me failed: $e'));
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(s.messageDeleted),
+          action: SnackBarAction(
+            label: s.undo,
+            textColor: AppColors.brand,
+            onPressed: () => repo
+                .unhideMessage(widget.chatId, _me, m.id)
+                .catchError((Object e) => debugPrint('undo failed: $e')),
+          ),
+        ),
+      );
   }
 
   Future<void> _confirmUnsend(ChatMessage m) async {
@@ -668,7 +718,14 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         ),
       );
     }
-    if (_messages.isEmpty && !typing) {
+    final prefs = _prefs;
+    final visible = [
+      for (final m in _messages)
+        if (prefs.shows(m)) m,
+    ];
+    final nothingOlder = _nothingOlder;
+
+    if (visible.isEmpty && !typing) {
       return Center(
         child: Container(
           margin: const EdgeInsets.all(Gap.xl),
@@ -689,14 +746,14 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       );
     }
 
-    final items = _layout(_messages);
+    final items = _layout(visible, nothingOlder: nothingOlder);
     final thread = _thread;
 
     return ListView.builder(
       controller: _scroll,
       reverse: true,
       padding: const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.md, Gap.md),
-      itemCount: items.length + (_noMoreOlder ? 0 : 1) + (typing ? 1 : 0),
+      itemCount: items.length + (nothingOlder ? 0 : 1) + (typing ? 1 : 0),
       itemBuilder: (context, index) {
         // Index 0 is the bottom of a reversed list, which is where the
         // typing bubble belongs — under the newest message.
@@ -737,7 +794,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           time: s.clock(m.sentAt),
           unsentLabel: mine ? s.youUnsent : s.theyUnsent,
           status: mine && thread != null ? statusOf(m, thread, _me) : null,
-          onLongPress: m.unsent ? null : () => _showActions(m),
+          onLongPress: () => _showActions(m),
         );
       },
     );
@@ -746,7 +803,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   /// Messages, newest first, with a day separator above each day and each
   /// run of messages from one person grouped: only the last message of a run
   /// gets a tail and full spacing, as in every chat app.
-  List<_Item> _layout(List<ChatMessage> messages) {
+  List<_Item> _layout(
+    List<ChatMessage> messages, {
+    required bool nothingOlder,
+  }) {
     final out = <_Item>[];
     for (var i = 0; i < messages.length; i++) {
       final m = messages[i];
@@ -762,7 +822,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
       // In a reversed list, what comes next is drawn above — so the
       // separator goes after the oldest message of each day.
-      if ((older == null && _noMoreOlder) ||
+      if ((older == null && nothingOlder) ||
           (older != null && dayOf(older.sentAt) != dayOf(m.sentAt))) {
         out.add(_Item.day(dayOf(m.sentAt)));
       }
