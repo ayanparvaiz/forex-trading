@@ -141,6 +141,61 @@ void main() {
     );
   });
 
+  group('change password', () {
+    test('the right current password changes it', () async {
+      await signUp(password: 'secret123');
+
+      final result = await auth.changePassword(
+        current: 'secret123',
+        next: 'newsecret9',
+      );
+      expect(result, isA<AuthSuccess>());
+
+      await auth.logOut();
+      expect(
+        await auth.logIn(username: 'rifat', password: 'newsecret9'),
+        isA<AuthSuccess>(),
+      );
+    });
+
+    test('the old password stops working', () async {
+      await signUp(password: 'secret123');
+      await auth.changePassword(current: 'secret123', next: 'newsecret9');
+      await auth.logOut();
+
+      final old = await auth.logIn(username: 'rifat', password: 'secret123');
+      expect((old as AuthFailure).error, AuthError.wrongCredentials);
+    });
+
+    test('a wrong current password changes nothing', () async {
+      // Without this check, anyone holding an unlocked phone could lock its
+      // owner out — and there is no password reset to get back in with.
+      await signUp(password: 'secret123');
+
+      final result = await auth.changePassword(
+        current: 'guess1234',
+        next: 'newsecret9',
+      );
+      expect((result as AuthFailure).error, AuthError.wrongCredentials);
+
+      await auth.logOut();
+      expect(
+        await auth.logIn(username: 'rifat', password: 'secret123'),
+        isA<AuthSuccess>(),
+      );
+    });
+
+    test('a new password must meet the same minimum as sign-up', () async {
+      await signUp(password: 'secret123');
+
+      final result = await auth.changePassword(
+        current: 'secret123',
+        next: 'abc',
+      );
+      expect((result as AuthFailure).error, AuthError.weakPassword);
+    });
+  });
+
   group('usernames', () {
     test('reports availability, and rejects invalid shapes outright', () async {
       expect(await auth.isUsernameAvailable('freename'), isTrue);
