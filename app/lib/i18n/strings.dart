@@ -119,6 +119,16 @@ class Strings {
     'This is what the leaderboard and feed will show.',
   );
 
+  // Split so the two document names can be links inside the sentence.
+  String get agreePrefix => _t(
+    'আমার বয়স ১৮ বা তার বেশি, আর আমি ',
+    'I am 18 or older, and I agree to the ',
+  );
+  String get agreeTerms => _t('শর্তাবলি', 'Terms & Conditions');
+  String get agreeAnd => _t(' ও ', ' and ');
+  String get agreePrivacy => _t('প্রাইভেসি পলিসি', 'Privacy Policy');
+  String get agreeSuffix => _t('তে রাজি।', '.');
+
   String get creatingAccount =>
       _t('অ্যাকাউন্ট তৈরি হচ্ছে…', 'Creating your account…');
 
