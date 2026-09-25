@@ -426,6 +426,23 @@ class Strings {
 
   String get profile => _t('প্রোফাইল', 'Profile');
 
+  // --- Editing your profile ------------------------------------------------
+
+  String get editProfile => _t('প্রোফাইল এডিট', 'Edit profile');
+  String get edit => _t('এডিট', 'Edit');
+  String get displayName => _t('নাম', 'Name');
+  String get usernameFixed =>
+      _t('ইউজারনেম বদলানো যায় না', 'Usernames cannot be changed');
+  String get avatarAnimals => _t('প্রাণী', 'Animals');
+  String get avatarCharacters => _t('ক্যারেক্টার', 'Characters');
+  String get profileSaved => _t('প্রোফাইল সেভ হয়েছে', 'Profile saved');
+  String get couldNotSave => _t(
+    'সেভ হয়নি — ইন্টারনেট দেখে আবার চেষ্টা করুন।',
+    'Not saved — check your connection and try again.',
+  );
+  String get nameTooLong =>
+      _t('নাম ৪০ অক্ষরের মধ্যে রাখুন', 'Keep the name under 40 characters');
+
   // --- Notifications ------------------------------------------------------
 
   String get notifications => _t('নোটিফিকেশন', 'Notifications');
