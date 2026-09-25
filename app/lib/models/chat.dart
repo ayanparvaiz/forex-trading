@@ -46,6 +46,7 @@ class ChatPreview {
     required this.text,
     required this.unsent,
     required this.sentAt,
+    this.senderName,
   });
 
   final String id;
@@ -53,8 +54,65 @@ class ChatPreview {
   final String text;
   final bool unsent;
 
+  /// In a room, who said it — the list shows "Name: text".
+  final String? senderName;
+
   /// When the conversation last moved, which is when this was sent.
   final DateTime sentAt;
+}
+
+/// A room — a conversation for everyone — as the inbox lists it.
+class RoomInfo {
+  const RoomInfo({
+    required this.id,
+    required this.name,
+    required this.memberCount,
+    required this.updatedAt,
+    required this.lastMessage,
+  });
+
+  final String id;
+  final String name;
+  final int memberCount;
+
+  /// When someone last wrote in it.
+  final DateTime updatedAt;
+  final ChatPreview? lastMessage;
+}
+
+/// You, in a room: how far you have read. Absent when you have not joined.
+class RoomMembership {
+  const RoomMembership({required this.joinedAt, required this.readAt});
+
+  final DateTime joinedAt;
+  final DateTime readAt;
+
+  /// Whether anything has been said since you last looked.
+  bool behind(RoomInfo room) => room.updatedAt.isAfter(readAt);
+}
+
+/// Whether the newest message in [room] is worth a banner.
+///
+/// Only for members — joining is what asks for them — and only for a
+/// message that is new since [beforeId], someone else's, still there, and
+/// not in the room you are looking at. Never on the first snapshot, for the
+/// same reason as [newArrivals].
+bool isRoomArrival({
+  required bool first,
+  required String? beforeId,
+  required RoomInfo room,
+  required String me,
+  required bool joined,
+  required String? openChatId,
+}) {
+  final last = room.lastMessage;
+  return !first &&
+      joined &&
+      last != null &&
+      last.id != beforeId &&
+      last.senderUid != me &&
+      !last.unsent &&
+      openChatId != room.id;
 }
 
 /// The message a reply answers: which one, and whose.

@@ -363,6 +363,73 @@ void main() {
     });
   });
 
+  group('the Global room', () {
+    RoomInfo room({
+      String? lastId = 'n2',
+      String from = them,
+      bool unsent = false,
+    }) => RoomInfo(
+      id: 'global',
+      name: 'Global',
+      memberCount: 3,
+      updatedAt: t0,
+      lastMessage: lastId == null
+          ? null
+          : ChatPreview(
+              id: lastId,
+              senderUid: from,
+              text: 'hi all',
+              unsent: unsent,
+              sentAt: t0,
+              senderName: 'Ana',
+            ),
+    );
+
+    bool arrives({
+      bool first = false,
+      String? beforeId = 'n1',
+      RoomInfo? r,
+      bool joined = true,
+      String? openChatId,
+    }) => isRoomArrival(
+      first: first,
+      beforeId: beforeId,
+      room: r ?? room(),
+      me: me,
+      joined: joined,
+      openChatId: openChatId,
+    );
+
+    test('a new message from someone else, to a member, gets a banner', () {
+      expect(arrives(), isTrue);
+    });
+
+    test('not to someone who has not joined', () {
+      expect(arrives(joined: false), isFalse);
+    });
+
+    test('not on opening the app, not twice, not my own, not an unsend', () {
+      expect(arrives(first: true), isFalse);
+      expect(arrives(beforeId: 'n2'), isFalse);
+      expect(arrives(r: room(from: me)), isFalse);
+      expect(arrives(r: room(unsent: true)), isFalse);
+      expect(arrives(r: room(lastId: null)), isFalse);
+    });
+
+    test('not while the room is open', () {
+      expect(arrives(openChatId: 'global'), isFalse);
+    });
+
+    test('behind when someone wrote after I last looked', () {
+      final m = RoomMembership(
+        joinedAt: t0.subtract(const Duration(days: 1)),
+        readAt: t0.subtract(const Duration(minutes: 1)),
+      );
+      expect(m.behind(room()), isTrue);
+      expect(RoomMembership(joinedAt: t0, readAt: t0).behind(room()), isFalse);
+    });
+  });
+
   group('muting', () {
     test('muted until a time, and not after it', () {
       final prefs = ChatPrefs(mutedUntil: t0.add(const Duration(hours: 8)));
