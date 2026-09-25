@@ -21,6 +21,40 @@
       ]
     },
     {
+      "comment": "The live leaderboard: ranked accounts only, discipline first, trade count as the tiebreak.",
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ranked",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "disciplineScore",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "tradeCount",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "comment": "Your position: how many ranked accounts have a higher discipline score than yours.",
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ranked",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "disciplineScore",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "comment": "A trader's open positions.",
       "collectionGroup": "trades",
       "queryScope": "COLLECTION",
