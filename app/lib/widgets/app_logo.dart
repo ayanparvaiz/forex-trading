@@ -113,7 +113,7 @@ class AppLogoLockup extends StatelessWidget {
     super.key,
     this.mark = LogoMark.bubble,
     this.size = 64,
-    this.title = 'Forex Trading',
+    this.title = 'Forex Social',
     this.subtitle,
   });
 

@@ -125,7 +125,7 @@ class _ForexTradingAppState extends State<ForexTradingApp> {
       child: AccountScope(
         store: _store,
         child: MaterialApp(
-          title: 'Forex Trading',
+          title: 'Forex Social',
           debugShowCheckedModeBanner: false,
           theme: buildAppTheme(),
           navigatorKey: _navigator,

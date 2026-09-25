@@ -41,7 +41,7 @@ class Strings {
 
   // --- Auth: shared -------------------------------------------------------
 
-  String get appName => _t('ফরেক্স ট্রেডিং', 'Forex Trading');
+  String get appName => _t('ফরেক্স সোশ্যাল', 'Forex Social');
   String get appTagline => _t(
     'ডেমো টাকায় শিখুন। আসল ঝুঁকি ছাড়া।',
     'Learn on demo money. Without the real risk.',

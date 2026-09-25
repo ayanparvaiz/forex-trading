@@ -103,7 +103,7 @@ class _SplashScreenState extends State<SplashScreen>
                 child: const Column(
                   children: [
                     Text(
-                      'Forex Trading',
+                      'Forex Social',
                       style: TextStyle(
                         fontSize: 21,
                         fontWeight: FontWeight.w800,
