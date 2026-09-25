@@ -104,11 +104,26 @@ class SessionController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Shows the change at once, and takes it back if the write fails.
+  ///
+  /// Waiting for the server before showing a new avatar would make the edit
+  /// feel broken; keeping it after the server refused would show a name that
+  /// nobody else can see. Rethrows so the caller can say it did not save.
   Future<void> updateProfile(UserProfile profile) async {
+    final before = _profile;
+    final languageBefore = _language;
     _profile = profile;
     _language = profile.language;
-    await _auth.updateProfile(profile);
     notifyListeners();
+
+    try {
+      await _auth.updateProfile(profile);
+    } catch (_) {
+      _profile = before;
+      _language = languageBefore;
+      notifyListeners();
+      rethrow;
+    }
   }
 }
 
