@@ -104,6 +104,11 @@ class SessionController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<AuthResult> changePassword({
+    required String current,
+    required String next,
+  }) => _auth.changePassword(current: current, next: next);
+
   /// Shows the change at once, and takes it back if the write fails.
   ///
   /// Waiting for the server before showing a new avatar would make the edit

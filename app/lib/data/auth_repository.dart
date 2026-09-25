@@ -15,6 +15,10 @@ enum AuthError {
   invalidUsername,
   weakPassword,
   nameRequired,
+
+  /// Firebase refuses further attempts for a while after several wrong
+  /// passwords in a row.
+  tooManyAttempts,
   unknown,
 }
 
@@ -76,6 +80,15 @@ abstract class AuthRepository {
   Future<void> logOut();
 
   Future<void> updateProfile(UserProfile profile);
+
+  /// Replaces the signed-in account's password, after checking the current
+  /// one. Asking for the current password is not a formality: without it,
+  /// anyone who picked up an unlocked phone could lock its owner out, and
+  /// with no password reset in this app there would be no way back in.
+  Future<AuthResult> changePassword({
+    required String current,
+    required String next,
+  });
 
   /// Lowercase letters, digits and underscore, 3–20 characters.
   static final usernamePattern = RegExp(r'^[a-z0-9_]{3,20}$');
@@ -238,6 +251,35 @@ class LocalAuthRepository implements AuthRepository {
 
   @override
   Future<void> logOut() async => (await _prefs).remove(_sessionKey);
+
+  @override
+  Future<AuthResult> changePassword({
+    required String current,
+    required String next,
+  }) async {
+    final username = (await _prefs).getString(_sessionKey);
+    final accounts = await _accounts();
+    final account = accounts[username] as Map<String, dynamic>?;
+    if (account == null) return const AuthFailure(AuthError.unknown);
+
+    final salt = base64Decode(account['salt'] as String);
+    if (base64Encode(_derive(current, salt)) != account['hash']) {
+      return const AuthFailure(AuthError.wrongCredentials);
+    }
+    if (next.length < AuthRepository.minPasswordLength) {
+      return const AuthFailure(AuthError.weakPassword);
+    }
+
+    // A new salt with the new password, not the old one reused: a salt
+    // belongs to one password, and reusing it would tie the two together.
+    final fresh = _newSalt();
+    account['salt'] = base64Encode(fresh);
+    account['hash'] = base64Encode(_derive(next, fresh));
+    await _saveAccounts(accounts);
+    return AuthSuccess(
+      UserProfile.fromJson((account['profile'] as Map).cast<String, dynamic>()),
+    );
+  }
 
   @override
   Future<void> updateProfile(UserProfile profile) async {

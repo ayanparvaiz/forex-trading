@@ -205,7 +205,43 @@ class FirebaseAuthRepository implements AuthRepository {
     });
   }
 
+  @override
+  Future<AuthResult> changePassword({
+    required String current,
+    required String next,
+  }) async {
+    final user = _auth.currentUser;
+    final profile = await currentUser();
+    if (user == null || profile == null) {
+      return const AuthFailure(AuthError.unknown);
+    }
+    if (next.length < AuthRepository.minPasswordLength) {
+      return const AuthFailure(AuthError.weakPassword);
+    }
+
+    try {
+      // Firebase asks for a recent sign-in before a password change anyway;
+      // signing in again with the current password is both that and the
+      // proof that the person holding the phone knows it.
+      await user.reauthenticateWithCredential(
+        fb.EmailAuthProvider.credential(
+          email: _emailFor(profile.username),
+          password: current,
+        ),
+      );
+      await user.updatePassword(next);
+      return AuthSuccess(profile);
+    } on fb.FirebaseAuthException catch (error) {
+      debugPrint('password change failed: ${error.code}');
+      return AuthFailure(_mapError(error.code));
+    }
+  }
+
   AuthError _mapError(String code) => switch (code) {
+    'wrong-password' ||
+    'invalid-credential' ||
+    'user-mismatch' => AuthError.wrongCredentials,
+    'too-many-requests' => AuthError.tooManyAttempts,
     'email-already-in-use' ||
     'username-already-in-use' => AuthError.usernameTaken,
     'weak-password' => AuthError.weakPassword,
