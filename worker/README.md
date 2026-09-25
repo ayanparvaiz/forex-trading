@@ -45,6 +45,9 @@ its order are in `src/erase.js`.
   50 outgoing requests. `{"done": false}` means "call again"; each call starts
   from the top and skips what is already gone. The app repeats until
   `{"done": true}`, then deletes the Firebase Auth sign-in itself.
+- In the Global room: the membership goes (and the member count drops by
+  one), every message they wrote goes, and if the room's preview was one of
+  theirs it moves to the newest message left.
 - The username is **retired**, not freed. The claim stays, pointing at nobody,
   so nobody else can register the name.
 - Reports stay, and so do views on other people's posts (reach), which carry

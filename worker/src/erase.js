@@ -2,8 +2,9 @@
 //
 // The list is section 7 of the policy (app/lib/legal/legal_text.dart):
 // profile and username, trades and scores, posts, comments and likes,
-// connections, notifications, profile-view records, and conversations — for
-// both people in them. Reports stay, for moderation.
+// connections, notifications, profile-view records, conversations — for
+// both people in them — and messages in the Global room. Reports stay, for
+// moderation.
 //
 // Much of it is not the account's own to delete under the Firestore rules —
 // a conversation belongs to two people, a like sits on someone else's post —
@@ -20,6 +21,9 @@ const PAGE = 300;
 // Posts and chats are fetched a few at a time: each one costs a further
 // query for what is under it.
 const PARENTS = 25;
+
+// The rooms there are. One, made by hand; see firestore.rules.
+const ROOMS = ['global'];
 
 /** Firestore takes at most 500 writes in one commit. */
 class WriteQueue {
@@ -125,6 +129,47 @@ async function eraseOnOthersPosts(store, writes, uid, { collection, field, count
 }
 
 /**
+ * The rooms: the membership and its place in the count, every message they
+ * wrote, and the room's preview when it showed one of theirs — which then
+ * shows the newest message left, or nothing.
+ */
+async function eraseFromRooms(store, writes, uid) {
+  const previewFields = ['senderUid', 'senderName', 'text', 'unsent'];
+  for (const id of ROOMS) {
+    const room = `rooms/${id}`;
+    const info = await store.get(room, ['lastMessage']);
+    if (!info) continue;
+
+    const member = `${room}/members/${uid}`;
+    if (await store.get(member)) {
+      // Together, so the count can never lose or gain one on a retry.
+      await writes.add({ delete: member }, { increment: room, field: 'memberCount', by: -1 });
+      await writes.flush();
+    }
+
+    await eraseMatching(store, writes, {
+      parent: room,
+      collection: 'messages',
+      field: 'senderUid',
+      value: uid,
+    });
+
+    if (info.lastMessage?.senderUid === uid) {
+      const newest = await store.newest(room, 'messages', 'sentAt', previewFields);
+      const preview = newest && {
+        id: newest.path.split('/').pop(),
+        senderUid: newest.data.senderUid ?? '',
+        senderName: newest.data.senderName ?? '',
+        text: newest.data.text ?? '',
+        unsent: newest.data.unsent === true,
+      };
+      await writes.add({ set: room, field: 'lastMessage', value: preview ?? null });
+      await writes.flush();
+    }
+  }
+}
+
+/**
  * Erases the account [uid] from Firestore. Throws TryAgain when it has to
  * stop early; calling it again continues.
  *
@@ -158,6 +203,7 @@ export async function eraseAccount(store, uid) {
     op: 'array-contains',
     value: uid,
   });
+  await eraseFromRooms(store, writes, uid);
   await eraseMatching(store, writes, {
     collection: 'connections',
     field: 'uids',

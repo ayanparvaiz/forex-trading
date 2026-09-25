@@ -23,12 +23,15 @@ function memoryStore(docs, { budget = Infinity } = {}) {
       spend();
       return docs.has(path) ? pick(docs.get(path), fields) : null;
     },
-    async find({ collection, group = false, field, op = '==', value, limit }) {
+    async find({ parent = '', collection, group = false, field, op = '==', value, limit }) {
       spend();
+      const depth = parent ? parent.split('/').length + 2 : 2;
       return sorted()
         .filter((p) => {
           const parts = p.split('/');
-          return group ? parts.at(-2) === collection : parts.length === 2 && parts[0] === collection;
+          if (group) return parts.at(-2) === collection;
+          if (parent && !p.startsWith(`${parent}/`)) return false;
+          return parts.length === depth && parts.at(-2) === collection;
         })
         .filter((p) => {
           const v = docs.get(p)[field];
@@ -36,6 +39,14 @@ function memoryStore(docs, { budget = Infinity } = {}) {
         })
         .slice(0, limit)
         .map((p) => ({ path: p, data: {} }));
+    },
+    async newest(parent, collection, field) {
+      spend();
+      const depth = parent.split('/').length + 2;
+      const rows = sorted()
+        .filter((p) => p.startsWith(`${parent}/${collection}/`) && p.split('/').length === depth)
+        .sort((a, b) => (docs.get(b)[field] ?? 0) - (docs.get(a)[field] ?? 0));
+      return rows.length ? { path: rows[0], data: { ...docs.get(rows[0]) } } : null;
     },
     async descendants(path, limit) {
       spend();
@@ -58,7 +69,7 @@ function memoryStore(docs, { budget = Infinity } = {}) {
         else if (w.increment) {
           const d = docs.get(w.increment);
           d[w.field] = (d[w.field] ?? 0) + w.by;
-        } else if (w.set) docs.get(w.set)[w.field] = w.value;
+        } else if (w.set) docs.get(w.set)[w.field] = structuredClone(w.value);
         else if (w.replace) docs.set(w.replace, { [w.serverTime]: 'SERVER_TIME' });
       }
     },
@@ -121,6 +132,14 @@ function world() {
 
     'reports/r1': { reporterUid: 'u-ana', targetUid: ME },
     'reports/r2': { reporterUid: ME, targetUid: 'u-bo' },
+
+    // The Global room: both of us joined, and my message is the latest.
+    'rooms/global': { memberCount: 2, lastMessage: { id: 'g3', senderUid: ME, senderName: 'Me', text: 'bye', unsent: false } },
+    'rooms/global/members/u-me': { readAt: 3 },
+    'rooms/global/members/u-ana': { readAt: 3 },
+    'rooms/global/messages/g1': { senderUid: 'u-ana', senderName: 'Ana', text: 'hello', unsent: false, sentAt: 1 },
+    'rooms/global/messages/g2': { senderUid: ME, senderName: 'Me', text: 'hi Ana', unsent: false, sentAt: 2 },
+    'rooms/global/messages/g3': { senderUid: ME, senderName: 'Me', text: 'bye', unsent: false, sentAt: 3 },
   }));
 }
 
@@ -145,6 +164,10 @@ const AFTER = {
   'profileViews/u-bo_u-ana': { viewerUid: 'u-bo', profileUid: 'u-ana' },
   'reports/r1': { reporterUid: 'u-ana', targetUid: ME },
   'reports/r2': { reporterUid: ME, targetUid: 'u-bo' },
+  // Counted out, my messages gone, and the preview back on Ana's.
+  'rooms/global': { memberCount: 1, lastMessage: { id: 'g1', senderUid: 'u-ana', senderName: 'Ana', text: 'hello', unsent: false } },
+  'rooms/global/members/u-ana': { readAt: 3 },
+  'rooms/global/messages/g1': { senderUid: 'u-ana', senderName: 'Ana', text: 'hello', unsent: false, sentAt: 1 },
 };
 
 const snapshot = (docs) => Object.fromEntries([...docs.entries()].sort());
@@ -215,4 +238,27 @@ test('more than one page of trades, and more than one commit', async () => {
   for (let i = 0; i < 1234; i++) docs.set(`users/u-me/trades/x${i}`, {});
   await eraseAccount(memoryStore(docs), ME);
   assert.deepEqual(snapshot(docs), AFTER);
+});
+
+test("a room whose latest is someone else's keeps its preview", async () => {
+  const docs = world();
+  docs.get('rooms/global').lastMessage = { id: 'g1', senderUid: 'u-ana', senderName: 'Ana', text: 'hello', unsent: false };
+  await eraseAccount(memoryStore(docs), ME);
+  assert.equal(docs.get('rooms/global').lastMessage.id, 'g1');
+  assert.equal(docs.get('rooms/global').memberCount, 1);
+});
+
+test('someone who never joined leaves the count alone', async () => {
+  const docs = world();
+  docs.delete('rooms/global/members/u-me');
+  docs.get('rooms/global').memberCount = 1;
+  await eraseAccount(memoryStore(docs), ME);
+  assert.equal(docs.get('rooms/global').memberCount, 1);
+});
+
+test('a room left with no messages at all shows none', async () => {
+  const docs = world();
+  docs.delete('rooms/global/messages/g1');
+  await eraseAccount(memoryStore(docs), ME);
+  assert.equal(docs.get('rooms/global').lastMessage, null);
 });
