@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../data/chat_inbox.dart';
 import '../data/session_controller.dart';
 import '../i18n/strings.dart';
 import '../legal/legal_text.dart';
 import '../theme/app_theme.dart';
 import '../widgets/avatar_image.dart';
+import 'blocked_accounts_screen.dart';
 import 'change_avatar_screen.dart';
 import 'change_password_screen.dart';
 import 'edit_name_screen.dart';
@@ -93,6 +95,24 @@ class SettingsScreen extends StatelessWidget {
                       icon: Icons.translate_rounded,
                       title: s.language,
                       trailing: _LanguageSwitch(s: s),
+                    ),
+                  ],
+                ),
+                Gap.h24,
+                SettingsSection(
+                  title: s.sectionPrivacy,
+                  children: [
+                    SettingsTile(
+                      icon: Icons.block,
+                      title: s.blockedAccounts,
+                      subtitle: switch (InboxScope.of(
+                        context,
+                      )?.blocked.length) {
+                        null || 0 => null,
+                        final n => '$n',
+                      },
+                      onTap: () =>
+                          _push(context, const BlockedAccountsScreen()),
                     ),
                   ],
                 ),
