@@ -3,10 +3,12 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../core/calculations.dart';
+import '../core/leaderboard_stats.dart';
 import '../models/badge.dart';
 import '../models/instrument.dart';
 import '../models/trade.dart';
 import 'mock_market.dart';
+import 'score_sync.dart';
 import 'trade_repository.dart';
 
 /// Everything about the learner's demo account: points, positions, history.
@@ -37,6 +39,7 @@ class AccountStore extends ChangeNotifier {
   Timer? _ticker;
 
   TradeRepository _repository;
+  ScoreSync _scores = const NoScoreSync();
 
   /// True until the stored journal has been read.
   ///
@@ -52,8 +55,13 @@ class AccountStore extends ChangeNotifier {
   /// Called when a session is restored or somebody signs in. Signing in as
   /// somebody else replaces the trades rather than merging them, which is the
   /// only safe answer on a shared phone.
-  Future<void> attach(TradeRepository repository) async {
+  Future<void> attach(
+    TradeRepository repository, {
+    ScoreSync scores = const NoScoreSync(),
+  }) async {
     _repository = repository;
+    _scores.dispose();
+    _scores = scores;
     _trades.clear();
     _loading = true;
     notifyListeners();
@@ -74,6 +82,8 @@ class AccountStore extends ChangeNotifier {
   /// Forgets the signed-in account's trades. Called on log out.
   void detach() {
     _repository = const NoTradeRepository();
+    _scores.dispose();
+    _scores = const NoScoreSync();
     _trades.clear();
     _loading = false;
     notifyListeners();
@@ -85,13 +95,29 @@ class AccountStore extends ChangeNotifier {
   /// the time this runs. Awaiting the write would mean a spinner between
   /// tapping Buy and seeing the position, for a round trip that changes
   /// nothing on screen.
-  void _persist(Trade trade) {
+  ///
+  /// [movesScore] asks the stats worker to recompute afterwards — but only
+  /// once the write has landed. The worker reads the trades from Firestore, so
+  /// asking before the save finishes would compute the score from the journal
+  /// as it was one trade ago.
+  void _persist(Trade trade, {bool movesScore = false}) {
     unawaited(
-      _repository.save(trade).catchError((Object error) {
-        debugPrint('trade ${trade.id} was not saved: $error');
-      }),
+      _repository
+          .save(trade)
+          .then((_) {
+            if (movesScore) _scores.request();
+          })
+          .catchError((Object error) {
+            debugPrint('trade ${trade.id} was not saved: $error');
+          }),
     );
   }
+
+  /// This account's leaderboard numbers, computed here from the same trades
+  /// and the same formula the worker uses — so the row the trader sees for
+  /// themselves is right immediately, before the worker has written it.
+  LeaderboardStats get leaderboardStats =>
+      LeaderboardStats.from(_trades, now: DateTime.now());
 
   /// Points every trader is given at midnight. Not earned, not saved up.
   static const double dailyAllowance = 10000;
@@ -249,7 +275,7 @@ class AccountStore extends ChangeNotifier {
       reason: ExitReason.manual,
       lesson: lesson,
     );
-    _persist(_trades[index]);
+    _persist(_trades[index], movesScore: true);
 
     // Closing a long is a sell, and pushes the other way.
     market.applyPressure(
@@ -287,7 +313,7 @@ class AccountStore extends ChangeNotifier {
       lesson: lesson,
       violations: {...trade.violations}..remove(RuleViolation.noJournal),
     );
-    _persist(_trades[index]);
+    _persist(_trades[index], movesScore: true);
     notifyListeners();
   }
 
@@ -324,14 +350,14 @@ class AccountStore extends ChangeNotifier {
         // Written the moment it fills. This runs off a one-second timer with
         // nobody necessarily looking at the app, and a stop that filled but
         // was never stored would reopen as a live position next launch.
-        _persist(_trades[i]);
+        _persist(_trades[i], movesScore: true);
       } else if (targetHit) {
         _trades[i] = _closeWith(
           trade,
           exit: trade.targetPrice,
           reason: ExitReason.takeProfit,
         );
-        _persist(_trades[i]);
+        _persist(_trades[i], movesScore: true);
       }
     }
   }
