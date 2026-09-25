@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../data/chat_inbox.dart';
 import '../data/chat_repository.dart';
+import '../data/room_repository.dart';
 import '../data/safety_repository.dart';
 import '../data/session_controller.dart';
 import '../models/chat.dart';
@@ -53,6 +54,7 @@ class _InboxHostState extends State<InboxHost> {
       repository: repo,
       uid: uid,
       safety: buildSafetyRepository(),
+      rooms: buildRoomRepository(),
     );
     _inbox = inbox;
     _arrivals = inbox.arrivals.listen(_show);
