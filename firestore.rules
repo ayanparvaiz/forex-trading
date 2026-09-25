@@ -156,13 +156,16 @@ service cloud.firestore {
       // the moment you cleared the whole chat and the messages you removed
       // one by one. Nothing is deleted from the conversation itself — the
       // other person keeps every message — and nobody but you can see what
-      // you have hidden.
+      // you have hidden. Also until when you have muted it: nobody is told
+      // that either.
       match /chatPrefs/{chatId} {
         allow read, delete: if isOwner(uid);
         allow create, update: if isOwner(uid)
-          && request.resource.data.keys().hasOnly(['clearedAt', 'hidden'])
+          && request.resource.data.keys().hasOnly(['clearedAt', 'hidden', 'mutedUntil'])
           && (!('clearedAt' in request.resource.data)
               || request.resource.data.clearedAt is timestamp)
+          && (!('mutedUntil' in request.resource.data)
+              || request.resource.data.mutedUntil is timestamp)
           && (!('hidden' in request.resource.data)
               || (request.resource.data.hidden is list
                   && request.resource.data.hidden.size() <= 5000));
