@@ -110,13 +110,15 @@ const _privacyEn = LegalDocument(
     ]),
     LegalSection('7. Your choices', [
       '• Change your name, avatar and password in Settings.',
-      '• Block people, and report people, posts or messages.',
+      '• Block people, and report people, posts, comments or messages.',
       '• Delete your account in Settings → Delete account. This permanently '
-          'deletes your profile and username, trades and scores, posts, '
-          'comments and likes, connections, notifications, profile-view '
-          'records and your conversations — for both people in them. It '
-          'cannot be undone. Reports you have made may be kept for moderation '
-          'records.',
+          'deletes your profile, trades and scores, posts, comments and likes, '
+          'connections, notifications, profile-view records and your '
+          'conversations — for both people in them. It cannot be undone. Your '
+          'username is retired: it is linked to nothing any more, and nobody, '
+          'you included, can register it again. Reports made by you or about '
+          'you may be kept for moderation records, and views you added to '
+          "other people's posts stay in their view counts.",
     ]),
     LegalSection('8. Age', ['The app is not intended for anyone under 18.']),
     LegalSection('9. Changes', [
@@ -197,12 +199,16 @@ const _privacyBn = LegalDocument(
     ]),
     LegalSection('৭. আপনার হাতে যা আছে', [
       '• সেটিংসে নাম, অ্যাভাটার আর পাসওয়ার্ড বদলাতে পারেন।',
-      '• কাউকে ব্লক করতে পারেন, আর মানুষ, পোস্ট বা মেসেজ রিপোর্ট করতে পারেন।',
+      '• কাউকে ব্লক করতে পারেন, আর মানুষ, পোস্ট, কমেন্ট বা মেসেজ রিপোর্ট করতে '
+          'পারেন।',
       '• সেটিংস → অ্যাকাউন্ট ডিলিট থেকে অ্যাকাউন্ট মুছতে পারেন। এতে আপনার '
-          'প্রোফাইল ও ইউজারনেম, ট্রেড ও স্কোর, পোস্ট, কমেন্ট ও লাইক, '
-          'কানেকশন, নোটিফিকেশন, প্রোফাইল-ভিজিটের রেকর্ড আর আপনার চ্যাটগুলো '
-          '— দুজনের জন্যই — চিরতরে মুছে যায়। এটা আর ফেরানো যায় না। আপনার '
-          'করা রিপোর্ট মডারেশনের রেকর্ড হিসেবে রাখা হতে পারে।',
+          'প্রোফাইল, ট্রেড ও স্কোর, পোস্ট, কমেন্ট ও লাইক, কানেকশন, '
+          'নোটিফিকেশন, প্রোফাইল-ভিজিটের রেকর্ড আর আপনার চ্যাটগুলো — দুজনের '
+          'জন্যই — চিরতরে মুছে যায়। এটা আর ফেরানো যায় না। আপনার ইউজারনেম '
+          'অবসরে যায়: এটা আর কিছুর সাথে যুক্ত থাকে না, আর আপনিসহ কেউ এটা আবার '
+          'নিতে পারে না। আপনার করা বা আপনাকে নিয়ে করা রিপোর্ট মডারেশনের রেকর্ড '
+          'হিসেবে রাখা হতে পারে, আর অন্যের পোস্টে আপনার দেখা ভিউ কাউন্টে থেকে '
+          'যায়।',
     ]),
     LegalSection('৮. বয়স', ['১৮ বছরের কম বয়সীদের জন্য এই অ্যাপ নয়।']),
     LegalSection('৯. পরিবর্তন', [

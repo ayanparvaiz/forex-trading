@@ -55,5 +55,8 @@ void main() {
       AppLanguage.en,
     ).sections.expand((s) => s.lines).join(' ');
     expect(policy, contains('Settings → Delete account'));
+    // What worker/src/erase.js actually does with the name, and keeps.
+    expect(policy, contains('username is retired'));
+    expect(policy, contains('Reports made by you or about you may be kept'));
   });
 }
