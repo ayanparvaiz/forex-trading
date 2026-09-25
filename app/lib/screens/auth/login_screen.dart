@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../data/auth_repository.dart';
 import '../../data/session_controller.dart';
+import '../../legal/legal_text.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_logo.dart';
+import '../legal_screen.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -207,6 +209,33 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ],
                 ),
+              ),
+              Gap.h24,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TextButton(
+                    onPressed: () => openLegal(context, LegalPage.terms),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.textMuted,
+                    ),
+                    child: Text(
+                      termsOfUse(context.session.language).title,
+                      style: const TextStyle(fontSize: 12.5),
+                    ),
+                  ),
+                  const Text('·', style: TextStyle(color: AppColors.textMuted)),
+                  TextButton(
+                    onPressed: () => openLegal(context, LegalPage.privacy),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.textMuted,
+                    ),
+                    child: Text(
+                      privacyPolicy(context.session.language).title,
+                      style: const TextStyle(fontSize: 12.5),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
