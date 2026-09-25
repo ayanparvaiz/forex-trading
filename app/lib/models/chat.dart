@@ -13,6 +13,7 @@ class ChatThread {
     required this.unread,
     required this.readAt,
     required this.deliveredAt,
+    this.typing = const {},
   });
 
   final String id;
@@ -23,6 +24,9 @@ class ChatThread {
   final Map<String, int> unread;
   final Map<String, DateTime> readAt;
   final Map<String, DateTime> deliveredAt;
+
+  /// When each person last touched the message box, while they are typing.
+  final Map<String, DateTime> typing;
 
   String otherUid(String me) => uids.first == me ? uids.last : uids.first;
 
@@ -126,6 +130,26 @@ Presence presenceOf(DateTime? lastActive, DateTime now) {
   return now.difference(lastActive) <= activeNowWindow
       ? Presence.activeNow
       : Presence.recently;
+}
+
+/// How long a typing mark counts for.
+///
+/// The typist refreshes it every few seconds while they type, and removes it
+/// when they send or clear the box. This is the backstop for the case where
+/// they simply stop — put the phone down mid-sentence — so "typing…" does not
+/// stay on forever. Wide enough to survive a refresh arriving a little late.
+const typingWindow = Duration(seconds: 8);
+
+/// How often a typist re-stamps their mark while still typing.
+const typingRefresh = Duration(seconds: 3);
+
+/// Whether [uid] is typing in [thread] right now.
+bool isTyping(ChatThread thread, String uid, DateTime now) {
+  final at = thread.typing[uid];
+  if (at == null) return false;
+  final age = now.difference(at);
+  // A mark slightly in the future is a clock a second ahead, not a bug.
+  return age <= typingWindow && age >= const Duration(seconds: -5);
 }
 
 /// Merges a fresh snapshot of the newest messages into everything loaded.
