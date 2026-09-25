@@ -67,11 +67,17 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   bool _noMoreOlder = false;
 
   /// Null until checked. Sending needs a connection; reading does not.
+  /// Watched, so a block or a disconnect closes the composer at once.
   bool? _connected;
   ChatPartner? _partner;
 
+  /// The other person has blocked me — asked only once the connection is
+  /// gone, since a block always ends it.
+  bool _blockedMe = false;
+
   StreamSubscription<ChatThread?>? _threadSub;
   StreamSubscription<List<ChatMessage>>? _latestSub;
+  StreamSubscription<bool>? _connectedSub;
 
   final _input = TextEditingController();
   final _scroll = ScrollController();
@@ -151,9 +157,23 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         _maybeMarkRead();
       }, onError: (Object e) => debugPrint('messages stream failed: $e'));
 
-      final connected = await repo.isConnected(widget.chatId);
+      _connectedSub = repo.watchConnected(widget.chatId).listen((
+        connected,
+      ) async {
+        final safety = _inbox?.safety;
+        final blockedMe =
+            !connected &&
+            safety != null &&
+            await safety.hasBlockedMe(me: _me, otherUid: widget.otherUid);
+        if (!mounted) return;
+        if (!connected) _clearTyping();
+        setState(() {
+          _connected = connected;
+          _blockedMe = blockedMe;
+        });
+      }, onError: (Object e) => debugPrint('connection watch failed: $e'));
       _partner ??= (await repo.partners([widget.otherUid]))[widget.otherUid];
-      if (mounted) setState(() => _connected = connected);
+      if (mounted) setState(() {});
     } catch (e) {
       debugPrint('open chat failed: $e');
       if (mounted) setState(() => _connected ??= false);
@@ -316,14 +336,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             targetUsername: widget.otherUsername,
           ),
         );
-        return;
     }
-    // A block ends the connection, and an unblock does not restore it; either
-    // way, whether this conversation can send has to be asked again.
-    if (action != 'profile' && mounted) {
-      final connected = await _repo?.isConnected(widget.chatId);
-      if (mounted) setState(() => _connected = connected ?? false);
-    }
+    // Nothing to re-check after a block: it ends the connection, which the
+    // watch in _open picks up. An unblock does not restore it.
   }
 
   void _send() {
@@ -461,6 +476,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     if (_inbox?.openChatId == widget.chatId) _inbox?.openChatId = null;
     _threadSub?.cancel();
     _latestSub?.cancel();
+    _connectedSub?.cancel();
     _clock?.cancel();
     _input.dispose();
     _scroll.dispose();
@@ -628,7 +644,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               onAction: () => _menu('unblock'),
             )
           else if (_connected == false)
-            _NotConnected(text: s.notConnectedToMessage)
+            _NotConnected(
+              text: _blockedMe ? s.cantReplyHere : s.notConnectedToMessage,
+            )
           else
             _Composer(
               controller: _input,
