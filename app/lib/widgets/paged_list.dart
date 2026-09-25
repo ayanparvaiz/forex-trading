@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/page.dart';
+import '../data/session_controller.dart';
 import '../theme/app_theme.dart';
 
 /// A list that loads one page at a time as it is scrolled.
@@ -223,7 +224,7 @@ class _Footer extends StatelessWidget {
           child: TextButton.icon(
             onPressed: onRetry,
             icon: const Icon(Icons.refresh, size: 17),
-            label: const Text('আবার চেষ্টা করুন / Retry'),
+            label: Text(context.s.retry),
             style: TextButton.styleFrom(foregroundColor: AppColors.brand),
           ),
         ),
