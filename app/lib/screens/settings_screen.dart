@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../data/session_controller.dart';
 import '../i18n/strings.dart';
+import '../legal/legal_text.dart';
 import '../theme/app_theme.dart';
 import '../widgets/avatar_image.dart';
 import 'change_avatar_screen.dart';
 import 'change_password_screen.dart';
 import 'edit_name_screen.dart';
+import 'legal_screen.dart';
 
 Future<void> openSettings(BuildContext context) => Navigator.of(
   context,
@@ -91,6 +93,22 @@ class SettingsScreen extends StatelessWidget {
                       icon: Icons.translate_rounded,
                       title: s.language,
                       trailing: _LanguageSwitch(s: s),
+                    ),
+                  ],
+                ),
+                Gap.h24,
+                SettingsSection(
+                  title: s.sectionAbout,
+                  children: [
+                    SettingsTile(
+                      icon: Icons.privacy_tip_outlined,
+                      title: privacyPolicy(session.language).title,
+                      onTap: () => openLegal(context, LegalPage.privacy),
+                    ),
+                    SettingsTile(
+                      icon: Icons.gavel_rounded,
+                      title: termsOfUse(session.language).title,
+                      onTap: () => openLegal(context, LegalPage.terms),
                     ),
                   ],
                 ),
