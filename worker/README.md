@@ -55,6 +55,17 @@ its order are in `src/erase.js`.
 - It needs three collection-group indexes, in `firestore.indexes.json` under
   `fieldOverrides`.
 
+## Reference rates
+
+```
+GET /rates
+```
+
+The day's ECB reference rates for EUR/USD, GBP/USD and USD/JPY, from
+frankfurter.dev (free, no key). No token needed; the answer is cached at the
+edge for an hour. The practice market on the phone starts from these and
+moves on its own — they are not live prices, and the app says so.
+
 ## Push notifications
 
 ```

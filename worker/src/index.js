@@ -20,6 +20,9 @@
 // POST /delete-account erases the caller's account from Firestore (erase.js).
 // Same rule: the uid comes from the token, never from the request.
 //
+// GET /rates gives the day's reference rates the practice market starts
+// from (rates.js). Public data, so no token, and cached at the edge.
+//
 // POST /notify announces something the caller just did — a message, a
 // connection request, a post — to the phones of the people it concerns,
 // once it has checked that it happened (notify.js). And every morning a
@@ -31,6 +34,7 @@ import { TryAgain, listTrades, restStore, statsUpdatedAt, writeStats } from './f
 import { eraseAccount } from './erase.js';
 import { sendPush } from './fcm.js';
 import { dailyReminder, forgetOldAnnouncements, notify } from './notify.js';
+import { referenceRates } from './rates.js';
 
 // How often one account may trigger a recompute.
 //
@@ -65,6 +69,31 @@ function bearer(request) {
   return header.startsWith('Bearer ') ? header.slice(7).trim() : null;
 }
 
+// How long one fetch of the reference rates is served. They change once a
+// working day; an hour keeps the source unbothered and the app current.
+const RATES_CACHE_S = 3600;
+
+/** The day's reference rates, from the edge cache when it has them. */
+async function rates(ctx) {
+  const cache = caches.default;
+  const key = new Request('https://rates.invalid/v1');
+  const hit = await cache.match(key);
+  if (hit) return hit;
+  try {
+    const response = new Response(JSON.stringify(await referenceRates()), {
+      headers: {
+        'content-type': 'application/json',
+        'cache-control': `public, max-age=${RATES_CACHE_S}`,
+      },
+    });
+    ctx.waitUntil(cache.put(key, response.clone()));
+    return response;
+  } catch (error) {
+    console.error('rates failed:', error);
+    return json({ error: 'rates unavailable' }, 502);
+  }
+}
+
 const routes = {
   '/recompute': (claims, env) => recompute(claims.sub, env),
   '/delete-account': deleteAccount,
@@ -72,10 +101,11 @@ const routes = {
 };
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
     if (url.pathname === '/health') return json({ ok: true });
+    if (url.pathname === '/rates' && request.method === 'GET') return rates(ctx);
     const route = routes[url.pathname];
     if (!route) return json({ error: 'not found' }, 404);
     if (request.method !== 'POST') return json({ error: 'method not allowed' }, 405);
