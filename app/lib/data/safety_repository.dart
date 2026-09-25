@@ -16,6 +16,77 @@ class BlockedAccount {
   final DateTime blockedAt;
 }
 
+/// What is being reported.
+enum ReportKind { user, message, post, comment }
+
+/// Why. The same list the rules accept.
+enum ReportReason {
+  spam,
+  harassment,
+  hate,
+  sexual,
+  violence,
+  scam,
+  impersonation,
+  other,
+}
+
+/// The thing a report is about, with the evidence the rules check.
+///
+/// [quote] is the reported text exactly as stored — the rules compare it
+/// against the real message, post or comment, so a report can only ever
+/// quote what was actually said.
+class ReportTarget {
+  const ReportTarget.user({
+    required this.targetUid,
+    required this.targetUsername,
+  }) : kind = ReportKind.user,
+       quote = null,
+       chatId = null,
+       messageId = null,
+       postId = null,
+       commentId = null;
+
+  const ReportTarget.message({
+    required this.targetUid,
+    required this.targetUsername,
+    required String this.chatId,
+    required String this.messageId,
+    required String this.quote,
+  }) : kind = ReportKind.message,
+       postId = null,
+       commentId = null;
+
+  const ReportTarget.post({
+    required this.targetUid,
+    required this.targetUsername,
+    required String this.postId,
+    required String this.quote,
+  }) : kind = ReportKind.post,
+       chatId = null,
+       messageId = null,
+       commentId = null;
+
+  const ReportTarget.comment({
+    required this.targetUid,
+    required this.targetUsername,
+    required String this.postId,
+    required String this.commentId,
+    required String this.quote,
+  }) : kind = ReportKind.comment,
+       chatId = null,
+       messageId = null;
+
+  final ReportKind kind;
+  final String targetUid;
+  final String targetUsername;
+  final String? quote;
+  final String? chatId;
+  final String? messageId;
+  final String? postId;
+  final String? commentId;
+}
+
 /// Blocking and reporting — the tools for keeping the community civil.
 ///
 /// Firestore only, like messaging: both only mean anything on a shared
@@ -80,6 +151,31 @@ class SafetyRepository {
   /// a fresh request, from whichever of you wants to.
   Future<void> unblock(String me, String otherUid) =>
       _blocks(me).doc(otherUid).delete();
+
+  /// Files a report. It cannot be read back — not by you, and not by the
+  /// person it is about; it goes to whoever moderates the app.
+  Future<void> report({
+    required String me,
+    required ReportTarget target,
+    required ReportReason reason,
+    String note = '',
+  }) {
+    return _db.collection('reports').add({
+      'reporterUid': me,
+      'kind': target.kind.name,
+      'targetUid': target.targetUid,
+      'targetUsername': target.targetUsername,
+      'reason': reason.name,
+      'note': note.trim(),
+      'quote': ?target.quote,
+      'chatId': ?target.chatId,
+      'messageId': ?target.messageId,
+      'postId': ?target.postId,
+      'commentId': ?target.commentId,
+      'createdAt': FieldValue.serverTimestamp(),
+      'status': 'open',
+    });
+  }
 }
 
 SafetyRepository? buildSafetyRepository() =>
