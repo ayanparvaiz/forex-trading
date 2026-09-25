@@ -181,36 +181,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ],
               ),
               Gap.h16,
-              // Said up front rather than discovered at the worst moment.
-              Container(
-                padding: const EdgeInsets.all(Gap.md),
-                decoration: BoxDecoration(
-                  color: AppColors.elevated,
-                  borderRadius: Radii.tile,
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(
-                      Icons.info_outline,
-                      size: 16,
-                      color: AppColors.textMuted,
-                    ),
-                    Gap.w8,
-                    Expanded(
-                      child: Text(
-                        s.noPasswordReset,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          height: 1.5,
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Gap.h24,
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
