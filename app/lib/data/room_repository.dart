@@ -92,6 +92,7 @@ class RoomRepository {
     required String text,
     ReplyRef? replyTo,
     bool forwarded = false,
+    MessageAttachment? attachment,
   }) {
     final message = _messages(roomId).doc();
     final batch = _db.batch()
@@ -105,6 +106,7 @@ class RoomRepository {
         if (replyTo != null)
           'replyTo': {'id': replyTo.id, 'senderUid': replyTo.senderUid},
         if (forwarded) 'forwarded': true,
+        'attachment': ?attachment?.toJson(),
       })
       ..update(_room(roomId), {
         'lastMessage': {
@@ -113,6 +115,7 @@ class RoomRepository {
           'senderName': name,
           'text': text,
           'unsent': false,
+          'attachmentType': ?attachment?.type,
         },
         'updatedAt': FieldValue.serverTimestamp(),
       })
@@ -127,7 +130,12 @@ class RoomRepository {
     required bool isLatest,
   }) {
     final batch = _db.batch()
-      ..update(_messages(roomId).doc(message.id), {'text': '', 'unsent': true});
+      ..update(_messages(roomId).doc(message.id), {
+        'text': '',
+        'unsent': true,
+        // Anything shared with it goes too.
+        'attachment': FieldValue.delete(),
+      });
     if (isLatest) {
       batch.update(_room(roomId), {
         'lastMessage': {
@@ -174,6 +182,7 @@ class RoomRepository {
               text: last['text'] as String? ?? '',
               unsent: last['unsent'] as bool? ?? false,
               sentAt: updatedAt,
+              attachmentType: last['attachmentType'] as String?,
             )
           : null,
     );

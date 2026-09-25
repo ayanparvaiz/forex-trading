@@ -212,6 +212,7 @@ class ChatRepository {
     required String text,
     ReplyRef? replyTo,
     bool forwarded = false,
+    MessageAttachment? attachment,
   }) {
     final message = _messages(chatId).doc();
     final batch = _db.batch()
@@ -223,6 +224,7 @@ class ChatRepository {
         if (replyTo != null)
           'replyTo': {'id': replyTo.id, 'senderUid': replyTo.senderUid},
         if (forwarded) 'forwarded': true,
+        'attachment': ?attachment?.toJson(),
       })
       ..update(_chats.doc(chatId), {
         'lastMessage': {
@@ -230,6 +232,7 @@ class ChatRepository {
           'senderUid': me,
           'text': text,
           'unsent': false,
+          'attachmentType': ?attachment?.type,
         },
         'updatedAt': FieldValue.serverTimestamp(),
         FieldPath(['unread', other]): FieldValue.increment(1),
@@ -264,7 +267,12 @@ class ChatRepository {
     required bool isLatest,
   }) {
     final batch = _db.batch()
-      ..update(_messages(chatId).doc(messageId), {'text': '', 'unsent': true});
+      ..update(_messages(chatId).doc(messageId), {
+        'text': '',
+        'unsent': true,
+        // Anything shared with it goes too.
+        'attachment': FieldValue.delete(),
+      });
     if (isLatest) {
       batch.update(_chats.doc(chatId), {
         'lastMessage': {
@@ -441,6 +449,7 @@ class ChatRepository {
               text: last['text'] as String? ?? '',
               unsent: last['unsent'] as bool? ?? false,
               sentAt: updatedAt,
+              attachmentType: last['attachmentType'] as String?,
             )
           : null,
       unread: {
@@ -490,6 +499,7 @@ ChatMessage messageFromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     forwarded: data['forwarded'] == true,
     senderName: data['senderName'] as String?,
     senderUsername: data['senderUsername'] as String?,
+    attachment: MessageAttachment.fromJson(data['attachment']),
     cursor: doc,
   );
 }
