@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/chat_inbox.dart';
+import '../data/push.dart';
 import '../data/session_controller.dart';
 import '../i18n/strings.dart';
 import '../legal/legal_text.dart';
@@ -99,6 +100,13 @@ class SettingsScreen extends StatelessWidget {
                     ),
                   ],
                 ),
+                if (pushService != null) ...[
+                  Gap.h24,
+                  SettingsSection(
+                    title: s.notifications,
+                    children: const [_PushTile()],
+                  ),
+                ],
                 Gap.h24,
                 SettingsSection(
                   title: s.sectionPrivacy,
@@ -308,6 +316,73 @@ class SettingsTile extends StatelessWidget {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Push notifications on this phone, on or off.
+class _PushTile extends StatefulWidget {
+  const _PushTile();
+
+  @override
+  State<_PushTile> createState() => _PushTileState();
+}
+
+class _PushTileState extends State<_PushTile> {
+  bool? _on;
+  bool _busy = false;
+  bool _started = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    final uid = context.session.uid;
+    if (uid == null) return;
+    pushService?.preference(uid).then((on) {
+      if (mounted) setState(() => _on = on ?? false);
+    });
+  }
+
+  Future<void> _toggle(bool on) async {
+    final push = pushService;
+    final session = context.session;
+    final uid = session.uid;
+    if (push == null || uid == null) return;
+    final s = context.s;
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _busy = true);
+    try {
+      if (on) {
+        final allowed = await push.enable(uid, session.language.code);
+        // Once a phone has said no, only its own Settings can say yes.
+        if (!allowed) {
+          messenger.showSnackBar(SnackBar(content: Text(s.pushBlockedByPhone)));
+        }
+        if (mounted) setState(() => _on = allowed);
+      } else {
+        await push.disable(uid);
+        if (mounted) setState(() => _on = false);
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.s;
+    return SettingsTile(
+      icon: Icons.notifications_active_outlined,
+      title: s.pushNotifications,
+      subtitle: s.pushNotificationsHint,
+      trailing: Switch(
+        value: _on ?? false,
+        onChanged: _busy || _on == null ? null : _toggle,
+        activeThumbColor: Colors.white,
+        activeTrackColor: AppColors.brand,
       ),
     );
   }

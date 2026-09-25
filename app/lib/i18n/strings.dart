@@ -842,6 +842,17 @@ class Strings {
         'password reset.',
   );
 
+  String get pushNotifications => _t('পুশ নোটিফিকেশন', 'Push notifications');
+  String get pushNotificationsHint => _t(
+    'মেসেজ, কানেকশন, পোস্ট, প্রতিদিনের পয়েন্ট',
+    'Messages, connections, posts, daily points',
+  );
+  String get pushBlockedByPhone => _t(
+    'ফোনের সেটিংসে এই অ্যাপের নোটিফিকেশন চালু করুন, তারপর আবার চেষ্টা করুন।',
+    "Allow notifications for this app in your phone's Settings, then try "
+        'again.',
+  );
+
   // --- Editing your profile ------------------------------------------------
 
   String get avatar => _t('অ্যাভাটার', 'Avatar');
