@@ -15,6 +15,7 @@ import '../models/post_comment.dart';
 import '../models/trader.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
+import '../widgets/medal_pill.dart';
 import '../widgets/paged_list.dart';
 import 'post_comments_sheet.dart';
 import 'post_composer_sheet.dart';
@@ -745,28 +746,34 @@ class _LeaderboardRow extends StatelessWidget {
                 ],
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  trader.disciplineScore.toStringAsFixed(0),
-                  style: TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800,
-                    height: 1.1,
-                    fontFeatures: tabularFigures,
-                    color: _scoreColor,
+            if (rank <= 3)
+              MedalPill(
+                place: rank,
+                label: trader.disciplineScore.toStringAsFixed(0),
+              )
+            else
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    trader.disciplineScore.toStringAsFixed(0),
+                    style: TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w800,
+                      height: 1.1,
+                      fontFeatures: tabularFigures,
+                      color: _scoreColor,
+                    ),
                   ),
-                ),
-                Text(
-                  s.gradeFor(trader.disciplineScore),
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: AppColors.textMuted,
+                  Text(
+                    s.gradeFor(trader.disciplineScore),
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: AppColors.textMuted,
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
           ],
         ),
       ),
