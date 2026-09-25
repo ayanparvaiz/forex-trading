@@ -430,6 +430,29 @@ void main() {
     });
   });
 
+  group('shared posts and ranks', () {
+    test('a shared post survives the round trip', () {
+      const post = SharedPost(postId: 'p1', authorUid: 'u9');
+      final back = MessageAttachment.fromJson(post.toJson());
+      expect(back, isA<SharedPost>());
+      expect((back! as SharedPost).postId, 'p1');
+      expect((back as SharedPost).authorUid, 'u9');
+    });
+
+    test('a shared rank survives the round trip', () {
+      const rank = SharedRank(rank: 4, score: 92.5);
+      final back = MessageAttachment.fromJson(rank.toJson())! as SharedRank;
+      expect(back.rank, 4);
+      expect(back.score, 92.5);
+    });
+
+    test('anything else is nothing', () {
+      expect(MessageAttachment.fromJson(null), isNull);
+      expect(MessageAttachment.fromJson({'type': 'video'}), isNull);
+      expect(MessageAttachment.fromJson({'type': 'post'}), isNull);
+    });
+  });
+
   group('muting', () {
     test('muted until a time, and not after it', () {
       final prefs = ChatPrefs(mutedUntil: t0.add(const Duration(hours: 8)));

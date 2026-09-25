@@ -47,6 +47,7 @@ class ChatPreview {
     required this.unsent,
     required this.sentAt,
     this.senderName,
+    this.attachmentType,
   });
 
   final String id;
@@ -56,6 +57,9 @@ class ChatPreview {
 
   /// In a room, who said it — the list shows "Name: text".
   final String? senderName;
+
+  /// What was shared with it, if anything: "post" or "rank".
+  final String? attachmentType;
 
   /// When the conversation last moved, which is when this was sent.
   final DateTime sentAt;
@@ -115,6 +119,64 @@ bool isRoomArrival({
       openChatId != room.id;
 }
 
+/// Something shared into a conversation, beside the words or instead of them.
+sealed class MessageAttachment {
+  const MessageAttachment();
+
+  /// How it is stored and named in a preview: "post" or "rank".
+  String get type;
+
+  Map<String, Object> toJson();
+
+  static MessageAttachment? fromJson(Object? json) {
+    if (json is! Map) return null;
+    return switch (json['type']) {
+      'post' when json['postId'] is String => SharedPost(
+        postId: json['postId'] as String,
+        authorUid: json['authorUid'] as String? ?? '',
+      ),
+      'rank' when json['rank'] is num => SharedRank(
+        rank: (json['rank'] as num).toInt(),
+        score: (json['score'] as num?)?.toDouble() ?? 0,
+      ),
+      _ => null,
+    };
+  }
+}
+
+/// A feed post. Only which one: the card shows the post as it is now, and
+/// says so when it has been deleted.
+class SharedPost extends MessageAttachment {
+  const SharedPost({required this.postId, required this.authorUid});
+
+  final String postId;
+  final String authorUid;
+
+  @override
+  String get type => 'post';
+
+  @override
+  Map<String, Object> toJson() => {
+    'type': type,
+    'postId': postId,
+    'authorUid': authorUid,
+  };
+}
+
+/// Where the sender stood on the leaderboard when they shared it.
+class SharedRank extends MessageAttachment {
+  const SharedRank({required this.rank, required this.score});
+
+  final int rank;
+  final double score;
+
+  @override
+  String get type => 'rank';
+
+  @override
+  Map<String, Object> toJson() => {'type': type, 'rank': rank, 'score': score};
+}
+
 /// The message a reply answers: which one, and whose.
 ///
 /// No copy of its text — the original is looked up and shown as it is now,
@@ -138,6 +200,7 @@ class ChatMessage {
     this.forwarded = false,
     this.senderName,
     this.senderUsername,
+    this.attachment,
     this.cursor,
   });
 
@@ -158,6 +221,9 @@ class ChatMessage {
   /// where the screen already knows both.
   final String? senderName;
   final String? senderUsername;
+
+  /// A post or a rank shared with it.
+  final MessageAttachment? attachment;
 
   /// Written on this phone but not yet confirmed by the server.
   final bool pending;
