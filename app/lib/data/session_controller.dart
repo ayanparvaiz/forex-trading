@@ -111,6 +111,18 @@ class SessionController extends ChangeNotifier {
     required String next,
   }) => _auth.changePassword(current: current, next: next);
 
+  /// Deletes the account for good. Null on success, and then nobody is
+  /// signed in — the app falls back to the login screen.
+  Future<AuthError?> deleteAccount({required String password}) async {
+    final error = await _auth.deleteAccount(password: password);
+    if (error == null) {
+      _profile = null;
+      _uid = null;
+      notifyListeners();
+    }
+    return error;
+  }
+
   /// Shows the change at once, and takes it back if the write fails.
   ///
   /// Waiting for the server before showing a new avatar would make the edit

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forex_trading/data/auth_repository.dart';
+import 'package:forex_trading/data/trade_repository.dart';
 import 'package:forex_trading/i18n/strings.dart';
 import 'package:forex_trading/models/user_profile.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -193,6 +194,51 @@ void main() {
         next: 'abc',
       );
       expect((result as AuthFailure).error, AuthError.weakPassword);
+    });
+  });
+
+  group('delete account', () {
+    test('the right password deletes it and signs out', () async {
+      await signUp(password: 'secret123');
+      await prefs.setString(LocalTradeRepository.keyFor('rifat'), '{}');
+
+      expect(await auth.deleteAccount(password: 'secret123'), isNull);
+
+      expect(await auth.currentUser(), isNull);
+      expect(await auth.currentUid(), isNull);
+      expect(prefs.getString(LocalTradeRepository.keyFor('rifat')), isNull);
+      final login = await auth.logIn(username: 'rifat', password: 'secret123');
+      expect((login as AuthFailure).error, AuthError.wrongCredentials);
+    });
+
+    test('a wrong password deletes nothing', () async {
+      await signUp(password: 'secret123');
+
+      expect(
+        await auth.deleteAccount(password: 'guess1234'),
+        AuthError.wrongCredentials,
+      );
+      expect((await auth.currentUser())?.username, 'rifat');
+    });
+
+    test("only the signed-in account, never anyone else's", () async {
+      await signUp(username: 'mim', password: 'mimsecret1', name: 'Mim');
+      await auth.logOut();
+      await signUp(password: 'secret123');
+
+      await auth.deleteAccount(password: 'secret123');
+
+      expect(
+        await auth.logIn(username: 'mim', password: 'mimsecret1'),
+        isA<AuthSuccess>(),
+      );
+    });
+
+    test('with nobody signed in there is nothing to delete', () async {
+      expect(
+        await auth.deleteAccount(password: 'secret123'),
+        AuthError.unknown,
+      );
     });
   });
 

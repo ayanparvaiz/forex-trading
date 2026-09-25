@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../i18n/strings.dart';
 import '../models/user_profile.dart';
+import 'account_eraser.dart';
 import 'auth_repository.dart';
 import 'username_suggestions.dart';
 
@@ -15,12 +16,17 @@ import 'username_suggestions.dart';
 /// field. The username itself is the identity, and Firestore enforces that it
 /// is unique.
 class FirebaseAuthRepository implements AuthRepository {
-  FirebaseAuthRepository({fb.FirebaseAuth? auth, FirebaseFirestore? firestore})
-    : _auth = auth ?? fb.FirebaseAuth.instance,
-      _db = firestore ?? FirebaseFirestore.instance;
+  FirebaseAuthRepository({
+    fb.FirebaseAuth? auth,
+    FirebaseFirestore? firestore,
+    AccountEraser Function()? eraser,
+  }) : _auth = auth ?? fb.FirebaseAuth.instance,
+       _db = firestore ?? FirebaseFirestore.instance,
+       _newEraser = eraser ?? AccountEraser.new;
 
   final fb.FirebaseAuth _auth;
   final FirebaseFirestore _db;
+  final AccountEraser Function() _newEraser;
 
   /// Domain for the synthetic addresses. Not a real mail domain, and never
   /// resolved — using a domain nobody owns would risk it becoming real later.
@@ -241,6 +247,42 @@ class FirebaseAuthRepository implements AuthRepository {
     } on fb.FirebaseAuthException catch (error) {
       debugPrint('password change failed: ${error.code}');
       return AuthFailure(_mapError(error.code));
+    }
+  }
+
+  @override
+  Future<AuthError?> deleteAccount({required String password}) async {
+    final user = _auth.currentUser;
+    // The address on the sign-in itself, not one rebuilt from the profile: if
+    // an earlier attempt got as far as erasing the profile, this is the only
+    // place the username is left.
+    final email = user?.email;
+    if (user == null || email == null) return AuthError.unknown;
+
+    final eraser = _newEraser();
+    try {
+      await user.reauthenticateWithCredential(
+        fb.EmailAuthProvider.credential(email: email, password: password),
+      );
+      // Forced, so the token carries the sign-in that just happened. The
+      // worker refuses one from an older sign-in.
+      final token = await user.getIdToken(true);
+      if (token == null) return AuthError.unknown;
+
+      await eraser.erase(token);
+      // The sign-in goes last, and deleting it also signs out. Deleted any
+      // earlier, a failure part-way would leave data nobody could ask to
+      // have erased.
+      await user.delete();
+      return null;
+    } on fb.FirebaseAuthException catch (error) {
+      debugPrint('delete account failed: ${error.code}');
+      return _mapError(error.code);
+    } on AccountEraseFailed catch (error) {
+      debugPrint('delete account failed: $error');
+      return AuthError.unknown;
+    } finally {
+      eraser.close();
     }
   }
 

@@ -49,7 +49,10 @@ class LocalTradeRepository implements TradeRepository {
   final SharedPreferences? _injected;
   SharedPreferences? _cached;
 
-  String get _key => 'trades.$uid';
+  /// Where [uid]'s journal is kept. Deleting a local account clears it.
+  static String keyFor(String uid) => 'trades.$uid';
+
+  String get _key => keyFor(uid);
 
   Future<SharedPreferences> get _prefs async =>
       _injected ?? (_cached ??= await SharedPreferences.getInstance());

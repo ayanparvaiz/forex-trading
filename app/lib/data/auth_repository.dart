@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../i18n/strings.dart';
 import '../models/user_profile.dart';
+import 'trade_repository.dart';
 import 'username_suggestions.dart';
 
 /// Why a sign-up or log-in did not go through.
@@ -94,6 +95,13 @@ abstract class AuthRepository {
     required String current,
     required String next,
   });
+
+  /// Deletes the signed-in account for good, after checking its password.
+  /// Returns null once it is gone and nobody is signed in.
+  ///
+  /// The password again, even though the person is signed in: this cannot be
+  /// undone, and a phone left unlocked should not be enough to do it.
+  Future<AuthError?> deleteAccount({required String password});
 
   /// Lowercase letters, digits and underscore, 3–20 characters.
   static final usernamePattern = RegExp(r'^[a-z0-9_]{3,20}$');
@@ -285,6 +293,27 @@ class LocalAuthRepository implements AuthRepository {
     return AuthSuccess(
       UserProfile.fromJson((account['profile'] as Map).cast<String, dynamic>()),
     );
+  }
+
+  @override
+  Future<AuthError?> deleteAccount({required String password}) async {
+    final prefs = await _prefs;
+    final username = prefs.getString(_sessionKey);
+    final accounts = await _accounts();
+    final account = accounts[username] as Map<String, dynamic>?;
+    if (username == null || account == null) return AuthError.unknown;
+
+    final salt = base64Decode(account['salt'] as String);
+    if (base64Encode(_derive(password, salt)) != account['hash']) {
+      return AuthError.wrongCredentials;
+    }
+
+    accounts.remove(username);
+    await _saveAccounts(accounts);
+    // On this device the account id is the username.
+    await prefs.remove(LocalTradeRepository.keyFor(username));
+    await prefs.remove(_sessionKey);
+    return null;
   }
 
   @override
