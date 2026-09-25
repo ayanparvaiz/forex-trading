@@ -19,11 +19,18 @@
 //
 // POST /delete-account erases the caller's account from Firestore (erase.js).
 // Same rule: the uid comes from the token, never from the request.
+//
+// POST /notify announces something the caller just did — a message, a
+// connection request, a post — to the phones of the people it concerns,
+// once it has checked that it happened (notify.js). And every morning a
+// cron trigger reminds everyone that the day's points are in.
 
 import { MIN_RANKED_TRADES, leaderboardStats } from './stats.js';
 import { serviceAccountToken, signedInRecently, verifyIdTokenClaims } from './google.js';
 import { TryAgain, listTrades, restStore, statsUpdatedAt, writeStats } from './firestore.js';
 import { eraseAccount } from './erase.js';
+import { sendPush } from './fcm.js';
+import { dailyReminder, forgetOldAnnouncements, notify } from './notify.js';
 
 // How often one account may trigger a recompute.
 //
@@ -43,6 +50,10 @@ const FRESH_SIGN_IN_S = 5 * 60;
 // account with more than this can take is finished over several requests.
 const ERASE_BUDGET = 40;
 
+// Firestore calls per /notify request. With the pushes themselves (at most
+// MAX_PUSHES in notify.js) and the token checks, inside the free plan's 50.
+const NOTIFY_BUDGET = 18;
+
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -57,6 +68,7 @@ function bearer(request) {
 const routes = {
   '/recompute': (claims, env) => recompute(claims.sub, env),
   '/delete-account': deleteAccount,
+  '/notify': notifyRoute,
 };
 
 export default {
@@ -81,9 +93,41 @@ export default {
       return json({ error: 'sign in first' }, 401);
     }
 
-    return route(claims, env);
+    return route(claims, env, request);
+  },
+
+  // Every morning (wrangler.toml): the day's points are in; and what was
+  // announced days ago no longer needs remembering.
+  async scheduled(_event, env, ctx) {
+    ctx.waitUntil(
+      (async () => {
+        const token = await serviceAccountToken(env);
+        await dailyReminder((m) => sendPush(env.FIREBASE_PROJECT_ID, token, m));
+        await forgetOldAnnouncements(restStore(env.FIREBASE_PROJECT_ID, token, { budget: 5 }));
+      })().catch((e) => console.error('morning job failed:', e)),
+    );
   },
 };
+
+/** Announces what the caller says they just did, once it checks out. */
+async function notifyRoute(claims, env, request) {
+  let event;
+  try {
+    event = await request.json();
+  } catch {
+    return json({ error: 'bad request' }, 400);
+  }
+  try {
+    const token = await serviceAccountToken(env);
+    const store = restStore(env.FIREBASE_PROJECT_ID, token, { budget: NOTIFY_BUDGET });
+    const push = (message) => sendPush(env.FIREBASE_PROJECT_ID, token, message);
+    return json(await notify(store, push, claims.sub, event));
+  } catch (error) {
+    if (error instanceof TryAgain) return json({ sent: 0, skipped: 'busy' });
+    console.error('notify failed for', claims.sub, error);
+    return json({ error: 'could not notify' }, 500);
+  }
+}
 
 /**
  * Erases the caller's account, or as much of it as one request can.

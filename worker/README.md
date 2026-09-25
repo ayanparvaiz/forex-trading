@@ -55,6 +55,33 @@ its order are in `src/erase.js`.
 - It needs three collection-group indexes, in `firestore.indexes.json` under
   `fieldOverrides`.
 
+## Push notifications
+
+```
+POST /notify
+Authorization: Bearer <Firebase ID token>
+{"type": "message", "chatId": "...", "messageId": "..."}
+```
+
+The app calls this right after it does something: sends a message (`message`,
+or `room` for the Global room), asks someone to connect (`connectionRequest`),
+accepts (`connectionAccepted`), or posts (`post`). `src/notify.js` checks it
+really happened — by the caller, in the last ten minutes — and that it has not
+been announced before (`pushLog/`), then sends through FCM to the phones in
+`users/{uid}/devices`. Nobody who blocked the sender is told, nor anyone who
+muted the conversation. A phone with notifications off has no entry.
+
+Every morning at 09:00 Dhaka a cron trigger sends "today's points are here" to
+the `daily_bn` and `daily_en` topics, and forgets announcements older than
+three days.
+
+At most 25 pushes per request, to stay inside the free plan's 50 outgoing
+requests. A Global room or a following bigger than that needs FCM topics or
+a paid plan.
+
+The service account needs `roles/firebasecloudmessaging.admin` as well as
+`roles/datastore.user`.
+
 ## The formula exists twice
 
 `src/stats.js` mirrors `app/lib/core/leaderboard_stats.dart`. Both are tested

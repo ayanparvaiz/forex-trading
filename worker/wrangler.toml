@@ -11,3 +11,8 @@ FIREBASE_PROJECT_ID = "forex-9f21b"
 #   npx wrangler secret put FIREBASE_PRIVATE_KEY
 # They belong to a service account that can read and write Firestore and
 # nothing else. They are never committed.
+
+# 03:00 UTC is 09:00 in Dhaka: the morning reminder that today's points are
+# in (the allowance itself resets at midnight on each phone).
+[triggers]
+crons = ["0 3 * * *"]
