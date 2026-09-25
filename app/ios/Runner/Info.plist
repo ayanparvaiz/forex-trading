@@ -68,5 +68,10 @@
 		</array>
 		<key>UIStatusBarHidden</key>
 		<false/>
+		<!-- Lets a push notification reach the app while it is in the background. -->
+		<key>UIBackgroundModes</key>
+		<array>
+			<string>remote-notification</string>
+		</array>
 	</dict>
 </plist>
