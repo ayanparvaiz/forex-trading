@@ -546,6 +546,51 @@ service cloud.firestore {
       }
     }
 
+    // --- Reports ------------------------------------------------------------
+    //
+    // Write-only for everyone. A report is read by the people who moderate
+    // the app, in the console — never by the person it is about, and not
+    // even by the person who filed it, so a report cannot be used to find
+    // out anything.
+    //
+    // Evidence has to be real. A report about a message must come from
+    // someone in that conversation and quote the message exactly as it is
+    // stored; a report about a post must quote the post. Nobody can file a
+    // report with words put in someone else's mouth.
+    function reportEvidenceOk(r) {
+      return (r.kind == 'user')
+        || (r.kind == 'message'
+            && request.auth.uid in get(/databases/$(database)/documents/chats/$(r.chatId)).data.uids
+            && get(/databases/$(database)/documents/chats/$(r.chatId)/messages/$(r.messageId)).data.senderUid == r.targetUid
+            && get(/databases/$(database)/documents/chats/$(r.chatId)/messages/$(r.messageId)).data.text == r.quote)
+        || (r.kind == 'post'
+            && get(/databases/$(database)/documents/posts/$(r.postId)).data.authorUid == r.targetUid
+            && get(/databases/$(database)/documents/posts/$(r.postId)).data.lesson == r.quote)
+        || (r.kind == 'comment'
+            && get(/databases/$(database)/documents/posts/$(r.postId)/comments/$(r.commentId)).data.authorUid == r.targetUid
+            && get(/databases/$(database)/documents/posts/$(r.postId)/comments/$(r.commentId)).data.body == r.quote);
+    }
+
+    match /reports/{reportId} {
+      allow read, update, delete: if false;
+      allow create: if isSignedIn()
+        && request.resource.data.keys().hasOnly([
+             'reporterUid', 'kind', 'targetUid', 'targetUsername', 'reason', 'note',
+             'quote', 'chatId', 'messageId', 'postId', 'commentId', 'createdAt', 'status'])
+        && request.resource.data.reporterUid == request.auth.uid
+        && request.resource.data.targetUid is string
+        && request.resource.data.targetUid != request.auth.uid
+        && request.resource.data.targetUsername is string
+        && request.resource.data.kind in ['user', 'message', 'post', 'comment']
+        && request.resource.data.reason in
+             ['spam', 'harassment', 'hate', 'sexual', 'violence', 'scam', 'impersonation', 'other']
+        && request.resource.data.note is string
+        && request.resource.data.note.size() <= 500
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.status == 'open'
+        && reportEvidenceOk(request.resource.data);
+    }
+
     // --- Presence -----------------------------------------------------------
     //
     // One timestamp per person, refreshed while the app is open. Firestore
