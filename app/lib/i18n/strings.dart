@@ -582,6 +582,34 @@ class Strings {
     return dayLabel(l, now);
   }
 
+  // --- Blocking -----------------------------------------------------------
+
+  String get block => _t('ব্লক', 'Block');
+  String get unblock => _t('আনব্লক', 'Unblock');
+  String blockTitle(String username) =>
+      _t('@$username-কে ব্লক করবেন?', 'Block @$username?');
+  String get blockBody => _t(
+    'সে আপনাকে মেসেজ বা কানেকশন রিকোয়েস্ট পাঠাতে পারবে না, আর আপনাদের '
+        'কানেকশনও থাকবে না। তাকে জানানো হবে না।',
+    "They won't be able to message you or send you a connection request, "
+        "and you'll no longer be connected. They won't be told.",
+  );
+  String blocked(String username) =>
+      _t('@$username ব্লক করা হয়েছে', 'Blocked @$username');
+  String unblocked(String username) =>
+      _t('@$username আনব্লক করা হয়েছে', 'Unblocked @$username');
+  String get youBlockedThem =>
+      _t('আপনি এই অ্যাকাউন্টটি ব্লক করেছেন।', 'You blocked this account.');
+  String get blockedChatNote => _t(
+    'আপনি ব্লক করেছেন — মেসেজ দিতে আনব্লক করুন।',
+    'You blocked this person — unblock to send messages.',
+  );
+  String get blockedAccounts => _t('ব্লক করা অ্যাকাউন্ট', 'Blocked accounts');
+  String get noBlocked =>
+      _t('কাউকে ব্লক করা নেই।', "You haven't blocked anyone.");
+  String blockedOn(DateTime t) =>
+      _t('${shortDate(t)} তারিখে ব্লক', 'Blocked ${shortDate(t)}');
+
   // --- Settings -----------------------------------------------------------
 
   String get settings => _t('সেটিংস', 'Settings');
