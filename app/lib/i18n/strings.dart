@@ -433,8 +433,9 @@ class Strings {
   String get message => _t('মেসেজ', 'Message');
   String get noChatsTitle => _t('এখনো কোনো মেসেজ নেই', 'No messages yet');
   String get noChatsHint => _t(
-    'কাউকে কানেকশন রিকোয়েস্ট পাঠালেই তার সাথে চ্যাট এখানে খুলে যাবে।',
-    'Send someone a connection request and a chat with them opens here.',
+    'কেউ আপনার কানেকশন রিকোয়েস্ট অ্যাকসেপ্ট করলে — বা আপনি কারোটা করলে — তার সাথে চ্যাট এখানে চলে আসবে।',
+    'When someone accepts your connection request — or you accept theirs — '
+        'your chat with them appears here.',
   );
   String get messagingNeedsServer => _t(
     'মেসেজের জন্য সার্ভার লাগে — এই বিল্ডে Firebase সেট করা নেই।',
