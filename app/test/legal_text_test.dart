@@ -58,5 +58,6 @@ void main() {
     // What worker/src/erase.js actually does with the name, and keeps.
     expect(policy, contains('username is retired'));
     expect(policy, contains('Reports made by you or about you may be kept'));
+    expect(policy, contains('your messages in the Global chat'));
   });
 }

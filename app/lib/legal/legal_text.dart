@@ -82,10 +82,14 @@ const _privacyEn = LegalDocument(
       '• Anyone signed in: your username, display name, avatar, scores, rank, '
           'number of connections, posts and comments.',
       '• Only you: your trades and journal, requests you have not answered, '
-          'who viewed your profile, and who you have blocked.',
+          'who viewed your profile, who you have blocked, and what you have '
+          'muted or deleted for yourself.',
       '• Messages: the two people in the conversation. Messages are stored on '
           'our servers so they can be delivered; they are not end-to-end '
           'encrypted.',
+      '• The Global chat: anyone signed in can read it, and what you write '
+          'there shows your display name and username. Only members can '
+          'write in it.',
       '• Reports: the people who moderate the app.',
     ]),
     LegalSection('4. Where it is stored', [
@@ -113,8 +117,9 @@ const _privacyEn = LegalDocument(
       '• Block people, and report people, posts, comments or messages.',
       '• Delete your account in Settings → Delete account. This permanently '
           'deletes your profile, trades and scores, posts, comments and likes, '
-          'connections, notifications, profile-view records and your '
-          'conversations — for both people in them. It cannot be undone. Your '
+          'connections, notifications, profile-view records, your '
+          'conversations — for both people in them — and your messages in the '
+          'Global chat. It cannot be undone. Your '
           'username is retired: it is linked to nothing any more, and nobody, '
           'you included, can register it again. Reports made by you or about '
           'you may be kept for moderation records, and views you added to '
@@ -173,9 +178,12 @@ const _privacyBn = LegalDocument(
       '• যে কেউ যিনি লগইন করেছেন: আপনার ইউজারনেম, নাম, অ্যাভাটার, স্কোর, '
           'র‍্যাংক, কানেকশনের সংখ্যা, পোস্ট আর কমেন্ট।',
       '• শুধু আপনি: আপনার ট্রেড আর জার্নাল, যে রিকোয়েস্টের উত্তর দেননি, কে '
-          'আপনার প্রোফাইল দেখেছে, আর আপনি কাকে ব্লক করেছেন।',
+          'আপনার প্রোফাইল দেখেছে, আপনি কাকে ব্লক করেছেন, আর কী মিউট বা নিজের '
+          'দিক থেকে ডিলিট করেছেন।',
       '• মেসেজ: চ্যাটের দুজন মানুষ। পৌঁছে দেওয়ার জন্য মেসেজ আমাদের সার্ভারে '
           'রাখা থাকে; এগুলো এন্ড-টু-এন্ড এনক্রিপ্টেড নয়।',
+      '• গ্লোবাল চ্যাট: লগইন করা যে কেউ পড়তে পারেন, আর সেখানে আপনার লেখার '
+          'সাথে আপনার নাম আর ইউজারনেম দেখা যায়। শুধু সদস্যরা লিখতে পারেন।',
       '• রিপোর্ট: যাঁরা অ্যাপটা মডারেট করেন।',
     ]),
     LegalSection('৪. কোথায় রাখা হয়', [
@@ -203,8 +211,9 @@ const _privacyBn = LegalDocument(
           'পারেন।',
       '• সেটিংস → অ্যাকাউন্ট ডিলিট থেকে অ্যাকাউন্ট মুছতে পারেন। এতে আপনার '
           'প্রোফাইল, ট্রেড ও স্কোর, পোস্ট, কমেন্ট ও লাইক, কানেকশন, '
-          'নোটিফিকেশন, প্রোফাইল-ভিজিটের রেকর্ড আর আপনার চ্যাটগুলো — দুজনের '
-          'জন্যই — চিরতরে মুছে যায়। এটা আর ফেরানো যায় না। আপনার ইউজারনেম '
+          'নোটিফিকেশন, প্রোফাইল-ভিজিটের রেকর্ড, আপনার চ্যাটগুলো — দুজনের '
+          'জন্যই — আর গ্লোবাল চ্যাটে আপনার মেসেজ চিরতরে মুছে যায়। এটা আর '
+          'ফেরানো যায় না। আপনার ইউজারনেম '
           'অবসরে যায়: এটা আর কিছুর সাথে যুক্ত থাকে না, আর আপনিসহ কেউ এটা আবার '
           'নিতে পারে না। আপনার করা বা আপনাকে নিয়ে করা রিপোর্ট মডারেশনের রেকর্ড '
           'হিসেবে রাখা হতে পারে, আর অন্যের পোস্টে আপনার দেখা ভিউ কাউন্টে থেকে '
