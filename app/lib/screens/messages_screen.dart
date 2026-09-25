@@ -129,7 +129,8 @@ class _ThreadRow extends StatelessWidget {
     final last = thread.lastMessage;
     final mine = last?.senderUid == me;
     // Typing replaces the preview, as in WhatsApp: it is the newer news.
-    final typing = isTyping(thread, otherUid, now);
+    final typing =
+        isTyping(thread, otherUid, now) && !inbox.isBlocked(otherUid);
 
     final preview = switch (last) {
       null => s.sayHi,
