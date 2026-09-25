@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/chat_inbox.dart';
 import '../data/community_repository.dart';
+import '../data/safety_repository.dart';
 import '../data/firestore_community_repository.dart';
 import '../data/notification_repository.dart';
 import '../data/page.dart';
@@ -15,6 +16,7 @@ import '../theme/app_theme.dart';
 import '../widgets/avatar_image.dart';
 import '../widgets/common.dart';
 import '../widgets/paged_list.dart';
+import '../widgets/report_sheet.dart';
 import '../widgets/safety_actions.dart';
 import 'chat_screen.dart';
 import 'settings_screen.dart';
@@ -223,9 +225,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     otherUid: otherUid,
                     otherUsername: widget.username,
                   );
+                } else if (action == 'report') {
+                  await showReportSheet(
+                    context,
+                    ReportTarget.user(
+                      targetUid: otherUid,
+                      targetUsername: widget.username,
+                    ),
+                  );
                 }
               },
               itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: 'report',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.flag_outlined, size: 19),
+                      Gap.w12,
+                      Text(s.report),
+                    ],
+                  ),
+                ),
                 PopupMenuItem(
                   value: blockedByMe ? 'unblock' : 'block',
                   child: Row(
