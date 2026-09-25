@@ -147,6 +147,19 @@ class SafetyRepository {
     await batch.commit();
   }
 
+  /// Whether [otherUid] has blocked [me]. The rules let a blocked person ask
+  /// about their own entry and nothing else; false when it cannot be asked.
+  Future<bool> hasBlockedMe({
+    required String me,
+    required String otherUid,
+  }) async {
+    try {
+      return (await _blocks(otherUid).doc(me).get()).exists;
+    } on FirebaseException {
+      return false;
+    }
+  }
+
   /// Lifts a block. The connection it ended is not restored — reconnecting is
   /// a fresh request, from whichever of you wants to.
   Future<void> unblock(String me, String otherUid) =>
