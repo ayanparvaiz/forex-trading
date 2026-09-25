@@ -13,6 +13,7 @@ import '../i18n/strings.dart';
 import '../models/chat.dart';
 import '../theme/app_theme.dart';
 import '../widgets/chat_bits.dart';
+import '../widgets/forward_sheet.dart';
 import '../widgets/report_sheet.dart';
 import '../widgets/safety_actions.dart';
 import 'profile_screen.dart';
@@ -580,6 +581,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 title: Text(s.copy),
                 onTap: () => Navigator.of(sheet).pop('copy'),
               ),
+            if (!m.unsent && _inbox != null)
+              ListTile(
+                leading: const Icon(Icons.shortcut_rounded),
+                title: Text(s.forward),
+                onTap: () => Navigator.of(sheet).pop('forward'),
+              ),
             // Their messages can be reported, quoted exactly as sent.
             if (!mine && !m.unsent && _inbox?.safety != null)
               ListTile(
@@ -624,6 +631,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(s.copied)));
+    } else if (action == 'forward') {
+      await _forward(m);
     } else if (action == 'hide') {
       _hide(m);
     } else if (action == 'unsend') {
@@ -640,6 +649,45 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         ),
       );
     }
+  }
+
+  /// Sends a copy of [m], marked forwarded, to the conversations picked.
+  Future<void> _forward(ChatMessage m) async {
+    final inbox = _inbox;
+    final repo = _repo;
+    if (inbox == null || repo == null) return;
+    final s = context.s;
+    final messenger = ScaffoldMessenger.of(context);
+    final myUsername = context.session.profile?.username ?? '';
+
+    final targets = await pickForwardTargets(context, inbox);
+    if (targets == null || targets.isEmpty) return;
+
+    final failed = <String>[];
+    await Future.wait([
+      for (final t in targets)
+        repo
+            .send(
+              chatId: t.id,
+              me: _me,
+              other: t.otherUid(_me),
+              text: m.text,
+              forwarded: true,
+            )
+            .catchError((Object e) {
+              debugPrint('forward to ${t.id} failed: $e');
+              failed.add(t.otherUsername(myUsername));
+            }),
+    ]);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          failed.isEmpty
+              ? s.forwardedTo(targets.length)
+              : s.forwardFailed(failed.first),
+        ),
+      ),
+    );
   }
 
   /// "Delete for me": gone from this side at once, with a moment to take it
