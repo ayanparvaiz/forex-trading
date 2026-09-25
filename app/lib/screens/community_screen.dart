@@ -3,10 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../data/account_scope.dart';
+import '../data/chat_inbox.dart';
 import '../data/community_repository.dart';
 import '../data/firestore_community_repository.dart';
 import '../data/notification_repository.dart';
 import '../data/one_time_notice.dart';
+import '../data/page.dart';
 import '../data/session_controller.dart';
 import '../i18n/strings.dart';
 import '../models/app_notification.dart';
@@ -838,7 +840,27 @@ class _FeedState extends State<_Feed> {
           key: ValueKey('${s.lang}-${widget.version}-$_refreshes'),
           padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.xxl),
           pageSize: 6,
-          fetch: widget.repository.feed,
+          // Posts by anyone you have blocked are left out. Filtered here
+          // rather than in the query: Firestore cannot exclude a list of
+          // authors, and a block list is short.
+          fetch: ({Object? cursor, int limit = 6}) async {
+            // Read before the await, not after: the context may be gone by
+            // the time the page arrives.
+            final blocked = InboxScope.read(context)?.blockedUsernames;
+            final page = await widget.repository.feed(
+              cursor: cursor,
+              limit: limit,
+            );
+            if (blocked == null || blocked.isEmpty) return page;
+            return ResultPage(
+              items: [
+                for (final p in page.items)
+                  if (!blocked.contains(p.author.id)) p,
+              ],
+              cursor: page.cursor,
+              hasMore: page.hasMore,
+            );
+          },
           itemBuilder: (context, post, _) => Padding(
             padding: const EdgeInsets.only(bottom: Gap.xs),
             child: _FeedCard(post: post, s: s, repository: widget.repository),
