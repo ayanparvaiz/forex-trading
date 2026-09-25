@@ -214,12 +214,15 @@ def main() -> None:
                 "avatarId": i(account["avatarId"]),
                 "cohort": s(""),
                 "createdAt": s("2026-09-01T00:00:00.000"),
-                "disciplineScore": d(account["disciplineScore"]),
-                "badgePoints": i(account["badgePoints"]),
-                "tradeCount": i(account["tradeCount"]),
-                "winRate": d(account["winRate"]),
-                "journalStreak": i(account["journalStreak"]),
-                "totalR": d(account["totalR"]),
+                # The same clean slate the rules demand of any new account.
+                # Scores are never typed in: seed_trades.py writes a journal
+                # and the stats worker computes these from it.
+                "disciplineScore": d(100.0),
+                "badgePoints": i(0),
+                "tradeCount": i(0),
+                "winRate": d(0.0),
+                "journalStreak": i(0),
+                "totalR": d(0.0),
             },
             token,
         )
@@ -230,10 +233,10 @@ def main() -> None:
             failed += 1
             continue
 
-        print(f"  ✓ {username:<9} uid={uid[:10]}…  badge={account['badgePoints']:<4}"
-              f" discipline={account['disciplineScore']:.0f}")
+        print(f"  ✓ {username:<9} uid={uid[:10]}…")
 
     print(f"\nauth created {created}, already existed {skipped}, failed {failed}")
+    print("Next: python3 tool/seed_trades.py — journals, then real scores.")
     seed_posts(token, uids)
 
 
