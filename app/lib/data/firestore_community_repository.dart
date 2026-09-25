@@ -11,6 +11,7 @@ import '../models/trader.dart';
 import '../models/user_profile.dart';
 import '../firebase/firebase_bootstrap.dart';
 import 'avatars.dart';
+import 'chat_repository.dart';
 import 'community_repository.dart';
 import 'page.dart';
 import 'seen_posts.dart';
@@ -394,17 +395,35 @@ class FirestoreCommunityRepository implements CommunityRepository {
     // connection back to pending, which is a way to silently un-friend someone.
     if ((await doc.get()).exists) return;
 
+    // The request opens the conversation too, in the same batch, so the two
+    // of them can talk while it is pending — the way LinkedIn lets you write
+    // a note with an invitation. A chat left over from an earlier connection
+    // is reused rather than recreated: its history is still theirs.
+    final chat = _db.collection('chats').doc(doc.id);
+    final chatExists = (await chat.get()).exists;
+
     try {
-      await doc.set({
-        'users': [from, to]..sort(),
-        'uids': [fromUid, toUid],
-        'fromUser': from,
-        'toUser': to,
-        'fromUid': fromUid,
-        'toUid': toUid,
-        'accepted': false,
-        'requestedAt': FieldValue.serverTimestamp(),
-      });
+      final batch = _db.batch()
+        ..set(doc, {
+          'users': [from, to]..sort(),
+          'uids': [fromUid, toUid],
+          'fromUser': from,
+          'toUser': to,
+          'fromUid': fromUid,
+          'toUid': toUid,
+          'accepted': false,
+          'requestedAt': FieldValue.serverTimestamp(),
+        });
+      if (!chatExists) {
+        batch.set(
+          chat,
+          ChatRepository.newChatFields(
+            users: [from, to]..sort(),
+            uids: [fromUid, toUid],
+          ),
+        );
+      }
+      await batch.commit();
     } on FirebaseException {
       // Lost a race with the other side asking first. Already related either
       // way, so there is nothing left to do.
