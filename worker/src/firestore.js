@@ -114,10 +114,17 @@ export async function writeStats(projectId, uid, stats, token, now = new Date())
 export class TryAgain extends Error {}
 
 function encodeValue(v) {
+  if (v === null || v === undefined) return { nullValue: null };
   if (typeof v === 'string') return { stringValue: v };
   if (typeof v === 'boolean') return { booleanValue: v };
   if (Number.isInteger(v)) return { integerValue: String(v) };
-  return { doubleValue: v };
+  if (typeof v === 'number') return { doubleValue: v };
+  if (Array.isArray(v)) return { arrayValue: { values: v.map(encodeValue) } };
+  return {
+    mapValue: {
+      fields: Object.fromEntries(Object.entries(v).map(([k, x]) => [k, encodeValue(x)])),
+    },
+  };
 }
 
 const OPS = { '==': 'EQUAL', 'array-contains': 'ARRAY_CONTAINS' };
@@ -187,15 +194,27 @@ export function restStore(projectId, token, { budget = 40 } = {}) {
 
     /**
      * Documents in [collection] whose [field] matches, by path. With [group],
-     * every collection of that name at any depth.
+     * every collection of that name at any depth; with [parent], the
+     * collection under that document.
      */
-    find({ collection, group = false, field, op = '==', value, limit, fields = [] }) {
-      return runQuery('', {
+    find({ parent = '', collection, group = false, field, op = '==', value, limit, fields = [] }) {
+      return runQuery(parent, {
         from: [{ collectionId: collection, allDescendants: group }],
         where: { fieldFilter: { field: { fieldPath: field }, op: OPS[op], value: encodeValue(value) } },
         select: select(fields),
         limit,
       });
+    },
+
+    /** The document in [parent]/[collection] with the highest [field], or null. */
+    async newest(parent, collection, field, fields = []) {
+      const rows = await runQuery(parent, {
+        from: [{ collectionId: collection }],
+        orderBy: [{ field: { fieldPath: field }, direction: 'DESCENDING' }],
+        select: select(fields),
+        limit: 1,
+      });
+      return rows[0] ?? null;
     },
 
     /** Paths of every document below [path], in any subcollection. */
