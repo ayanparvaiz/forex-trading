@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../models/chat.dart';
@@ -75,6 +77,80 @@ class MessageTicks extends StatelessWidget {
         icon,
         size: status == MessageStatus.pending ? size - 3 : size,
         color: color,
+      ),
+    );
+  }
+}
+
+/// Three dots rising in turn inside an incoming bubble: the other person is
+/// typing. Shown at the bottom of the conversation, where their message is
+/// about to appear.
+class TypingBubble extends StatefulWidget {
+  const TypingBubble({super.key});
+
+  @override
+  State<TypingBubble> createState() => _TypingBubbleState();
+}
+
+class _TypingBubbleState extends State<TypingBubble>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _wave = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _wave.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(top: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: const BoxDecoration(
+          color: AppColors.bubbleTheirs,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(12),
+            topRight: Radius.circular(12),
+            bottomRight: Radius.circular(12),
+            bottomLeft: Radius.circular(3),
+          ),
+        ),
+        child: AnimatedBuilder(
+          animation: _wave,
+          builder: (context, _) => Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < 3; i++) ...[
+                if (i > 0) const SizedBox(width: 5),
+                _dot(i),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Each dot runs the same rise-and-fall a little after the one before it,
+  /// then rests — so the three read as one wave, not a flicker.
+  Widget _dot(int i) {
+    final t = (_wave.value - i * 0.18) % 1.0;
+    final lift = t < 0.4 ? math.sin(t / 0.4 * math.pi) : 0.0;
+    return Transform.translate(
+      offset: Offset(0, -4 * lift),
+      child: Container(
+        width: 7,
+        height: 7,
+        decoration: BoxDecoration(
+          color: Color.lerp(AppColors.textMuted, AppColors.textSecondary, lift),
+          shape: BoxShape.circle,
+        ),
       ),
     );
   }
