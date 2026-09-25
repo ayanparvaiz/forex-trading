@@ -808,6 +808,10 @@ class _FeedState extends State<_Feed> {
   /// Bumped when the reader asks for the new posts.
   int _refreshes = 0;
 
+  /// Posts deleted from this list by their author, left out without
+  /// reloading the feed and losing the reader's place.
+  final Set<String> _deleted = {};
+
   @override
   void didUpdateWidget(_Feed old) {
     super.didUpdateWidget(old);
@@ -863,10 +867,17 @@ class _FeedState extends State<_Feed> {
               hasMore: page.hasMore,
             );
           },
-          itemBuilder: (context, post, _) => Padding(
-            padding: const EdgeInsets.only(bottom: Gap.xs),
-            child: _FeedCard(post: post, s: s, repository: widget.repository),
-          ),
+          itemBuilder: (context, post, _) => _deleted.contains(post.id)
+              ? const SizedBox.shrink()
+              : Padding(
+                  padding: const EdgeInsets.only(bottom: Gap.xs),
+                  child: FeedCard(
+                    post: post,
+                    s: s,
+                    repository: widget.repository,
+                    onDeleted: (id) => setState(() => _deleted.add(id)),
+                  ),
+                ),
         ),
         Positioned(
           top: Gap.sm,
@@ -934,16 +945,23 @@ class _NewPostsPill extends StatelessWidget {
   }
 }
 
-class _FeedCard extends StatelessWidget {
-  const _FeedCard({
+/// One post: who, what they traded or where they rank, what they learned,
+/// and what people made of it.
+class FeedCard extends StatelessWidget {
+  const FeedCard({
+    super.key,
     required this.post,
     required this.s,
     required this.repository,
+    this.onDeleted,
   });
 
   final FeedPost post;
   final Strings s;
   final CommunityRepository repository;
+
+  /// The author deleted it.
+  final ValueChanged<String>? onDeleted;
 
   bool get _isRank => post.kind == PostKind.rank;
 
@@ -961,8 +979,44 @@ class _FeedCard extends StatelessWidget {
     );
   }
 
+  /// Your own post: gone for everyone, with its likes and comments, once
+  /// you have said you are sure.
+  Future<void> _delete(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        backgroundColor: AppColors.elevated,
+        title: Text(s.deletePostTitle),
+        content: Text(s.deletePostBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialog).pop(false),
+            child: Text(s.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialog).pop(true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.loss),
+            child: Text(s.deletePost),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await repository.deletePost(post.id);
+      onDeleted?.call(post.id);
+      messenger.showSnackBar(SnackBar(content: Text(s.postDeleted)));
+    } catch (e) {
+      debugPrint('delete post failed: $e');
+      messenger.showSnackBar(SnackBar(content: Text(s.couldNotDeletePost)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final mine = post.author.id == context.session.profile?.username;
+    final canReport = !mine && InboxScope.read(context)?.safety != null;
     return SectionCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1020,10 +1074,10 @@ class _FeedCard extends StatelessWidget {
                         color: AppColors.forValue(post.rMultiple),
                       ),
                     ),
-              // Someone else's post can be reported, quoting its lesson —
-              // the text the rules check the report against.
-              if (post.author.id != context.session.profile?.username &&
-                  InboxScope.read(context)?.safety != null)
+              // Your own post can be deleted. Someone else's can be reported,
+              // quoting its lesson — the text the rules check the report
+              // against.
+              if (mine || canReport)
                 SizedBox(
                   width: 32,
                   child: PopupMenuButton<String>(
@@ -1034,18 +1088,39 @@ class _FeedCard extends StatelessWidget {
                       color: AppColors.textMuted,
                     ),
                     color: AppColors.elevated,
-                    onSelected: (_) => _report(context),
+                    onSelected: (action) => action == 'delete'
+                        ? _delete(context)
+                        : _report(context),
                     itemBuilder: (_) => [
-                      PopupMenuItem(
-                        value: 'report',
-                        child: Row(
-                          children: [
-                            const Icon(Icons.flag_outlined, size: 19),
-                            Gap.w12,
-                            Text(s.report),
-                          ],
+                      if (mine)
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.delete_outline_rounded,
+                                size: 19,
+                                color: AppColors.loss,
+                              ),
+                              Gap.w12,
+                              Text(
+                                s.deletePost,
+                                style: const TextStyle(color: AppColors.loss),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        PopupMenuItem(
+                          value: 'report',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.flag_outlined, size: 19),
+                              Gap.w12,
+                              Text(s.report),
+                            ],
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ),
