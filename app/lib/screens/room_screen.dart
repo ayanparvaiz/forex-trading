@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/chat_inbox.dart';
+import '../data/firestore_community_repository.dart';
 import '../data/room_repository.dart';
 import '../data/safety_repository.dart';
 import '../data/session_controller.dart';
@@ -11,6 +12,8 @@ import '../widgets/chat_bits.dart';
 import '../widgets/conversation_view.dart';
 import '../widgets/mute_sheet.dart';
 import '../widgets/report_sheet.dart';
+import 'post_screen.dart';
+import 'profile_screen.dart';
 
 /// Opens the Global room.
 Future<void> openGlobalChat(BuildContext context) => Navigator.of(context).push(
@@ -287,6 +290,22 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
                   ),
               ],
               onMessages: (_) => _maybeMarkRead(),
+              onOpenPost: (id) => openPost(context, id),
+              // Tapping a name, or a rank someone shared, opens who it was.
+              onOpenSender: (m) {
+                final username = m.senderUid == _me
+                    ? context.session.profile?.username
+                    : m.senderUsername;
+                if (username == null || username.isEmpty) return;
+                openProfile(
+                  context,
+                  username,
+                  buildCommunityRepository(
+                    context.session.language,
+                    viewerUid: context.session.uid,
+                  ),
+                );
+              },
             ),
     );
   }

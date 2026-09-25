@@ -14,6 +14,7 @@ import '../widgets/conversation_view.dart';
 import '../widgets/mute_sheet.dart';
 import '../widgets/report_sheet.dart';
 import '../widgets/safety_actions.dart';
+import 'post_screen.dart';
 import 'profile_screen.dart';
 
 /// Opens the conversation with another trader.
@@ -540,6 +541,17 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 _messages = messages;
                 _maybeMarkRead();
               },
+              onOpenPost: (id) => openPost(context, id),
+              onOpenSender: (m) => openProfile(
+                context,
+                m.senderUid == _me
+                    ? context.session.profile?.username ?? ''
+                    : widget.otherUsername,
+                buildCommunityRepository(
+                  context.session.language,
+                  viewerUid: context.session.uid,
+                ),
+              ),
             ),
     );
   }
