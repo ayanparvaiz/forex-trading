@@ -100,26 +100,14 @@ class _SplashScreenState extends State<SplashScreen>
                     child: child,
                   ),
                 ),
-                child: const Column(
-                  children: [
-                    Text(
-                      'Forex Social',
-                      style: TextStyle(
-                        fontSize: 21,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'বাংলায় ফরেক্স শেখা',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                  ],
+                child: const Text(
+                  'Forex Social',
+                  style: TextStyle(
+                    fontSize: 21,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ),
             ],
