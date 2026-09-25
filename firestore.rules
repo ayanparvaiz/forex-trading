@@ -103,10 +103,24 @@ service cloud.firestore {
 
       // Settings are the trader's own; stats are not. The username is fixed at
       // creation — the claim document points at this uid and nothing updates it.
+      //
+      // Named rather than merely not-forbidden: an update may touch these four
+      // and nothing else. A blocklist of server-owned fields keeps scores safe,
+      // but it still lets a client hang any field it likes on a public profile.
       allow update: if isOwner(uid)
         && serverOwnedUnchanged()
         && unchanged('username')
-        && unchanged('createdAt');
+        && unchanged('createdAt')
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['displayName', 'gender', 'language', 'avatarId'])
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0
+        && request.resource.data.displayName.size() <= 40
+        // Mirrors Avatars.all. Unknown ids would fall back to the owl on
+        // screen, but there is no reason to store one.
+        && request.resource.data.avatarId is int
+        && request.resource.data.avatarId >= 1
+        && request.resource.data.avatarId <= 24;
 
       allow delete: if isOwner(uid);
 
