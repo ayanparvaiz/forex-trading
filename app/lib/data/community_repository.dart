@@ -57,6 +57,13 @@ abstract class CommunityRepository {
   /// reading names, and a trader's own position is pinned on screen anyway.
   static const leaderboardLimit = 50;
 
+  /// Closed trades needed before an account is ranked at all.
+  ///
+  /// With nothing closed, nothing has been broken, and the discipline score is
+  /// 100 — so without a floor every new account would top the board. Mirrors
+  /// MIN_RANKED_TRADES in worker/src/stats.js, which is what actually decides.
+  static const minRankedTrades = 5;
+
   /// How many distinct people have opened [username]'s profile.
   Future<int> viewerCount(String username);
 

@@ -178,6 +178,7 @@ class FirestoreCommunityRepository implements CommunityRepository {
     int limit = 12,
   }) async {
     var query = _users
+        .where('ranked', isEqualTo: true)
         .orderBy('disciplineScore', descending: true)
         .orderBy('tradeCount', descending: true)
         .limit(limit);
@@ -210,7 +211,12 @@ class FirestoreCommunityRepository implements CommunityRepository {
     // of it agree about who is where. After the first snapshot Firestore sends
     // only the rows that changed, so a board of fifty that barely moves costs
     // almost nothing to keep open.
+    //
+    // Only ranked accounts. With no closed trades the discipline score is 100,
+    // so without the filter every new sign-up would open at the top of the
+    // board, above people who have kept their rules for months.
     return _users
+        .where('ranked', isEqualTo: true)
         .orderBy('disciplineScore', descending: true)
         .orderBy('tradeCount', descending: true)
         .limit(limit)
@@ -250,6 +256,8 @@ class FirestoreCommunityRepository implements CommunityRepository {
   Future<int?> rankOf(String username) async {
     final me = await trader(username);
     if (me == null) return null;
+    // Not on the board yet, so there is no position to report.
+    if (me.tradeCount < CommunityRepository.minRankedTrades) return null;
 
     // Counting who is ahead is one aggregate read, whatever the size of the
     // board. Walking the list to find a position would cost a read per row and
@@ -259,6 +267,7 @@ class FirestoreCommunityRepository implements CommunityRepository {
     // people on the same score are both told the better of the two positions,
     // which is the kinder and cheaper answer.
     final ahead = await _users
+        .where('ranked', isEqualTo: true)
         .where('disciplineScore', isGreaterThan: me.disciplineScore)
         .count()
         .get();
