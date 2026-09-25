@@ -391,6 +391,129 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // --- Messaging ----------------------------------------------------------
+    //
+    // A conversation shares its id with the connection between the same two
+    // people ("alice-bob", usernames sorted), so one lookup answers "may these
+    // two talk?". A chat can only be opened while a connection exists, pending
+    // or accepted, and messages can only be sent while it still does —
+    // removing the connection keeps the history and closes the conversation.
+    //
+    // Ticks are not stored per message. Each chat holds two timestamps per
+    // person: when their app last received the conversation (deliveredAt) and
+    // when they last had it open (readAt). A message is delivered or read if
+    // it was sent before the other person's mark. That is one small write per
+    // person per catch-up instead of one per message, which is what keeps
+    // this inside the free tier. It also means the marks are the thing to
+    // protect: you may move your own marks to now and never anyone else's —
+    // otherwise a client could make its messages look read.
+
+    function chatUpdateOk(chatId) {
+      let o = resource.data;
+      let n = request.resource.data;
+      let me = request.auth.uid;
+      let other = o.uids[0] == me ? o.uids[1] : o.uids[0];
+      return me in o.uids
+        && n.uids == o.uids
+        && n.users == o.users
+        && n.createdAt == o.createdAt
+        && n.diff(o).affectedKeys()
+             .hasOnly(['lastMessage', 'updatedAt', 'unread', 'readAt', 'deliveredAt'])
+        && n.unread.keys().hasOnly(o.uids)
+        && n.readAt.keys().hasOnly(o.uids)
+        && n.deliveredAt.keys().hasOnly(o.uids)
+        // Their marks never move; mine only ever move to now.
+        && n.readAt[other] == o.readAt[other]
+        && n.deliveredAt[other] == o.deliveredAt[other]
+        && (n.readAt[me] == o.readAt[me] || n.readAt[me] == request.time)
+        && (n.deliveredAt[me] == o.deliveredAt[me] || n.deliveredAt[me] == request.time)
+        // My count may be cleared, or set to one to mark the chat unread.
+        // Theirs may only rise by one, which is what sending a message does.
+        && (n.unread[me] == o.unread[me] || n.unread[me] == 0 || n.unread[me] == 1)
+        && (n.unread[other] == o.unread[other] || n.unread[other] == o.unread[other] + 1)
+        && (n.updatedAt == o.updatedAt || n.updatedAt == request.time)
+        // A new preview must be mine and must say exactly what the message
+        // it points at says — no preview can claim a message that is not there.
+        && (n.lastMessage == o.lastMessage
+            || (n.lastMessage.senderUid == me
+                && n.lastMessage.text == getAfter(/databases/$(database)/documents/chats/$(chatId)/messages/$(n.lastMessage.id)).data.text
+                && n.lastMessage.unsent == getAfter(/databases/$(database)/documents/chats/$(chatId)/messages/$(n.lastMessage.id)).data.unsent));
+    }
+
+    match /chats/{chatId} {
+      // A missing chat is a normal answer — it is how the app knows to open
+      // one — so get is allowed on nothing, like connections.
+      allow get: if isSignedIn()
+        && (resource == null || request.auth.uid in resource.data.uids);
+      allow list: if isSignedIn() && request.auth.uid in resource.data.uids;
+
+      allow create: if isSignedIn()
+        && request.resource.data.keys().hasOnly(
+             ['uids', 'users', 'createdAt', 'updatedAt', 'lastMessage', 'unread', 'readAt', 'deliveredAt'])
+        && request.auth.uid in request.resource.data.uids
+        && request.resource.data.uids.size() == 2
+        && request.resource.data.users.size() == 2
+        && chatId == request.resource.data.users[0] + '-' + request.resource.data.users[1]
+        // The same two people as the connection, and the connection is real —
+        // created earlier, or in the same batch as this chat.
+        && existsAfter(/databases/$(database)/documents/connections/$(chatId))
+        && getAfter(/databases/$(database)/documents/connections/$(chatId)).data.users == request.resource.data.users
+        && getAfter(/databases/$(database)/documents/connections/$(chatId)).data.uids.hasAll(request.resource.data.uids)
+        && request.resource.data.lastMessage == null
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.unread[request.resource.data.uids[0]] == 0
+        && request.resource.data.unread[request.resource.data.uids[1]] == 0
+        && request.resource.data.readAt[request.resource.data.uids[0]] == request.time
+        && request.resource.data.readAt[request.resource.data.uids[1]] == request.time
+        && request.resource.data.deliveredAt[request.resource.data.uids[0]] == request.time
+        && request.resource.data.deliveredAt[request.resource.data.uids[1]] == request.time;
+
+      allow update: if isSignedIn() && chatUpdateOk(chatId);
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn()
+          && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.uids;
+
+        allow create: if isSignedIn()
+          && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.uids
+          && request.resource.data.keys().hasOnly(['senderUid', 'text', 'sentAt', 'unsent'])
+          && request.resource.data.senderUid == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 2000
+          && request.resource.data.sentAt == request.time
+          && request.resource.data.unsent == false
+          // Still related. Removing the connection closes the conversation.
+          && exists(/databases/$(database)/documents/connections/$(chatId));
+
+        // Unsending blanks the text and flags it; the message keeps its place
+        // so the conversation still makes sense around it. Only the sender.
+        allow update: if isSignedIn()
+          && resource.data.senderUid == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'unsent'])
+          && request.resource.data.unsent == true
+          && request.resource.data.text == '';
+
+        allow delete: if false;
+      }
+    }
+
+    // --- Presence -----------------------------------------------------------
+    //
+    // One timestamp per person, refreshed while the app is open. Firestore
+    // cannot notice a dropped connection the way the Realtime Database can,
+    // so "active now" means "seen in the last couple of minutes", and the
+    // only value anyone may write is the server's own clock.
+    match /presence/{uid} {
+      allow read: if isSignedIn();
+      allow create, update: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(['lastActiveAt'])
+        && request.resource.data.lastActiveAt == request.time;
+      allow delete: if false;
+    }
+
     // --- Lessons ------------------------------------------------------------
     //
     // Course content, published from the repo. Read-only to everyone.
