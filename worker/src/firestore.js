@@ -115,6 +115,7 @@ export class TryAgain extends Error {}
 
 function encodeValue(v) {
   if (v === null || v === undefined) return { nullValue: null };
+  if (v instanceof Date) return { timestampValue: v.toISOString() };
   if (typeof v === 'string') return { stringValue: v };
   if (typeof v === 'boolean') return { booleanValue: v };
   if (Number.isInteger(v)) return { integerValue: String(v) };
@@ -127,7 +128,7 @@ function encodeValue(v) {
   };
 }
 
-const OPS = { '==': 'EQUAL', 'array-contains': 'ARRAY_CONTAINS' };
+const OPS = { '==': 'EQUAL', 'array-contains': 'ARRAY_CONTAINS', in: 'IN', '<': 'LESS_THAN' };
 
 /**
  * The few Firestore calls erasing needs, over REST, each one counted.
@@ -200,7 +201,10 @@ export function restStore(projectId, token, { budget = 40 } = {}) {
     find({ parent = '', collection, group = false, field, op = '==', value, limit, fields = [] }) {
       return runQuery(parent, {
         from: [{ collectionId: collection, allDescendants: group }],
-        where: { fieldFilter: { field: { fieldPath: field }, op: OPS[op], value: encodeValue(value) } },
+        // No field: every document in the collection.
+        ...(field
+          ? { where: { fieldFilter: { field: { fieldPath: field }, op: OPS[op], value: encodeValue(value) } } }
+          : {}),
         select: select(fields),
         limit,
       });
@@ -247,6 +251,7 @@ export function restStore(projectId, token, { budget = 40 } = {}) {
      *   { increment: path, field, by }   the document must still exist
      *   { set: path, field, value }      the document must still exist
      *   { replace: path, serverTime }    the whole document becomes one timestamp
+     *   { create: path, fields }         only if nothing is there yet
      */
     async commit(writes) {
       const rest = writes.map((w) => {
@@ -265,6 +270,17 @@ export function restStore(projectId, token, { budget = 40 } = {}) {
             update: { name: full(w.set), fields: { [w.field]: encodeValue(w.value) } },
             updateMask: { fieldPaths: [w.field] },
             currentDocument: { exists: true },
+          };
+        }
+        if (w.create) {
+          return {
+            update: {
+              name: full(w.create),
+              fields: Object.fromEntries(
+                Object.entries(w.fields).map(([k, v]) => [k, encodeValue(v)]),
+              ),
+            },
+            currentDocument: { exists: false },
           };
         }
         if (w.replace) {

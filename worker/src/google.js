@@ -8,7 +8,11 @@
 const JWKS_URL =
   'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
-const SCOPE = 'https://www.googleapis.com/auth/datastore';
+// Firestore, and sending push notifications. Nothing else.
+const SCOPE = [
+  'https://www.googleapis.com/auth/datastore',
+  'https://www.googleapis.com/auth/firebase.messaging',
+].join(' ');
 
 // Clocks disagree by a few seconds; five minutes is what Google's own
 // libraries allow.
@@ -130,7 +134,7 @@ function pemToDer(pem) {
 }
 
 /**
- * An OAuth access token for the service account, scoped to Firestore only.
+ * An OAuth access token for the service account: Firestore, and FCM.
  *
  * Firestore's own security rules do not apply to it. That is the point — it is
  * the one writer allowed to set the score fields — and also why the key behind
