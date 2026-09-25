@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../data/chat_inbox.dart';
 import '../data/firestore_community_repository.dart';
+import '../data/room_repository.dart';
 import '../data/session_controller.dart';
 import '../i18n/strings.dart';
 import '../models/chat.dart';
@@ -12,11 +13,13 @@ import '../widgets/chat_bits.dart';
 import '../widgets/mute_sheet.dart';
 import 'chat_screen.dart';
 import 'profile_screen.dart';
+import 'room_screen.dart';
 
-/// Your conversations, most recent first.
+/// Your conversations, most recent first, under the Global room.
 ///
 /// Everyone you are connected with is here — accepting a request opens the
-/// conversation — ordered by the last thing said.
+/// conversation — ordered by the last thing said. Global is pinned above
+/// them all, for everyone, joined or not.
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
 
@@ -85,23 +88,302 @@ class _MessagesScreenState extends State<MessagesScreen> {
             color: AppColors.brand,
           ),
         ),
-        ChatInbox(error: final Object _) when inbox.threads.isEmpty => _Empty(
-          icon: Icons.cloud_off_outlined,
-          title: s.couldNotLoad,
-        ),
-        ChatInbox(threads: []) => _Empty(
-          icon: Icons.chat_bubble_outline_rounded,
-          title: s.noChatsTitle,
-          hint: s.noChatsHint,
-        ),
-        final ChatInbox inbox => ListView.builder(
-          padding: const EdgeInsets.symmetric(vertical: Gap.sm),
-          itemCount: inbox.threads.length,
-          itemBuilder: (context, i) =>
-              _ThreadRow(thread: inbox.threads[i], inbox: inbox, s: s),
-        ),
+        final ChatInbox inbox => _List(inbox: inbox, s: s),
       },
     );
+  }
+}
+
+class _List extends StatelessWidget {
+  const _List({required this.inbox, required this.s});
+
+  final ChatInbox inbox;
+  final Strings s;
+
+  @override
+  Widget build(BuildContext context) {
+    final threads = inbox.threads;
+    final pinned = inbox.rooms != null;
+    // With no chats yet, Global still sits on top and the hint goes under it.
+    final Widget? empty = threads.isNotEmpty
+        ? null
+        : inbox.error != null
+        ? _Empty(icon: Icons.cloud_off_outlined, title: s.couldNotLoad)
+        : _Empty(
+            icon: Icons.chat_bubble_outline_rounded,
+            title: s.noChatsTitle,
+            hint: s.noChatsHint,
+          );
+    final head = pinned ? 1 : 0;
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: Gap.sm),
+      itemCount: head + (empty == null ? threads.length : 1),
+      itemBuilder: (context, i) {
+        if (pinned && i == 0) return _GlobalRow(inbox: inbox, s: s);
+        if (empty != null) {
+          return Padding(padding: const EdgeInsets.only(top: 48), child: empty);
+        }
+        return _ThreadRow(thread: threads[i - head], inbox: inbox, s: s);
+      },
+    );
+  }
+}
+
+/// The Global room, pinned above every chat.
+///
+/// Before joining it says "Join now" and counts nothing. Joined, it reads
+/// like any chat: the last thing said and who said it, the time, and what
+/// you have not read — quieter when muted.
+class _GlobalRow extends StatelessWidget {
+  const _GlobalRow({required this.inbox, required this.s});
+
+  final ChatInbox inbox;
+  final Strings s;
+
+  static const _id = RoomRepository.globalId;
+
+  @override
+  Widget build(BuildContext context) {
+    final me = inbox.uid;
+    final now = DateTime.now();
+    final room = inbox.global;
+    final joined = inbox.joinedGlobal;
+    final prefs = inbox.prefsFor(_id);
+    final muted = joined && prefs.mutedAt(now);
+    final unread = inbox.globalUnread;
+    final loud = unread > 0 && !muted;
+    final last = room?.lastMessage;
+
+    // What the second line says, and whether it is a note rather than words.
+    final (String line, bool note) = switch (last) {
+      _ when !inbox.globalKnown => ('', false),
+      _ when !joined => (s.joinNow, false),
+      null => (s.members(room?.memberCount ?? 0), true),
+      _ when prefs.clearedBy(room!.updatedAt) => (
+        s.members(room.memberCount),
+        true,
+      ),
+      _ when prefs.hidden.contains(last.id) => (s.youDeletedMessage, true),
+      // Someone you have blocked: their words stay out of your inbox too.
+      _ when inbox.isBlocked(last.senderUid) => (
+        s.members(room.memberCount),
+        true,
+      ),
+      ChatPreview(unsent: true) => (
+        last.senderUid == me ? s.youUnsent : s.theyUnsent,
+        true,
+      ),
+      final p => (
+        p.senderUid == me
+            ? '${s.youPrefix}${p.text}'
+            : '${p.senderName ?? ''}: ${p.text}',
+        false,
+      ),
+    };
+    // The time of the last message, when there is one to show.
+    final DateTime? time =
+        joined &&
+            room != null &&
+            last != null &&
+            !prefs.clearedBy(room.updatedAt)
+        ? room.updatedAt
+        : null;
+
+    return InkWell(
+      onTap: () => openGlobalChat(context),
+      onLongPress: inbox.globalKnown ? () => _actions(context) : null,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: 10),
+        child: Row(
+          children: [
+            const RoomAvatar(size: 52),
+            Gap.w12,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          s.globalChat,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: unread > 0
+                                ? FontWeight.w800
+                                : FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      if (time != null)
+                        Text(
+                          s.threadTime(time, now),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: loud
+                                ? FontWeight.w700
+                                : FontWeight.w400,
+                            color: loud
+                                ? AppColors.profit
+                                : AppColors.textMuted,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          line,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontStyle: note
+                                ? FontStyle.italic
+                                : FontStyle.normal,
+                            fontWeight: !joined || unread > 0
+                                ? FontWeight.w700
+                                : FontWeight.w400,
+                            color: !joined
+                                ? AppColors.brand
+                                : unread > 0
+                                ? AppColors.textPrimary
+                                : AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                      if (muted) ...[
+                        Gap.w8,
+                        const Icon(
+                          Icons.notifications_off,
+                          size: 16,
+                          color: AppColors.textMuted,
+                        ),
+                      ],
+                      Gap.w8,
+                      if (unread > 0)
+                        Container(
+                          constraints: const BoxConstraints(minWidth: 21),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: muted
+                                ? AppColors.textMuted
+                                : AppColors.profit,
+                            borderRadius: Radii.pill,
+                          ),
+                          child: Text(
+                            unread > 99 ? '99+' : '$unread',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.bg,
+                            ),
+                          ),
+                        )
+                      else
+                        // Pinned, as WhatsApp marks a pinned chat.
+                        Transform.rotate(
+                          angle: 0.6,
+                          child: const Icon(
+                            Icons.push_pin,
+                            size: 15,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _actions(BuildContext context) async {
+    final now = DateTime.now();
+    final joined = inbox.joinedGlobal;
+    final prefs = inbox.prefsFor(_id);
+    final muted = prefs.mutedAt(now);
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheet) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: Gap.sm),
+            if (joined)
+              ListTile(
+                leading: Icon(
+                  muted
+                      ? Icons.notifications_active_outlined
+                      : Icons.notifications_off_outlined,
+                ),
+                title: Text(muted ? s.unmute : s.muteNotifications),
+                subtitle: muted
+                    ? Text(s.mutedUntil(prefs.mutedUntil!, now))
+                    : null,
+                onTap: () => Navigator.of(sheet).pop(muted ? 'unmute' : 'mute'),
+              ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline_rounded),
+              title: Text(s.deleteChat),
+              onTap: () => Navigator.of(sheet).pop('clear'),
+            ),
+            if (joined)
+              ListTile(
+                leading: const Icon(
+                  Icons.logout_rounded,
+                  color: AppColors.loss,
+                ),
+                title: Text(
+                  s.leave,
+                  style: const TextStyle(color: AppColors.loss),
+                ),
+                onTap: () => Navigator.of(sheet).pop('leave'),
+              )
+            else
+              ListTile(
+                leading: const Icon(
+                  Icons.group_add_outlined,
+                  color: AppColors.brand,
+                ),
+                title: Text(
+                  s.join,
+                  style: const TextStyle(color: AppColors.brand),
+                ),
+                onTap: () => Navigator.of(sheet).pop('join'),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (!context.mounted || action == null) return;
+    switch (action) {
+      case 'mute':
+        await muteChat(context, inbox, _id);
+      case 'unmute':
+        await unmuteChat(inbox, _id);
+      case 'clear':
+        await confirmClearRoom(context, _id);
+      case 'join':
+        await joinRoom(context, _id);
+      case 'leave':
+        await confirmLeaveRoom(context, _id);
+    }
   }
 }
 
