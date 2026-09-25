@@ -596,6 +596,112 @@ service cloud.firestore {
       }
     }
 
+    // --- Rooms --------------------------------------------------------------
+    //
+    // A conversation for everyone. There is one, "global", made by hand;
+    // nobody can make another or delete it. Anyone signed in can read it —
+    // that is how you decide to join — and only members can write in it.
+    // Joining is what brings unread counts and banners; leaving ends them.
+    //
+    // Who sent a message is written onto it, because a room has too many
+    // people to look each one up. So the name has to be the sender's real
+    // one: nobody can post as someone else.
+
+    function roomPath(roomId) {
+      return /databases/$(database)/documents/rooms/$(roomId);
+    }
+
+    function isMember(roomId) {
+      return exists(/databases/$(database)/documents/rooms/$(roomId)/members/$(request.auth.uid));
+    }
+
+    // The preview moves with a message just written by the same person —
+    // or with their own unsend — and says exactly what the message says.
+    function roomPreviewOk(roomId) {
+      let o = resource.data;
+      let n = request.resource.data;
+      let msg = getAfter(/databases/$(database)/documents/rooms/$(roomId)/messages/$(n.lastMessage.id)).data;
+      return n.diff(o).affectedKeys().hasOnly(['lastMessage', 'updatedAt'])
+        && n.lastMessage.keys().hasOnly(['id', 'senderUid', 'senderName', 'text', 'unsent'])
+        && n.lastMessage.senderUid == request.auth.uid
+        && msg.senderUid == request.auth.uid
+        && n.lastMessage.senderName == msg.senderName
+        && n.lastMessage.text == msg.text
+        && n.lastMessage.unsent == msg.unsent
+        && (msg.sentAt == request.time || msg.unsent == true)
+        && (n.updatedAt == o.updatedAt || n.updatedAt == request.time);
+    }
+
+    // The member count moves by one, and only with your own joining or
+    // leaving in the same write.
+    function roomCountOk(roomId) {
+      let o = resource.data;
+      let n = request.resource.data;
+      let member = /databases/$(database)/documents/rooms/$(roomId)/members/$(request.auth.uid);
+      return n.diff(o).affectedKeys().hasOnly(['memberCount'])
+        && ((n.memberCount == o.memberCount + 1 && !exists(member) && existsAfter(member))
+            || (n.memberCount == o.memberCount - 1 && exists(member) && !existsAfter(member)));
+    }
+
+    function roomReplyOk(roomId, r) {
+      return r is map
+        && r.keys().hasOnly(['id', 'senderUid'])
+        && r.keys().hasAll(['id', 'senderUid'])
+        && get(/databases/$(database)/documents/rooms/$(roomId)/messages/$(r.id)).data.senderUid == r.senderUid;
+    }
+
+    match /rooms/{roomId} {
+      allow read: if isSignedIn();
+      allow create, delete: if false;
+      allow update: if isSignedIn() && (roomPreviewOk(roomId) || roomCountOk(roomId));
+
+      // Your membership, and how far you have read. Nobody else's business.
+      match /members/{uid} {
+        allow read: if isOwner(uid);
+        allow create: if isOwner(uid)
+          && request.resource.data.keys().hasOnly(['joinedAt', 'readAt'])
+          && request.resource.data.joinedAt == request.time
+          && request.resource.data.readAt == request.time
+          && getAfter(roomPath(roomId)).data.memberCount == get(roomPath(roomId)).data.memberCount + 1;
+        allow update: if isOwner(uid)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readAt'])
+          && request.resource.data.readAt == request.time;
+        allow delete: if isOwner(uid)
+          && getAfter(roomPath(roomId)).data.memberCount == get(roomPath(roomId)).data.memberCount - 1;
+      }
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn()
+          && isMember(roomId)
+          && request.resource.data.keys().hasOnly([
+               'senderUid', 'senderName', 'senderUsername', 'text', 'sentAt', 'unsent',
+               'replyTo', 'forwarded'])
+          && request.resource.data.senderUid == request.auth.uid
+          && request.resource.data.senderUsername
+               == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.username
+          && request.resource.data.senderName
+               == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.displayName
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 2000
+          && request.resource.data.sentAt == request.time
+          && request.resource.data.unsent == false
+          && (!('replyTo' in request.resource.data)
+              || roomReplyOk(roomId, request.resource.data.replyTo))
+          && (!('forwarded' in request.resource.data)
+              || request.resource.data.forwarded == true);
+
+        // Unsending: the sender blanks their own, as in a chat.
+        allow update: if isSignedIn()
+          && resource.data.senderUid == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'unsent'])
+          && request.resource.data.unsent == true
+          && request.resource.data.text == '';
+        allow delete: if false;
+      }
+    }
+
     // --- Reports ------------------------------------------------------------
     //
     // Write-only for everyone. A report is read by the people who moderate
@@ -609,7 +715,12 @@ service cloud.firestore {
     // report with words put in someone else's mouth.
     function reportEvidenceOk(r) {
       return (r.kind == 'user')
-        || (r.kind == 'message'
+        // A message in the Global room: anyone can read it, so anyone can
+        // report it — as long as the quote is what it says.
+        || (r.kind == 'message' && r.chatId == 'global'
+            && get(/databases/$(database)/documents/rooms/global/messages/$(r.messageId)).data.senderUid == r.targetUid
+            && get(/databases/$(database)/documents/rooms/global/messages/$(r.messageId)).data.text == r.quote)
+        || (r.kind == 'message' && r.chatId != 'global'
             && request.auth.uid in get(/databases/$(database)/documents/chats/$(r.chatId)).data.uids
             && get(/databases/$(database)/documents/chats/$(r.chatId)/messages/$(r.messageId)).data.senderUid == r.targetUid
             && get(/databases/$(database)/documents/chats/$(r.chatId)/messages/$(r.messageId)).data.text == r.quote)
