@@ -77,6 +77,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   /// with the profile; null on your own.
   String? _otherUid;
 
+  /// They have blocked you. Their page is then shown as unavailable.
+  bool _blockedMe = false;
+
   @override
   void initState() {
     super.initState();
@@ -96,24 +99,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
 
     try {
+      final me = _me;
+      final myUid = context.session.uid;
+      final inbox = InboxScope.read(context);
+      final other = me != null && me != widget.username;
+      if (other) _otherUid ??= await widget.repository.uidFor(widget.username);
+      final otherUid = _otherUid;
+
+      // Someone who has blocked you is shown the way an account that is gone
+      // would be: nothing of theirs, and no visit recorded for them to see.
+      final blockedMe =
+          other &&
+          myUid != null &&
+          otherUid != null &&
+          (await inbox?.safety?.hasBlockedMe(me: myUid, otherUid: otherUid) ??
+              false);
+      if (blockedMe) {
+        if (!mounted) return;
+        setState(() {
+          _blockedMe = true;
+          _trader = null;
+          _loading = false;
+        });
+        return;
+      }
+
       final trader = await widget.repository.trader(widget.username);
       final count = await widget.repository.connectionCount(widget.username);
 
-      final me = _me;
       var status = ConnectionStatus.none;
-      if (me != null && me != widget.username) {
-        _otherUid ??= await widget.repository.uidFor(widget.username);
+      if (other) {
         status = await widget.repository.statusBetween(me, widget.username);
         // Opening the page is the visit. Recorded after the read so it never
-        // shows the viewer their own arrival.
-        await widget.repository.recordView(
-          viewer: me,
-          profileId: widget.username,
-        );
+        // shows the viewer their own arrival — and not at all on someone you
+        // have blocked, who would otherwise see you still looking.
+        if (!(otherUid != null && (inbox?.isBlocked(otherUid) ?? false))) {
+          await widget.repository.recordView(
+            viewer: me,
+            profileId: widget.username,
+          );
+        }
       }
 
       if (!mounted) return;
       setState(() {
+        _blockedMe = false;
         _trader = trader;
         _status = status;
         _connectionCount = count;
@@ -293,6 +323,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 color: AppColors.brand,
               ),
             )
+          : _blockedMe
+          ? _Unavailable(username: widget.username, s: s)
           : trader == null
           ? Center(
               child: Padding(
@@ -493,6 +525,52 @@ class _Header extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The whole page, for someone who has blocked you.
+class _Unavailable extends StatelessWidget {
+  const _Unavailable({required this.username, required this.s});
+
+  final String username;
+  final Strings s;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(Gap.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: const BoxDecoration(
+                color: AppColors.elevated,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.person_off_outlined,
+                size: 32,
+                color: AppColors.textMuted,
+              ),
+            ),
+            Gap.h16,
+            Text(
+              '@$username',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            Gap.h8,
+            Text(
+              s.accountUnavailable,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.textMuted),
+            ),
+          ],
+        ),
       ),
     );
   }
