@@ -53,13 +53,13 @@ async function signingKeys() {
 }
 
 /**
- * Returns the uid inside a Firebase ID token, or throws.
+ * Returns the claims inside a Firebase ID token, or throws.
  *
  * Every check here is one the Admin SDK's verifyIdToken makes. Skipping any of
  * them — the audience in particular — would let a token minted for some other
  * Firebase project write scores into this one.
  */
-export async function verifyIdToken(token, projectId, now = Date.now()) {
+export async function verifyIdTokenClaims(token, projectId, now = Date.now()) {
   const parts = token.split('.');
   if (parts.length !== 3) throw new Error('malformed token');
 
@@ -90,7 +90,28 @@ export async function verifyIdToken(token, projectId, now = Date.now()) {
     throw new Error('no subject');
   }
 
-  return claims.sub;
+  return claims;
+}
+
+/** The uid inside a Firebase ID token, or throws. */
+export async function verifyIdToken(token, projectId, now = Date.now()) {
+  return (await verifyIdTokenClaims(token, projectId, now)).sub;
+}
+
+/**
+ * Whether the person behind [claims] typed their password moments ago.
+ *
+ * An ID token lives for an hour and is refreshed silently for as long as the
+ * app stays signed in, so holding one proves only that a phone is signed in —
+ * not that its owner is the one holding it. auth_time is when the password was
+ * last actually entered, and the app re-enters it right before anything that
+ * cannot be undone.
+ */
+export function signedInRecently(claims, maxAgeS, now = Date.now()) {
+  const at = claims.auth_time;
+  if (typeof at !== 'number') return false;
+  const age = Math.floor(now / 1000) - at;
+  return age >= -CLOCK_SKEW_S && age <= maxAgeS;
 }
 
 // --- Service account access token ------------------------------------------
