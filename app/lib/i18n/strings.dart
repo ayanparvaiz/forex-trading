@@ -58,6 +58,22 @@ class Strings {
   String get login => _t('লগইন', 'Log in');
   String get logOut => _t('লগআউট', 'Log out');
   String get chartLoading => _t('চার্ট লোড হচ্ছে…', 'Loading chart…');
+
+  /// Under the chart. [date] is the ECB's, `2026-09-25`; null before any
+  /// rates have been fetched.
+  String practicePrices(String? date) {
+    final day = date == null ? null : DateTime.tryParse(date);
+    return day == null
+        ? _t(
+            'প্র্যাকটিস দাম — আসল রেটের কাছাকাছি, লাইভ নয়',
+            'Practice prices — near real rates, not live',
+          )
+        : _t(
+            'প্র্যাকটিস দাম — ${shortDate(day)}-এর ECB রেট থেকে, লাইভ নয়',
+            'Practice prices — from ECB rates of ${shortDate(day)}, not live',
+          );
+  }
+
   String get loginTitle => _t('ফিরে এসেছেন', 'Welcome back');
   String get loginSubtitle =>
       _t('ইউজারনেম আর পাসওয়ার্ড দিন।', 'Enter your username and password.');

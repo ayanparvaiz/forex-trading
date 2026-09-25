@@ -244,6 +244,29 @@ class _TradeScreenState extends State<TradeScreen> {
             targetLabel: s.target,
             loadingLabel: s.chartLoading,
           ),
+          // Said plainly, every time: these are not live prices.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(Gap.sm, Gap.xs, Gap.sm, 0),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.info_outline,
+                  size: 13,
+                  color: AppColors.textMuted,
+                ),
+                Gap.w4,
+                Expanded(
+                  child: Text(
+                    s.practicePrices(store.market.anchorDate),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
