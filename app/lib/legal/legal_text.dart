@@ -246,7 +246,9 @@ const _termsEn = LegalDocument(
           'real trades.',
       '• Points have no monetary value and cannot be bought, sold, '
           'transferred or exchanged for money or anything else.',
-      '• Prices in the app are simulated and can differ from real markets.',
+      '• Prices in the app are practice prices: they start from the European '
+          "Central Bank's daily reference rates and then move on their own. "
+          'They are not live and can differ from real markets.',
       '• Nothing in the app — including other people\'s posts and messages — '
           'is financial advice. Real trading carries a high risk of losing '
           'money.',
@@ -320,7 +322,9 @@ const _termsBn = LegalDocument(
       '• অ্যাপে শুধু ডেমো পয়েন্ট চলে। কোনো ডিপোজিট, উইথড্র বা আসল ট্রেড নেই।',
       '• পয়েন্টের কোনো টাকার মূল্য নেই; কেনা, বেচা, হস্তান্তর বা টাকা বা '
           'অন্য কিছুর সাথে বদল করা যায় না।',
-      '• অ্যাপের দাম সিমুলেটেড, আসল মার্কেটের সাথে না-ও মিলতে পারে।',
+      '• অ্যাপের দাম প্র্যাকটিসের জন্য: ইউরোপিয়ান সেন্ট্রাল ব্যাংকের প্রতিদিনের '
+          'রেফারেন্স রেট থেকে শুরু হয়ে নিজে থেকে ওঠানামা করে। এগুলো লাইভ নয়, '
+          'আসল মার্কেটের সাথে না-ও মিলতে পারে।',
       '• অ্যাপের কোনো কিছুই — অন্যদের পোস্ট আর মেসেজসহ — আর্থিক পরামর্শ নয়। '
           'আসল ট্রেডিংয়ে টাকা হারানোর ঝুঁকি অনেক বেশি।',
     ]),
