@@ -132,11 +132,16 @@ service cloud.firestore {
 
       // --- Blocks -----------------------------------------------------------
       //
-      // Who you have blocked, private to you. The other person is never told,
-      // and nothing here is readable by them: the rules below read these
-      // documents to refuse their messages and requests, and that is all.
+      // Who you have blocked, private to you: nobody else can list it.
+      //
+      // The one exception is the person blocked, who may ask about their own
+      // entry and nothing else — "has this account blocked me?" — so their
+      // app can show the account as unavailable rather than as a profile
+      // that silently refuses everything.
       match /blocks/{blockedUid} {
-        allow read, delete: if isOwner(uid);
+        allow list, delete: if isOwner(uid);
+        allow get: if isOwner(uid)
+          || (isSignedIn() && request.auth.uid == blockedUid);
         allow create: if isOwner(uid)
           && blockedUid != uid
           && request.resource.data.keys().hasOnly(['username', 'blockedAt'])
