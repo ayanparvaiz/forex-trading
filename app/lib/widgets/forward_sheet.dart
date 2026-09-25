@@ -29,8 +29,9 @@ class ForwardTarget {
 /// listed — the send is refused and the caller says so.
 Future<List<ForwardTarget>?> pickForwardTargets(
   BuildContext context,
-  ChatInbox inbox,
-) {
+  ChatInbox inbox, {
+  String? title,
+}) {
   return showModalBottomSheet<List<ForwardTarget>>(
     context: context,
     isScrollControlled: true,
@@ -38,14 +39,87 @@ Future<List<ForwardTarget>?> pickForwardTargets(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
-    builder: (_) => _ForwardSheet(inbox: inbox),
+    builder: (_) => _ForwardSheet(inbox: inbox, title: title),
+  );
+}
+
+/// Picks conversations and sends [text] — and [attachment] — to each, as
+/// the signed-in person, then says how it went. Forwarding a message and
+/// sharing a post or a rank are all this.
+Future<void> shareIntoChats(
+  BuildContext context, {
+  required String text,
+  MessageAttachment? attachment,
+  bool forwarded = false,
+}) async {
+  final inbox = InboxScope.read(context);
+  final session = context.session;
+  final profile = session.profile;
+  final me = session.uid;
+  if (inbox == null || profile == null || me == null) return;
+  final s = context.s;
+  final messenger = ScaffoldMessenger.of(context);
+
+  final targets = await pickForwardTargets(
+    context,
+    inbox,
+    title: forwarded ? s.forwardTo : s.sendTo,
+  );
+  if (targets == null || targets.isEmpty) return;
+
+  Future<void> sendTo(ForwardTarget target) {
+    final t = target.thread;
+    if (t != null) {
+      return inbox.repository.send(
+        chatId: t.id,
+        me: me,
+        other: t.otherUid(me),
+        text: text,
+        forwarded: forwarded,
+        attachment: attachment,
+      );
+    }
+    final rooms = inbox.rooms;
+    if (rooms == null) return Future.error(StateError('no rooms'));
+    return rooms.send(
+      roomId: target.id,
+      me: me,
+      name: profile.displayName,
+      username: profile.username,
+      text: text,
+      forwarded: forwarded,
+      attachment: attachment,
+    );
+  }
+
+  // Where it could not go: "@username", or the room's name.
+  final failed = <String>[];
+  await Future.wait([
+    for (final target in targets)
+      sendTo(target).catchError((Object e) {
+        debugPrint('send to ${target.id} failed: $e');
+        final t = target.thread;
+        failed.add(
+          t == null ? s.globalChat : '@${t.otherUsername(profile.username)}',
+        );
+      }),
+  ]);
+  final done = forwarded
+      ? s.forwardedTo(targets.length)
+      : s.sentTo(targets.length);
+  final notDone = forwarded
+      ? s.forwardFailed(failed.firstOrNull ?? '')
+      : s.sendFailed(failed.firstOrNull ?? '');
+  messenger.showSnackBar(
+    SnackBar(content: Text(failed.isEmpty ? done : notDone)),
   );
 }
 
 class _ForwardSheet extends StatefulWidget {
-  const _ForwardSheet({required this.inbox});
+  const _ForwardSheet({required this.inbox, this.title});
 
   final ChatInbox inbox;
+  final String? title;
 
   @override
   State<_ForwardSheet> createState() => _ForwardSheetState();
@@ -80,7 +154,7 @@ class _ForwardSheetState extends State<_ForwardSheet> {
             Padding(
               padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.lg, Gap.lg, 4),
               child: Text(
-                s.forwardTo,
+                widget.title ?? s.forwardTo,
                 style: const TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w800,

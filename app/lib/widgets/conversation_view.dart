@@ -496,65 +496,14 @@ class _ConversationViewState extends State<ConversationView> {
     }
   }
 
-  /// Sends a copy of [m], marked forwarded, to the conversations picked.
-  Future<void> _forward(ChatMessage m) async {
-    final inbox = _inbox;
-    if (inbox == null) return;
-    final s = context.s;
-    final messenger = ScaffoldMessenger.of(context);
-    final myUsername = context.session.profile?.username ?? '';
-
-    final profile = context.session.profile;
-
-    final targets = await pickForwardTargets(context, inbox);
-    if (targets == null || targets.isEmpty) return;
-
-    Future<void> sendTo(ForwardTarget target) {
-      final t = target.thread;
-      final rooms = inbox.rooms;
-      if (t != null) {
-        return inbox.repository.send(
-          chatId: t.id,
-          me: _me,
-          other: t.otherUid(_me),
-          text: m.text,
-          forwarded: true,
-        );
-      }
-      if (rooms == null || profile == null) {
-        return Future.error(StateError('no room'));
-      }
-      return rooms.send(
-        roomId: target.id,
-        me: _me,
-        name: profile.displayName,
-        username: profile.username,
-        text: m.text,
-        forwarded: true,
-      );
-    }
-
-    final failed = <String>[];
-    await Future.wait([
-      for (final target in targets)
-        sendTo(target).catchError((Object e) {
-          debugPrint('forward to ${target.id} failed: $e');
-          final t = target.thread;
-          failed.add(
-            t == null ? s.globalChat : '@${t.otherUsername(myUsername)}',
-          );
-        }),
-    ]);
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          failed.isEmpty
-              ? s.forwardedTo(targets.length)
-              : s.forwardFailed(failed.first),
-        ),
-      ),
-    );
-  }
+  /// Sends a copy of [m] — words and anything shared with them — marked
+  /// forwarded, to the conversations picked.
+  Future<void> _forward(ChatMessage m) => shareIntoChats(
+    context,
+    text: m.text,
+    attachment: m.attachment,
+    forwarded: true,
+  );
 
   /// "Delete for me": gone from this side at once, with a moment to take it
   /// back. Everyone else still has it.
