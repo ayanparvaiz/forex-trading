@@ -25,6 +25,12 @@ class AppColors {
   static const brand = Color(0xFF00A884);
   static const brandDim = Color(0xFF14624E);
 
+  /// Message bubbles: yours in WhatsApp's outgoing green, theirs raised off
+  /// the background. The palette already follows WhatsApp's dark mode, so
+  /// the conversation screen reads as one people already know how to use.
+  static const bubbleMine = Color(0xFF005C4B);
+  static const bubbleTheirs = Color(0xFF1F2C34);
+
   // Market semantics. Profit is deliberately a brighter green than [brand] so a
   // winning position never reads as "just another button".
   static const profit = Color(0xFF00D68F);
