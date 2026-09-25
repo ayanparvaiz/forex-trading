@@ -49,6 +49,10 @@ class ChatRepository {
   CollectionReference<Map<String, dynamic>> _messages(String chatId) =>
       _chats.doc(chatId).collection('messages');
 
+  /// What [uid] has deleted for themselves, one document per conversation.
+  CollectionReference<Map<String, dynamic>> _prefs(String uid) =>
+      _users.doc(uid).collection('chatPrefs');
+
   /// The fields of a brand-new conversation, exactly as the rules require.
   ///
   /// Both people's marks start at the moment of creation and both counts at
@@ -190,6 +194,12 @@ class ChatRepository {
     return [for (final d in snapshot.docs) _messageFrom(d)];
   }
 
+  /// One message, for a reply whose original is not among those loaded.
+  Future<ChatMessage?> message(String chatId, String messageId) async {
+    final doc = await _messages(chatId).doc(messageId).get();
+    return doc.exists ? _messageFrom(doc) : null;
+  }
+
   /// Sends a message and moves the conversation's preview in one batch.
   ///
   /// Not awaited by the screen: the message appears from the local cache at
@@ -200,6 +210,8 @@ class ChatRepository {
     required String me,
     required String other,
     required String text,
+    ReplyRef? replyTo,
+    bool forwarded = false,
   }) {
     final message = _messages(chatId).doc();
     final batch = _db.batch()
@@ -208,6 +220,9 @@ class ChatRepository {
         'text': text,
         'sentAt': FieldValue.serverTimestamp(),
         'unsent': false,
+        if (replyTo != null)
+          'replyTo': {'id': replyTo.id, 'senderUid': replyTo.senderUid},
+        if (forwarded) 'forwarded': true,
       })
       ..update(_chats.doc(chatId), {
         'lastMessage': {
@@ -260,6 +275,45 @@ class ChatRepository {
         },
       });
     }
+    return batch.commit();
+  }
+
+  // --- Deleting for me -------------------------------------------------------
+
+  /// Everything [uid] has deleted for themselves, by conversation, live.
+  Stream<Map<String, ChatPrefs>> watchPrefs(String uid) {
+    return _prefs(uid).snapshots().map(
+      (s) => {for (final d in s.docs) d.id: _prefsFrom(d.data())},
+    );
+  }
+
+  /// "Delete for me": gone from my side, still there for the other person.
+  Future<void> hideMessage(String chatId, String me, String messageId) =>
+      _prefs(me).doc(chatId).set({
+        'hidden': FieldValue.arrayUnion([messageId]),
+      }, SetOptions(merge: true));
+
+  /// Undoes [hideMessage].
+  Future<void> unhideMessage(String chatId, String me, String messageId) =>
+      _prefs(me).doc(chatId).set({
+        'hidden': FieldValue.arrayRemove([messageId]),
+      }, SetOptions(merge: true));
+
+  /// "Delete chat": everything so far goes from my side, and the chat leaves
+  /// my inbox until someone writes again. Its unread count goes too — a
+  /// deleted chat should not keep a number on the tab. Not marked read: the
+  /// other person's ticks say whether I read it, and I did not.
+  Future<void> clearChat(String chatId, String me) {
+    final batch = _db.batch()
+      // Replaced, not merged: messages hidden one by one before the clear
+      // are cleared along with everything else.
+      ..set(_prefs(me).doc(chatId), {
+        'clearedAt': FieldValue.serverTimestamp(),
+        'hidden': <String>[],
+      })
+      ..update(_chats.doc(chatId), {
+        FieldPath(['unread', me]): 0,
+      });
     return batch.commit();
   }
 
@@ -384,9 +438,10 @@ class ChatRepository {
     );
   }
 
-  ChatMessage _messageFrom(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data();
+  ChatMessage _messageFrom(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? const <String, dynamic>{};
     final sentAt = data['sentAt'];
+    final reply = data['replyTo'];
     return ChatMessage(
       id: doc.id,
       senderUid: data['senderUid'] as String? ?? '',
@@ -394,7 +449,28 @@ class ChatRepository {
       sentAt: sentAt is Timestamp ? sentAt.toDate() : DateTime.now(),
       unsent: data['unsent'] as bool? ?? false,
       pending: doc.metadata.hasPendingWrites,
+      replyTo: reply is Map && reply['id'] is String
+          ? ReplyRef(
+              id: reply['id'] as String,
+              senderUid: reply['senderUid'] as String? ?? '',
+            )
+          : null,
+      forwarded: data['forwarded'] == true,
       cursor: doc,
+    );
+  }
+
+  ChatPrefs _prefsFrom(Map<String, dynamic> data) {
+    final cleared = data['clearedAt'];
+    return ChatPrefs(
+      // Present but null is a clear this phone has just written and the
+      // server has not stamped yet: it is about to be now.
+      clearedAt: cleared is Timestamp
+          ? cleared.toDate()
+          : data.containsKey('clearedAt')
+          ? DateTime.now()
+          : null,
+      hidden: {...List<String>.from(data['hidden'] as List? ?? const [])},
     );
   }
 }
