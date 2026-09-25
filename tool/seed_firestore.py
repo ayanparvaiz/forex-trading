@@ -217,6 +217,8 @@ def main() -> None:
             {
                 "username": s(username),
                 "displayName": s(account["name"]),
+                # Search looks names up by this; the rules hold it to the name.
+                "nameLower": s(account["name"].lower()),
                 "gender": s(account["gender"]),
                 "language": s(account["language"]),
                 "avatarId": i(account["avatarId"]),

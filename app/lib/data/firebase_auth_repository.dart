@@ -132,6 +132,8 @@ class FirebaseAuthRepository implements AuthRepository {
         });
         tx.set(_users.doc(uid), {
           ...profile.toJson(),
+          // What search looks names up by; the rules hold it to the name.
+          'nameLower': profile.displayName.toLowerCase(),
           // Server-owned from here on. Written once at creation so the rules
           // can compare against them on every later update.
           'disciplineScore': 100,
@@ -212,6 +214,7 @@ class FirebaseAuthRepository implements AuthRepository {
     // the rules reject them from a client anyway.
     await _users.doc(uid).update({
       'displayName': profile.displayName,
+      'nameLower': profile.displayName.toLowerCase(),
       'gender': profile.gender.name,
       'language': profile.language.code,
       'avatarId': profile.avatarId,
