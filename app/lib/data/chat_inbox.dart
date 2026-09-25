@@ -32,6 +32,10 @@ class ChatInbox extends ChangeNotifier with WidgetsBindingObserver {
       _blocked = {for (final b in blocked) b.uid: b};
       notifyListeners();
     }, onError: (Object e) => debugPrint('blocks stream failed: $e'));
+    _prefsSub = repository.watchPrefs(uid).listen((prefs) {
+      _prefs = prefs;
+      notifyListeners();
+    }, onError: (Object e) => debugPrint('chat prefs stream failed: $e'));
     _threadsSub = repository
         .watchThreads(uid)
         .listen(_onThreads, onError: _onError);
@@ -65,7 +69,19 @@ class ChatInbox extends ChangeNotifier with WidgetsBindingObserver {
   };
 
   List<ChatThread> _threads = const [];
-  List<ChatThread> get threads => _threads;
+
+  /// Your conversations, less the ones you have deleted and nobody has
+  /// written in since.
+  List<ChatThread> get threads => [
+    for (final t in _threads)
+      if (prefsFor(t.id).listsThread(t)) t,
+  ];
+
+  StreamSubscription<Map<String, ChatPrefs>>? _prefsSub;
+  Map<String, ChatPrefs> _prefs = const {};
+
+  /// What you have deleted for yourself in [chatId].
+  ChatPrefs prefsFor(String chatId) => _prefs[chatId] ?? ChatPrefs.none;
 
   bool _loaded = false;
   bool get loaded => _loaded;
@@ -80,7 +96,7 @@ class ChatInbox extends ChangeNotifier with WidgetsBindingObserver {
   DateTime? lastActive(String otherUid) => _presence[otherUid];
 
   /// Conversations with something unread — the number on the tab.
-  int get unreadChats => _threads.where((t) => t.unreadFor(uid) > 0).length;
+  int get unreadChats => threads.where((t) => t.unreadFor(uid) > 0).length;
 
   /// The conversation currently on screen, if any. Its messages get no
   /// banner, because you are already reading them.
@@ -247,6 +263,7 @@ class ChatInbox extends ChangeNotifier with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _threadsSub?.cancel();
+    _prefsSub?.cancel();
     _blocksSub?.cancel();
     _presenceSub?.cancel();
     _heartbeat?.cancel();
