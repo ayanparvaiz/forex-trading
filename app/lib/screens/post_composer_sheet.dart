@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 
+import '../data/communities_repository.dart';
 import '../data/community_repository.dart';
+import '../data/feed_scope.dart';
 import '../data/push_notifier.dart';
 import '../data/session_controller.dart';
 import '../i18n/strings.dart';
+import '../models/community.dart';
 import '../models/instrument.dart';
 import '../models/trade.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
+import '../widgets/feed_picker.dart';
 
 /// A leaderboard position, captured before the sheet opens.
 ///
@@ -32,13 +36,18 @@ class RankShare {
 /// and the reasoning that were already recorded — but the lesson is always
 /// typed here, because a lesson written at the moment of sharing is a different
 /// and better sentence than one written at the moment of closing.
-Future<bool> showPostComposer(
+///
+/// It goes to [scope] — Global, or the author's community — which the author
+/// can change here; without one, to the feed they last chose. Returns the
+/// feed it was posted to, or null if nothing was.
+Future<String?> showPostComposer(
   BuildContext context, {
   required CommunityRepository repository,
   Trade? trade,
   RankShare? rank,
-}) async {
-  final posted = await showModalBottomSheet<bool>(
+  String? scope,
+}) {
+  return showModalBottomSheet<String>(
     context: context,
     backgroundColor: AppColors.surface,
     isScrollControlled: true,
@@ -48,17 +57,27 @@ Future<bool> showPostComposer(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
-    builder: (_) => _Composer(repository: repository, trade: trade, rank: rank),
+    builder: (_) => _Composer(
+      repository: repository,
+      trade: trade,
+      rank: rank,
+      scope: scope,
+    ),
   );
-  return posted ?? false;
 }
 
 class _Composer extends StatefulWidget {
-  const _Composer({required this.repository, this.trade, this.rank});
+  const _Composer({
+    required this.repository,
+    this.trade,
+    this.rank,
+    this.scope,
+  });
 
   final CommunityRepository repository;
   final Trade? trade;
   final RankShare? rank;
+  final String? scope;
 
   @override
   State<_Composer> createState() => _ComposerState();
@@ -77,8 +96,52 @@ class _ComposerState extends State<_Composer> {
 
   bool _posting = false;
 
+  /// Where it goes. Null only while the last choice is read from the phone.
+  String? _scope;
+  final _scopes = FeedScope();
+
+  /// The author's community, for its name.
+  Community? _community;
+  bool _started = false;
+
   bool get _fromTrade => widget.trade != null;
   bool get _fromRank => widget.rank != null;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    final session = context.session;
+    final uid = session.uid;
+    final communityId = session.profile?.communityId;
+    if (widget.scope != null || uid == null) {
+      _scope = FeedScope.valid(widget.scope, communityId);
+    } else {
+      _scopes.load(uid, communityId).then((scope) {
+        if (mounted) setState(() => _scope ??= scope);
+      });
+    }
+    if (communityId != null) {
+      buildCommunitiesRepository()?.watch(communityId).first.then((c) {
+        if (mounted) setState(() => _community = c);
+      }, onError: (_) {});
+    }
+  }
+
+  Future<void> _pickScope() async {
+    final session = context.session;
+    final uid = session.uid;
+    final picked = await pickFeed(
+      context,
+      current: _scope ?? FeedScope.global,
+      communityId: session.profile?.communityId,
+      community: _community,
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _scope = picked);
+    if (uid != null) _scopes.save(uid, picked);
+  }
 
   @override
   void dispose() {
@@ -90,6 +153,7 @@ class _ComposerState extends State<_Composer> {
   bool get _canPost =>
       _lesson.text.trim().length >= 10 &&
       (_fromRank || _reason.text.trim().isNotEmpty) &&
+      _scope != null &&
       !_posting;
 
   Future<void> _publish() async {
@@ -100,6 +164,7 @@ class _ComposerState extends State<_Composer> {
 
     setState(() => _posting = true);
 
+    final scope = _scope ?? FeedScope.global;
     final shared = widget.rank;
     final id = shared != null
         ? await widget.repository.createRankPost(
@@ -108,6 +173,7 @@ class _ComposerState extends State<_Composer> {
             rank: shared.rank,
             score: shared.score,
             lesson: _lesson.text,
+            community: scope,
           )
         : await widget.repository.createPost(
             uid: uid,
@@ -117,6 +183,7 @@ class _ComposerState extends State<_Composer> {
             reason: _reason.text,
             lesson: _lesson.text,
             followedRules: _followedRules,
+            community: scope,
           );
 
     // Connections hear about it on their phones.
@@ -124,7 +191,7 @@ class _ComposerState extends State<_Composer> {
 
     if (!mounted) return;
     setState(() => _posting = false);
-    Navigator.of(context).pop(id != null);
+    Navigator.of(context).pop(id == null ? null : scope);
   }
 
   String _title(Strings s) {
@@ -158,6 +225,13 @@ class _ComposerState extends State<_Composer> {
                 ),
               ],
             ),
+          ),
+          _Destination(
+            scope: _scope,
+            community: _community,
+            onTap: context.session.profile?.communityId == null
+                ? null
+                : _pickScope,
           ),
           const Divider(height: 1),
           Flexible(child: _body(s)),
@@ -352,6 +426,62 @@ class _ComposerState extends State<_Composer> {
 }
 
 /// The leaderboard position being shared, shown rather than re-entered.
+/// Where the post will go, under the heading — and, for someone in a
+/// community, the way to send it to the other feed.
+class _Destination extends StatelessWidget {
+  const _Destination({required this.scope, this.community, this.onTap});
+
+  final String? scope;
+  final Community? community;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.s;
+    final where = scope;
+    final name = where == null
+        ? '…'
+        : where == FeedScope.global
+        ? s.globalChat
+        : community?.name ?? '…';
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(Gap.lg, 0, Gap.lg, Gap.sm),
+        child: Row(
+          children: [
+            Icon(
+              where == null || where == FeedScope.global
+                  ? Icons.public_rounded
+                  : Icons.groups_2_outlined,
+              size: 16,
+              color: AppColors.brand,
+            ),
+            Gap.w8,
+            Flexible(
+              child: Text(
+                s.postingTo(name),
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+            if (onTap != null)
+              const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 20,
+                color: AppColors.textSecondary,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _RankSummary extends StatelessWidget {
   const _RankSummary({required this.share, required this.s});
 

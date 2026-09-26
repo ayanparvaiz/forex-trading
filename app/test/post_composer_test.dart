@@ -40,8 +40,15 @@ void main() {
     );
   });
 
+  /// What the composer returned, once it has closed.
+  String? result;
+
   /// Opens the composer over a throwaway screen and returns once it is up.
-  Future<void> open(WidgetTester tester, {RankShare? rank}) async {
+  Future<void> open(
+    WidgetTester tester, {
+    RankShare? rank,
+    String? scope,
+  }) async {
     await tester.pumpWidget(
       SessionScope(
         controller: session,
@@ -51,10 +58,11 @@ void main() {
             builder: (context) => Scaffold(
               body: Center(
                 child: ElevatedButton(
-                  onPressed: () => showPostComposer(
+                  onPressed: () async => result = await showPostComposer(
                     context,
                     repository: repository,
                     rank: rank,
+                    scope: scope,
                   ),
                   child: const Text('open'),
                 ),
@@ -168,4 +176,57 @@ void main() {
       isNull,
     );
   });
+
+  testWidgets('says which feed it goes to, and goes there', (tester) async {
+    final recording = _Recording(prefs);
+    repository = recording;
+    await open(
+      tester,
+      rank: const RankShare(rank: 7, score: 84, badgeEmoji: '🥉'),
+      scope: 'global',
+    );
+
+    expect(find.text('Posting to Global'), findsOneWidget);
+
+    await tester.enterText(lessonField(), 'held the size small');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Post'));
+    await tester.pumpAndSettle();
+
+    expect(recording.community, 'global');
+    expect(result, 'global');
+  });
+
+  testWidgets('a community nobody is in is never where it goes', (
+    tester,
+  ) async {
+    // A feed remembered from a community since left: Global instead.
+    await open(
+      tester,
+      rank: const RankShare(rank: 7, score: 84, badgeEmoji: '🥉'),
+      scope: 'bulls',
+    );
+    expect(find.text('Posting to Global'), findsOneWidget);
+  });
+}
+
+/// Remembers which feed a rank post was written to.
+class _Recording extends LocalCommunityRepository {
+  _Recording(SharedPreferences prefs)
+    : super(language: AppLanguage.en, prefs: prefs);
+
+  String? community;
+
+  @override
+  Future<String?> createRankPost({
+    required String uid,
+    required String username,
+    required int rank,
+    required double score,
+    required String lesson,
+    String community = 'global',
+  }) async {
+    this.community = community;
+    return 'p1';
+  }
 }

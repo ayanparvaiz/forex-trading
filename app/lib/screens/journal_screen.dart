@@ -501,7 +501,7 @@ class _TradeCard extends StatelessWidget {
       repository: repository,
       trade: trade,
     );
-    if (!posted || !context.mounted) return;
+    if (posted == null || !context.mounted) return;
 
     store.shareTrade(trade.id);
     ScaffoldMessenger.of(

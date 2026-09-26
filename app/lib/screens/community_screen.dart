@@ -96,7 +96,7 @@ class _CommunityScreenState extends State<CommunityScreen>
       repository: repository,
       rank: rank,
     );
-    if (!mounted || !posted) return;
+    if (!mounted || posted == null) return;
 
     setState(() => _feedVersion++);
     // Land on the feed whichever tab it was written from. A post you cannot
