@@ -5,7 +5,8 @@
 // connections, notifications, profile-view records, conversations — for
 // both people in them — messages in the Global room and in community rooms,
 // and community membership. Reports stay, for moderation. A community they
-// started stays, for the people in it.
+// started is deleted with them, and everyone in it leaves: a community is
+// never left without its admin.
 //
 // Much of it is not the account's own to delete under the Firestore rules —
 // a conversation belongs to two people, a like sits on someone else's post —
@@ -17,6 +18,7 @@
 // deleted is simply not found again. The profile goes last, so while any of
 // the rest is left, the profile is still there to say whose it was.
 
+import { deleteCommunity } from './community.js';
 import { PAGE, WriteQueue, eraseBelow, eraseMatching, eraseParents, parentOf } from './writes.js';
 
 // The room everyone can join, made by hand; see firestore.rules. Community
@@ -188,6 +190,11 @@ export async function eraseAccount(store, uid) {
     op: 'array-contains',
     value: uid,
   });
+  // Theirs goes with them, before the rooms, so its room goes whole.
+  if (communityId) {
+    const community = await store.get(`communities/${communityId}`, ['createdBy']);
+    if (community?.createdBy === uid) await deleteCommunity(store, communityId);
+  }
   await eraseFromRooms(store, writes, uid, communityId);
   await eraseFromCommunity(store, writes, uid, communityId);
   await eraseMatching(store, writes, {

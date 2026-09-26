@@ -198,9 +198,9 @@ test('a room left with no messages at all shows none', async () => {
 test('out of their community and its room, and out of rooms they left before', async () => {
   const docs = world();
   docs.get('users/u-me').communityId = 'bulls1';
-  docs.set('communities/bulls1', { name: 'Bulls', memberCount: 2, createdBy: ME });
-  docs.set('communities/bulls1/members/u-me', { role: 'admin' });
-  docs.set('communities/bulls1/members/u-ana', { role: 'member' });
+  docs.set('communities/bulls1', { name: 'Bulls', memberCount: 2, createdBy: 'u-ana' });
+  docs.set('communities/bulls1/members/u-me', { role: 'member' });
+  docs.set('communities/bulls1/members/u-ana', { role: 'admin' });
   docs.set('rooms/c_bulls1', {
     name: 'Bulls',
     memberCount: 2,
@@ -218,7 +218,7 @@ test('out of their community and its room, and out of rooms they left before', a
   await eraseAccount(memoryStore(docs), ME);
 
   // The community stays, for Ana, one member lighter.
-  assert.deepEqual(docs.get('communities/bulls1'), { name: 'Bulls', memberCount: 1, createdBy: ME });
+  assert.deepEqual(docs.get('communities/bulls1'), { name: 'Bulls', memberCount: 1, createdBy: 'u-ana' });
   assert.equal(docs.has('communities/bulls1/members/u-me'), false);
   assert.equal(docs.has('communities/bulls1/members/u-ana'), true);
   // Its room: counted out, my words gone, Ana's shown instead.
@@ -230,4 +230,27 @@ test('out of their community and its room, and out of rooms they left before', a
   assert.equal(docs.has('rooms/c_bears1/messages/x0'), false);
   assert.equal(docs.has('rooms/c_bears1/messages/x1'), true);
   assert.equal(docs.get('rooms/c_bears1').memberCount, 1);
+});
+
+test('the admin going takes their community with them, and everyone in it leaves', async () => {
+  const docs = world();
+  docs.get('users/u-me').communityId = 'bulls1';
+  docs.get('users/u-ana').communityId = 'bulls1';
+  docs.set('communities/bulls1', { name: 'Bulls', nameLower: 'bulls', memberCount: 2, createdBy: ME });
+  docs.set('communityNames/bulls', { communityId: 'bulls1' });
+  docs.set('communities/bulls1/members/u-me', { role: 'admin' });
+  docs.set('communities/bulls1/members/u-ana', { role: 'member' });
+  docs.set('rooms/c_bulls1', { name: 'Bulls', memberCount: 2, lastMessage: null });
+  docs.set('rooms/c_bulls1/members/u-me', {});
+  docs.set('rooms/c_bulls1/members/u-ana', {});
+  docs.set('rooms/c_bulls1/messages/b1', { senderUid: 'u-ana', text: 'hers', sentAt: 1 });
+  docs.set('posts/p-bulls', { authorUid: 'u-ana', community: 'bulls1' });
+  docs.set('posts/p-bulls/comments/c9', { authorUid: 'u-ana' });
+
+  await eraseAccount(memoryStore(docs), ME);
+
+  const left = [...docs.keys()].filter((p) => /bulls/.test(p));
+  assert.deepEqual(left, [], 'nothing of the community is left');
+  assert.equal(docs.get('users/u-ana').communityId, '', 'Ana is in no community now');
+  assert.equal(docs.has('users/u-me'), false);
 });
