@@ -9,6 +9,7 @@ import '../legal/legal_text.dart';
 import '../models/community.dart';
 import '../theme/app_theme.dart';
 import '../widgets/avatar_image.dart';
+import '../widgets/community_badge.dart';
 import 'blocked_accounts_screen.dart';
 import 'change_avatar_screen.dart';
 import 'change_password_screen.dart';
@@ -358,6 +359,15 @@ class _CommunityTileState extends State<_CommunityTile> {
         icon: Icons.groups_2_outlined,
         title: s.yourCommunity,
         subtitle: id == null ? s.joinOrStart : snap.data?.name ?? '…',
+        trailing: switch (snap.data) {
+          final c? => CommunityBadge(
+            id: c.id,
+            name: c.name,
+            avatarId: c.avatarId,
+            size: 32,
+          ),
+          null => null,
+        },
         onTap: () => openCommunities(context),
       ),
     );
