@@ -12,6 +12,7 @@ class Community {
     required this.createdBy,
     required this.memberCount,
     required this.createdAt,
+    this.avatarId,
   });
 
   static const nameMin = 3;
@@ -21,6 +22,10 @@ class Community {
   final String id;
   final String name;
   final String description;
+
+  /// Its picture, one of CommunityAvatars — or null for one from before
+  /// pictures, which shows its initial.
+  final int? avatarId;
 
   /// The founder's uid — the admin.
   final String createdBy;

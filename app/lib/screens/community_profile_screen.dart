@@ -11,7 +11,8 @@ import '../models/trader.dart';
 import '../theme/app_theme.dart';
 import '../widgets/avatar_image.dart';
 import '../widgets/common.dart';
-import '../widgets/community_avatar.dart';
+import '../widgets/community_badge.dart';
+import '../widgets/community_picture_picker.dart';
 import 'profile_screen.dart';
 import 'room_screen.dart';
 
@@ -248,6 +249,19 @@ class _CommunityProfileScreenState extends State<CommunityProfileScreen> {
     }
   }
 
+  Future<void> _changePicture(Community c) async {
+    final s = context.s;
+    final messenger = ScaffoldMessenger.of(context);
+    final picked = await pickCommunityPicture(context, current: c.avatarId);
+    if (picked == null || picked == c.avatarId) return;
+    try {
+      await _communities!.setAvatar(c.id, picked);
+    } catch (e) {
+      debugPrint('picture failed: $e');
+      messenger.showSnackBar(SnackBar(content: Text(s.couldNotSave)));
+    }
+  }
+
   Future<void> _editDescription(Community c) async {
     final s = context.s;
     final messenger = ScaffoldMessenger.of(context);
@@ -297,7 +311,39 @@ class _CommunityProfileScreenState extends State<CommunityProfileScreen> {
         children: [
           Row(
             children: [
-              CommunityAvatar(id: c.id, name: c.name, size: 72),
+              // The admin changes the picture by tapping it.
+              GestureDetector(
+                onTap: isAdmin ? () => _changePicture(c) : null,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    CommunityBadge(
+                      id: c.id,
+                      name: c.name,
+                      avatarId: c.avatarId,
+                      size: 76,
+                    ),
+                    if (isAdmin)
+                      Positioned(
+                        right: -4,
+                        bottom: -4,
+                        child: Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: AppColors.brand,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppColors.bg, width: 2),
+                          ),
+                          child: const Icon(
+                            Icons.edit_rounded,
+                            size: 13,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
               Gap.w16,
               Expanded(
                 child: Column(

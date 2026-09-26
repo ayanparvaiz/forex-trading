@@ -6,7 +6,7 @@ import '../models/community.dart';
 import '../screens/communities_screen.dart';
 import '../theme/app_theme.dart';
 import 'chat_bits.dart';
-import 'community_avatar.dart';
+import 'community_badge.dart';
 
 /// A feed by its name and picture: the globe and Global, or a community's.
 ///
@@ -37,7 +37,12 @@ class FeedLabel extends StatelessWidget {
         if (global)
           RoomAvatar(size: size)
         else
-          CommunityAvatar(id: scope, name: c?.name ?? '', size: size),
+          CommunityBadge(
+            id: scope,
+            name: c?.name ?? '',
+            avatarId: c?.avatarId,
+            size: size,
+          ),
         SizedBox(width: size * 0.35),
         Flexible(
           child: Text(
@@ -118,9 +123,10 @@ Future<String?> pickFeed(
               ),
               if (communityId != null)
                 option(
-                  leading: CommunityAvatar(
+                  leading: CommunityBadge(
                     id: communityId,
                     name: community?.name ?? '',
+                    avatarId: community?.avatarId,
                     size: 40,
                   ),
                   title: community?.name ?? '…',

@@ -12,7 +12,7 @@ import '../screens/chat_screen.dart';
 import '../screens/room_screen.dart';
 import '../theme/app_theme.dart';
 import 'avatar_image.dart';
-import 'community_avatar.dart';
+import 'community_badge.dart';
 
 /// Keeps the signed-in trader's inbox alive above every screen, and shows a
 /// banner when a message arrives in a conversation you are not looking at.

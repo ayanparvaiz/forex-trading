@@ -6,7 +6,7 @@ import '../data/session_controller.dart';
 import '../models/community.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
-import '../widgets/community_avatar.dart';
+import '../widgets/community_badge.dart';
 import 'community_profile_screen.dart';
 import 'start_community_screen.dart';
 
@@ -210,7 +210,12 @@ class _YourCommunity extends StatelessWidget {
           padding: const EdgeInsets.all(Gap.md),
           child: Row(
             children: [
-              CommunityAvatar(id: c.id, name: c.name, size: 52),
+              CommunityBadge(
+                id: c.id,
+                name: c.name,
+                avatarId: c.avatarId,
+                size: 52,
+              ),
               Gap.w12,
               Expanded(
                 child: Column(
@@ -307,7 +312,12 @@ class _CommunityRow extends StatelessWidget {
               ),
             ),
             Gap.w8,
-            CommunityAvatar(id: c.id, name: c.name, size: 44),
+            CommunityBadge(
+              id: c.id,
+              name: c.name,
+              avatarId: c.avatarId,
+              size: 44,
+            ),
             Gap.w12,
             Expanded(
               child: Column(

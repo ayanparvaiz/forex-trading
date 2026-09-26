@@ -10,7 +10,7 @@ import '../models/chat.dart';
 import '../models/community.dart';
 import '../models/user_profile.dart';
 import '../theme/app_theme.dart';
-import '../widgets/community_avatar.dart';
+import '../widgets/community_badge.dart';
 import '../widgets/conversation_view.dart';
 import '../widgets/mute_sheet.dart';
 import '../widgets/report_sheet.dart';

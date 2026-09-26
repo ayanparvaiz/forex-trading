@@ -7,7 +7,7 @@ import '../data/session_controller.dart';
 import '../models/chat.dart';
 import '../theme/app_theme.dart';
 import 'chat_bits.dart';
-import 'community_avatar.dart';
+import 'community_badge.dart';
 
 /// Most conversations one message can be forwarded to at once, as in
 /// WhatsApp — enough to share, too few to spam with.

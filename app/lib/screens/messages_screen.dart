@@ -11,7 +11,7 @@ import '../models/chat.dart';
 import '../models/community.dart';
 import '../theme/app_theme.dart';
 import '../widgets/chat_bits.dart';
-import '../widgets/community_avatar.dart';
+import '../widgets/community_badge.dart';
 import '../widgets/mute_sheet.dart';
 import 'chat_screen.dart';
 import 'community_profile_screen.dart';

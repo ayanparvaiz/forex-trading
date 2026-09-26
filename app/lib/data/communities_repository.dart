@@ -61,6 +61,7 @@ class CommunitiesRepository {
     required String username,
     required String name,
     required String description,
+    int? avatarId,
     String? leaving,
   }) async {
     final tidy = Community.tidyName(name);
@@ -73,6 +74,7 @@ class CommunitiesRepository {
         'name': tidy,
         'nameLower': tidy.toLowerCase(),
         'description': description.trim(),
+        'avatarId': ?avatarId,
         'createdBy': me,
         'createdAt': now,
         'memberCount': 1,
@@ -166,6 +168,10 @@ class CommunitiesRepository {
   Future<void> setDescription(String id, String description) =>
       _community(id).update({'description': description.trim()});
 
+  /// The admin's choice of picture.
+  Future<void> setAvatar(String id, int avatarId) =>
+      _community(id).update({'avatarId': avatarId});
+
   Community? _from(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data();
     if (data == null) return null;
@@ -176,6 +182,7 @@ class CommunitiesRepository {
       createdBy: data['createdBy'] as String? ?? '',
       memberCount: (data['memberCount'] as num?)?.toInt() ?? 0,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      avatarId: (data['avatarId'] as num?)?.toInt(),
     );
   }
 }
