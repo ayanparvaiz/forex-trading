@@ -458,6 +458,62 @@ class Strings {
   );
   String leftCommunity(String name) => _t('$name ছেড়েছেন', 'You left $name');
   String get communityAdmin => _t('অ্যাডমিন', 'Admin');
+
+  // What the admin can do.
+  String get deleteCommunity => _t('কমিউনিটি ডিলিট করুন', 'Delete community');
+  String deleteCommunityTitle(String name) =>
+      _t('$name ডিলিট করবেন?', 'Delete $name?');
+  String deleteCommunityBody(int n) => _t(
+    '$n জন সদস্যের সবাই বের হয়ে যাবেন, আর এর চ্যাট আর পোস্ট মুছে যাবে। এটা আর ফেরানো যাবে না।',
+    "All $n members leave it, and its chat and posts are deleted. This can't "
+        'be undone.',
+  );
+  String get deleteAction => _t('ডিলিট', 'Delete');
+  String communityDeleted(String name) =>
+      _t('$name ডিলিট হয়েছে', '$name is deleted');
+  String get adminCantLeave => _t(
+    'অ্যাডমিন হিসেবে আপনি কমিউনিটি ছাড়তে পারবেন না — চাইলে ডিলিট করতে পারেন।',
+    "As its admin you can't leave it — you can delete it.",
+  );
+  String adminOfCommunity(String name) => _t(
+    'আপনি $name-এর অ্যাডমিন। অন্য কোথাও যেতে হলে আগে এটা ডিলিট করুন।',
+    "You're the admin of $name. To be in another community, delete it first.",
+  );
+  String get removeFromCommunity =>
+      _t('কমিউনিটি থেকে বাদ দিন', 'Remove from community');
+  String removeMemberTitle(String name) =>
+      _t('$name-কে বাদ দেবেন?', 'Remove $name?');
+  String get removeMemberBody => _t(
+    'উনি কমিউনিটি আর এর চ্যাট থেকে বের হয়ে যাবেন। লক না করা থাকলে আবার জয়েন করতে পারবেন।',
+    'They leave the community and its chat. They can join again unless you '
+        'lock it.',
+  );
+  String get removeAction => _t('বাদ দিন', 'Remove');
+  String memberRemoved(String name) =>
+      _t('$name-কে বাদ দেওয়া হয়েছে', '$name was removed');
+  String get lockCommunity => _t('কমিউনিটি লক করুন', 'Lock community');
+  String get lockHint => _t(
+    'লক থাকলে নতুন কেউ জয়েন করতে পারবে না, আর চ্যাট ও ফিডে শুধু আপনি লিখতে পারবেন।',
+    'While locked, nobody new can join, and only you can write in its chat '
+        'and feed.',
+  );
+  String get lockedLabel => _t('লক করা', 'Locked');
+  String communityLocked(String name) => _t(
+    '$name লক করা — এখন নতুন সদস্য নিচ্ছে না।',
+    "$name is locked — it isn't taking new members.",
+  );
+  String get lockedChatNote => _t(
+    'কমিউনিটি লক করা — এখানে শুধু অ্যাডমিন লিখতে পারেন।',
+    'The community is locked — only its admin can write here.',
+  );
+  String lockedPostNote(String name) => _t(
+    '$name লক করা — শুধু অ্যাডমিন পোস্ট করতে পারেন।',
+    '$name is locked — only its admin can post.',
+  );
+  String get couldNotChange => _t(
+    'করা গেল না — ইন্টারনেট দেখে আবার চেষ্টা করুন।',
+    "Couldn't do that — check your connection and try again.",
+  );
   String get openChat => _t('চ্যাট খুলুন', 'Open chat');
   String get viewCommunity => _t('কমিউনিটি দেখুন', 'View community');
   String get communityChatEmpty => _t(
