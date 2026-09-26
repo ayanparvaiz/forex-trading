@@ -129,8 +129,8 @@ class _PushHostState extends State<PushHost> {
           otherUid: otherUid,
           otherUsername: otherUsername,
         );
-      case OpenRoomRoute():
-        openGlobalChat(nav);
+      case OpenRoomRoute(:final roomId):
+        openRoom(nav, roomId);
       case OpenProfileRoute(:final username):
         openProfile(
           nav,

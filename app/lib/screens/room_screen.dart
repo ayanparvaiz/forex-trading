@@ -7,28 +7,34 @@ import '../data/room_repository.dart';
 import '../data/safety_repository.dart';
 import '../data/session_controller.dart';
 import '../models/chat.dart';
+import '../models/community.dart';
 import '../models/user_profile.dart';
 import '../theme/app_theme.dart';
-import '../widgets/chat_bits.dart';
+import '../widgets/community_avatar.dart';
 import '../widgets/conversation_view.dart';
 import '../widgets/mute_sheet.dart';
 import '../widgets/report_sheet.dart';
+import 'community_profile_screen.dart';
 import 'post_screen.dart';
 import 'profile_screen.dart';
 
 /// Opens the Global room.
-Future<void> openGlobalChat(BuildContext context) => Navigator.of(context).push(
-  MaterialPageRoute<void>(
-    builder: (_) => const RoomScreen(roomId: RoomRepository.globalId),
-  ),
-);
+Future<void> openGlobalChat(BuildContext context) =>
+    openRoom(context, RoomRepository.globalId);
 
-/// A room — the Global chat, for everyone.
+/// Opens room [roomId]: Global, or a community's.
+Future<void> openRoom(BuildContext context, String roomId) => Navigator.of(
+  context,
+).push(MaterialPageRoute<void>(builder: (_) => RoomScreen(roomId: roomId)));
+
+/// A room — the Global chat, for everyone, or a community's, for its members.
 ///
-/// Anyone can open it and read. Joining is what lets you write, and what
-/// brings unread counts and banners; leaving ends both. The messages behave
-/// exactly as in a chat — [ConversationView] — with each run of someone's
-/// messages headed by their name.
+/// Anyone can open Global and read. Joining is what lets you write, and what
+/// brings unread counts and banners; leaving ends both. A community's room
+/// comes with the community: joined with it, left with it, and read only by
+/// its members. The messages behave exactly as in a chat —
+/// [ConversationView] — with each run of someone's messages headed by their
+/// name.
 class RoomScreen extends StatefulWidget {
   const RoomScreen({super.key, required this.roomId});
 
@@ -99,8 +105,8 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
   void _maybeMarkRead() {
     final inbox = _inbox;
     final rooms = _rooms;
-    final m = inbox?.globalMembership;
-    final room = inbox?.global;
+    final m = inbox?.membershipOf(widget.roomId);
+    final room = inbox?.room(widget.roomId);
     if (!mounted || rooms == null || m == null || room == null) return;
     if (_markingRead || !m.behind(room)) return;
     if (!(inbox?.isForeground ?? true)) return;
@@ -133,7 +139,15 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
         await _join();
       case 'leave':
         await confirmLeaveRoom(context, widget.roomId);
+      case 'community':
+        _openCommunity();
     }
+  }
+
+  /// A community's room leads to the community, where it is joined and left.
+  void _openCommunity() {
+    final id = Community.ofRoom(widget.roomId);
+    if (id != null) openCommunity(context, id);
   }
 
   @override
@@ -141,9 +155,10 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
     final s = context.s;
     final inbox = InboxScope.of(context);
     final now = DateTime.now();
-    final room = inbox?.global;
-    final joined = inbox?.joinedGlobal ?? false;
-    final known = inbox?.globalKnown ?? false;
+    final room = inbox?.room(widget.roomId);
+    final joined = inbox?.joinedRoom(widget.roomId) ?? false;
+    final known = inbox?.roomKnown(widget.roomId) ?? false;
+    final ofCommunity = Community.ofRoom(widget.roomId) != null;
     final prefs = inbox?.prefsFor(widget.roomId) ?? ChatPrefs.none;
     final muted = joined && prefs.mutedAt(now);
     final source = _source;
@@ -152,51 +167,63 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
       backgroundColor: AppColors.bg,
       appBar: AppBar(
         titleSpacing: 0,
-        title: Row(
-          children: [
-            const RoomAvatar(size: 38),
-            Gap.w12,
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          s.globalChat,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      if (muted)
-                        const Padding(
-                          padding: EdgeInsets.only(left: 5),
-                          child: Icon(
-                            Icons.notifications_off,
-                            size: 15,
-                            color: AppColors.textMuted,
-                          ),
-                        ),
-                    ],
-                  ),
-                  Text(
-                    room == null ? s.globalAbout : s.members(room.memberCount),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textMuted,
-                    ),
-                  ),
-                ],
+        title: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: ofCommunity ? _openCommunity : null,
+          child: Row(
+            children: [
+              RoomPicture(
+                room: widget.roomId,
+                name: room?.name ?? '',
+                size: 38,
               ),
-            ),
-          ],
+              Gap.w12,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            roomTitle(s, widget.roomId, room?.name ?? ''),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        if (muted)
+                          const Padding(
+                            padding: EdgeInsets.only(left: 5),
+                            child: Icon(
+                              Icons.notifications_off,
+                              size: 15,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                      ],
+                    ),
+                    Text(
+                      room != null
+                          ? s.members(room.memberCount)
+                          : ofCommunity
+                          ? s.membersOnly
+                          : s.globalAbout,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
         actions: [
           if (known)
@@ -220,27 +247,39 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
                     ],
                   ),
                 ),
-                PopupMenuItem(
-                  value: joined ? 'leave' : 'join',
-                  child: Row(
-                    children: [
-                      Icon(
-                        joined
-                            ? Icons.logout_rounded
-                            : Icons.group_add_outlined,
-                        size: 19,
-                        color: joined ? AppColors.loss : AppColors.brand,
-                      ),
-                      Gap.w12,
-                      Text(
-                        joined ? s.leave : s.join,
-                        style: TextStyle(
+                if (ofCommunity)
+                  PopupMenuItem(
+                    value: 'community',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.groups_2_outlined, size: 19),
+                        Gap.w12,
+                        Text(s.viewCommunity),
+                      ],
+                    ),
+                  )
+                else
+                  PopupMenuItem(
+                    value: joined ? 'leave' : 'join',
+                    child: Row(
+                      children: [
+                        Icon(
+                          joined
+                              ? Icons.logout_rounded
+                              : Icons.group_add_outlined,
+                          size: 19,
                           color: joined ? AppColors.loss : AppColors.brand,
                         ),
-                      ),
-                    ],
+                        Gap.w12,
+                        Text(
+                          joined ? s.leave : s.join,
+                          style: TextStyle(
+                            color: joined ? AppColors.loss : AppColors.brand,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
               ],
             ),
         ],
@@ -256,8 +295,8 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
                 final name = m?.senderName ?? '';
                 return name.isNotEmpty ? name : '…';
               },
-              emptyText: s.globalEmpty,
-              bottom: known && !joined
+              emptyText: ofCommunity ? s.communityChatEmpty : s.globalEmpty,
+              bottom: known && !joined && !ofCommunity
                   ? ComposerNote(
                       text: s.joinToWrite,
                       action: _busy ? null : s.join,
@@ -367,7 +406,9 @@ Future<void> confirmClearRoom(BuildContext context, String roomId) async {
   if (!ok) return;
   try {
     await inbox.repository.clearChat(roomId, inbox.uid, countsUnread: false);
-    if (inbox.joinedGlobal) await inbox.rooms?.markRead(roomId, inbox.uid);
+    if (inbox.joinedRoom(roomId)) {
+      await inbox.rooms?.markRead(roomId, inbox.uid);
+    }
     messenger.showSnackBar(SnackBar(content: Text(s.chatDeleted)));
   } catch (e) {
     debugPrint('clear room failed: $e');
