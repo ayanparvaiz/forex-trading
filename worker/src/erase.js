@@ -3,8 +3,9 @@
 // The list is section 7 of the policy (app/lib/legal/legal_text.dart):
 // profile and username, trades and scores, posts, comments and likes,
 // connections, notifications, profile-view records, conversations — for
-// both people in them — and messages in the Global room. Reports stay, for
-// moderation.
+// both people in them — messages in the Global room and in community rooms,
+// and community membership. Reports stay, for moderation. A community they
+// started stays, for the people in it.
 //
 // Much of it is not the account's own to delete under the Firestore rules —
 // a conversation belongs to two people, a like sits on someone else's post —
@@ -22,8 +23,9 @@ const PAGE = 300;
 // query for what is under it.
 const PARENTS = 25;
 
-// The rooms there are. One, made by hand; see firestore.rules.
-const ROOMS = ['global'];
+// The room everyone can join, made by hand; see firestore.rules. Community
+// rooms are found from the account: the one it is in, and any it wrote in.
+const GLOBAL = 'global';
 
 /** Firestore takes at most 500 writes in one commit. */
 class WriteQueue {
@@ -129,44 +131,94 @@ async function eraseOnOthersPosts(store, writes, uid, { collection, field, count
 }
 
 /**
+ * The rooms they wrote in, beyond [known]: a community room they have since
+ * left still holds what they said there. Found through their messages, and
+ * chats are gone by now, so any message left is in a room.
+ */
+async function roomsWrittenIn(store, uid, known) {
+  const rows = await store.find({
+    collection: 'messages',
+    group: true,
+    field: 'senderUid',
+    value: uid,
+    limit: PAGE,
+    fields: [],
+  });
+  const ids = new Set();
+  for (const r of rows) {
+    const [top, id] = r.path.split('/');
+    if (top === 'rooms' && !known.has(id)) ids.add(id);
+  }
+  return [...ids];
+}
+
+/**
  * The rooms: the membership and its place in the count, every message they
  * wrote, and the room's preview when it showed one of theirs — which then
  * shows the newest message left, or nothing.
  */
-async function eraseFromRooms(store, writes, uid) {
-  const previewFields = ['senderUid', 'senderName', 'text', 'unsent'];
-  for (const id of ROOMS) {
-    const room = `rooms/${id}`;
-    const info = await store.get(room, ['lastMessage']);
-    if (!info) continue;
-
-    const member = `${room}/members/${uid}`;
-    if (await store.get(member)) {
-      // Together, so the count can never lose or gain one on a retry.
-      await writes.add({ delete: member }, { increment: room, field: 'memberCount', by: -1 });
-      await writes.flush();
+async function eraseFromRooms(store, writes, uid, communityId) {
+  const done = new Set();
+  let rooms = [GLOBAL, ...(communityId ? [`c_${communityId}`] : [])];
+  while (rooms.length) {
+    for (const id of rooms) {
+      done.add(id);
+      await eraseFromRoom(store, writes, uid, id);
     }
-
-    await eraseMatching(store, writes, {
-      parent: room,
-      collection: 'messages',
-      field: 'senderUid',
-      value: uid,
-    });
-
-    if (info.lastMessage?.senderUid === uid) {
-      const newest = await store.newest(room, 'messages', 'sentAt', previewFields);
-      const preview = newest && {
-        id: newest.path.split('/').pop(),
-        senderUid: newest.data.senderUid ?? '',
-        senderName: newest.data.senderName ?? '',
-        text: newest.data.text ?? '',
-        unsent: newest.data.unsent === true,
-      };
-      await writes.add({ set: room, field: 'lastMessage', value: preview ?? null });
-      await writes.flush();
-    }
+    rooms = await roomsWrittenIn(store, uid, done);
   }
+}
+
+async function eraseFromRoom(store, writes, uid, id) {
+  const previewFields = ['senderUid', 'senderName', 'text', 'unsent'];
+  const room = `rooms/${id}`;
+  const info = await store.get(room, ['lastMessage']);
+
+  const member = `${room}/members/${uid}`;
+  if (info && (await store.get(member))) {
+    // Together, so the count can never lose or gain one on a retry.
+    await writes.add({ delete: member }, { increment: room, field: 'memberCount', by: -1 });
+    await writes.flush();
+  }
+
+  await eraseMatching(store, writes, {
+    parent: room,
+    collection: 'messages',
+    field: 'senderUid',
+    value: uid,
+  });
+
+  if (info?.lastMessage?.senderUid === uid) {
+    const newest = await store.newest(room, 'messages', 'sentAt', previewFields);
+    const preview = newest && {
+      id: newest.path.split('/').pop(),
+      senderUid: newest.data.senderUid ?? '',
+      senderName: newest.data.senderName ?? '',
+      text: newest.data.text ?? '',
+      unsent: newest.data.unsent === true,
+    };
+    await writes.add({ set: room, field: 'lastMessage', value: preview ?? null });
+    await writes.flush();
+  }
+}
+
+/**
+ * Out of the community they are in: the membership and its place in the
+ * count, together. The community itself stays, for everyone else in it.
+ */
+async function eraseFromCommunity(store, writes, uid, communityId) {
+  if (!communityId) return;
+  const community = `communities/${communityId}`;
+  const member = `${community}/members/${uid}`;
+  const found = await store.getAll([community, member], ['memberCount']);
+  if (!found.get(member)) return;
+  const writesFor = [{ delete: member }];
+  const count = found.get(community)?.memberCount;
+  if (typeof count === 'number' && count > 0) {
+    writesFor.push({ increment: community, field: 'memberCount', by: -1 });
+  }
+  await writes.add(...writesFor);
+  await writes.flush();
 }
 
 /**
@@ -178,9 +230,10 @@ async function eraseFromRooms(store, writes, uid) {
  * app, which is the one holding it.
  */
 export async function eraseAccount(store, uid) {
-  const profile = await store.get(`users/${uid}`, ['username']);
+  const profile = await store.get(`users/${uid}`, ['username', 'communityId']);
   if (!profile) return;
   const username = profile.username;
+  const communityId = /^[A-Za-z0-9]{6,40}$/.test(profile.communityId ?? '') ? profile.communityId : null;
   const writes = new WriteQueue(store);
 
   // Their posts, with every comment, like and view on them.
@@ -203,7 +256,8 @@ export async function eraseAccount(store, uid) {
     op: 'array-contains',
     value: uid,
   });
-  await eraseFromRooms(store, writes, uid);
+  await eraseFromRooms(store, writes, uid, communityId);
+  await eraseFromCommunity(store, writes, uid, communityId);
   await eraseMatching(store, writes, {
     collection: 'connections',
     field: 'uids',

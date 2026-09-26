@@ -194,3 +194,40 @@ test('a room left with no messages at all shows none', async () => {
   await eraseAccount(memoryStore(docs), ME);
   assert.equal(docs.get('rooms/global').lastMessage, null);
 });
+
+test('out of their community and its room, and out of rooms they left before', async () => {
+  const docs = world();
+  docs.get('users/u-me').communityId = 'bulls1';
+  docs.set('communities/bulls1', { name: 'Bulls', memberCount: 2, createdBy: ME });
+  docs.set('communities/bulls1/members/u-me', { role: 'admin' });
+  docs.set('communities/bulls1/members/u-ana', { role: 'member' });
+  docs.set('rooms/c_bulls1', {
+    name: 'Bulls',
+    memberCount: 2,
+    lastMessage: { id: 'b2', senderUid: ME, senderName: 'Me', text: 'mine', unsent: false },
+  });
+  docs.set('rooms/c_bulls1/members/u-me', {});
+  docs.set('rooms/c_bulls1/members/u-ana', {});
+  docs.set('rooms/c_bulls1/messages/b1', { senderUid: 'u-ana', senderName: 'Ana', text: 'hers', unsent: false, sentAt: 1 });
+  docs.set('rooms/c_bulls1/messages/b2', { senderUid: ME, senderName: 'Me', text: 'mine', unsent: false, sentAt: 2 });
+  // A community left long ago, where something of mine is still said.
+  docs.set('rooms/c_bears1', { name: 'Bears', memberCount: 1, lastMessage: { id: 'x1', senderUid: 'u-bo' } });
+  docs.set('rooms/c_bears1/messages/x0', { senderUid: ME, text: 'old', sentAt: 0 });
+  docs.set('rooms/c_bears1/messages/x1', { senderUid: 'u-bo', text: 'still here', sentAt: 1 });
+
+  await eraseAccount(memoryStore(docs), ME);
+
+  // The community stays, for Ana, one member lighter.
+  assert.deepEqual(docs.get('communities/bulls1'), { name: 'Bulls', memberCount: 1, createdBy: ME });
+  assert.equal(docs.has('communities/bulls1/members/u-me'), false);
+  assert.equal(docs.has('communities/bulls1/members/u-ana'), true);
+  // Its room: counted out, my words gone, Ana's shown instead.
+  assert.equal(docs.get('rooms/c_bulls1').memberCount, 1);
+  assert.equal(docs.get('rooms/c_bulls1').lastMessage.id, 'b1');
+  assert.equal(docs.has('rooms/c_bulls1/members/u-me'), false);
+  assert.equal(docs.has('rooms/c_bulls1/messages/b2'), false);
+  // The old one: my words gone, nothing else touched.
+  assert.equal(docs.has('rooms/c_bears1/messages/x0'), false);
+  assert.equal(docs.has('rooms/c_bears1/messages/x1'), true);
+  assert.equal(docs.get('rooms/c_bears1').memberCount, 1);
+});
