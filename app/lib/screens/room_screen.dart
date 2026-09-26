@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../data/chat_inbox.dart';
+import '../data/communities_repository.dart';
 import '../data/firestore_community_repository.dart';
 import '../data/push_notifier.dart';
 import '../data/room_repository.dart';
@@ -54,6 +57,10 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
   bool _markingRead = false;
   bool _busy = false;
 
+  /// A community's room: the community, followed for whether it is locked.
+  StreamSubscription<Community?>? _following;
+  Community? _community;
+
   @override
   void initState() {
     super.initState();
@@ -82,6 +89,12 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
           profile: () => session.profile,
         );
       }
+      final community = Community.ofRoom(widget.roomId);
+      if (community != null) {
+        _following = buildCommunitiesRepository()
+            ?.watch(community)
+            .listen((c) => setState(() => _community = c), onError: (_) {});
+      }
     }
     // Also runs when a screen pushed over this one is popped.
     _maybeMarkRead();
@@ -89,6 +102,7 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _following?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _inbox?.removeListener(_maybeMarkRead);
     if (_inbox?.openChatId == widget.roomId) _inbox?.openChatId = null;
@@ -159,6 +173,10 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
     final joined = inbox?.joinedRoom(widget.roomId) ?? false;
     final known = inbox?.roomKnown(widget.roomId) ?? false;
     final ofCommunity = Community.ofRoom(widget.roomId) != null;
+    // Locked by its admin: only the admin writes.
+    final community = _community;
+    final lockedOut =
+        community != null && community.locked && community.createdBy != _me;
     final prefs = inbox?.prefsFor(widget.roomId) ?? ChatPrefs.none;
     final muted = joined && prefs.mutedAt(now);
     final source = _source;
@@ -289,7 +307,7 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
           : ConversationView(
               source: source,
               me: _me,
-              canSend: joined,
+              canSend: joined && !lockedOut,
               nameOf: (uid, m) {
                 if (uid == _me) return s.you;
                 final name = m?.senderName ?? '';
@@ -302,6 +320,8 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
                       action: _busy ? null : s.join,
                       onAction: _join,
                     )
+                  : lockedOut
+                  ? ComposerNote(text: s.lockedChatNote)
                   : null,
               showSenderNames: true,
               // Blocking cannot keep anyone out of a room, so their
