@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="g21" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#0ca678"/><stop offset="1" stop-color="#0b3d5c"/>
+</linearGradient>
+<radialGradient id="l21" cx="0.2" cy="0.1" r="0.9">
+<stop offset="0" stop-color="#ffffff" stop-opacity="0.28"/><stop offset="0.6" stop-color="#ffffff" stop-opacity="0"/>
+</radialGradient>
+<clipPath id="k21"><rect width="128" height="128" rx="34" ry="34"/></clipPath>
+
+</defs>
+<g clip-path="url(#k21)">
+<rect width="128" height="128" fill="url(#g21)"/>
+<rect width="128" height="128" fill="url(#l21)"/>
+<g opacity="0.22" transform="translate(0 4)">
+
+<ellipse cx="64" cy="98" rx="50" ry="13" fill="#000000" opacity="0.55"/>
+<path d="M64 98 L64 86" stroke="#000000" stroke-width="3"/>
+<path d="M64 76 Q52 50 64 24 Q76 50 64 76 Z" fill="#000000" transform="rotate(-72 64 76)"/><path d="M64 76 Q52 50 64 24 Q76 50 64 76 Z" fill="#000000" transform="rotate(-36 64 76)"/><path d="M64 76 Q52 50 64 24 Q76 50 64 76 Z" fill="#000000" transform="rotate(36 64 76)"/><path d="M64 76 Q52 50 64 24 Q76 50 64 76 Z" fill="#000000" transform="rotate(72 64 76)"/><path d="M64 78 Q54 56 64 34 Q74 56 64 78 Z" fill="#000000" transform="rotate(-50 64 78)"/><path d="M64 78 Q54 56 64 34 Q74 56 64 78 Z" fill="#000000" transform="rotate(-18 64 78)"/><path d="M64 78 Q54 56 64 34 Q74 56 64 78 Z" fill="#000000" transform="rotate(18 64 78)"/><path d="M64 78 Q54 56 64 34 Q74 56 64 78 Z" fill="#000000" transform="rotate(50 64 78)"/>
+<path d="M64 80 Q54 58 64 30 Q74 58 64 80 Z" fill="#000000"/>
+<circle cx="64" cy="76" r="8" fill="#ffd54a"/>
+
+</g>
+
+<ellipse cx="64" cy="98" rx="50" ry="13" fill="#087f5b" opacity="0.55"/>
+<path d="M64 98 L64 86" stroke="#087f5b" stroke-width="3"/>
+<path d="M64 76 Q52 50 64 24 Q76 50 64 76 Z" fill="#f783ac" transform="rotate(-72 64 76)"/><path d="M64 76 Q52 50 64 24 Q76 50 64 76 Z" fill="#f783ac" transform="rotate(-36 64 76)"/><path d="M64 76 Q52 50 64 24 Q76 50 64 76 Z" fill="#f783ac" transform="rotate(36 64 76)"/><path d="M64 76 Q52 50 64 24 Q76 50 64 76 Z" fill="#f783ac" transform="rotate(72 64 76)"/><path d="M64 78 Q54 56 64 34 Q74 56 64 78 Z" fill="#fff0f6" transform="rotate(-50 64 78)"/><path d="M64 78 Q54 56 64 34 Q74 56 64 78 Z" fill="#fff0f6" transform="rotate(-18 64 78)"/><path d="M64 78 Q54 56 64 34 Q74 56 64 78 Z" fill="#fff0f6" transform="rotate(18 64 78)"/><path d="M64 78 Q54 56 64 34 Q74 56 64 78 Z" fill="#fff0f6" transform="rotate(50 64 78)"/>
+<path d="M64 80 Q54 58 64 30 Q74 58 64 80 Z" fill="#fff0f6"/>
+<circle cx="64" cy="76" r="8" fill="#ffd54a"/>
+
+</g>
+</svg>

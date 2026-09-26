@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="g20" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#c92a2a"/><stop offset="1" stop-color="#3d0808"/>
+</linearGradient>
+<radialGradient id="l20" cx="0.2" cy="0.1" r="0.9">
+<stop offset="0" stop-color="#ffffff" stop-opacity="0.28"/><stop offset="0.6" stop-color="#ffffff" stop-opacity="0"/>
+</radialGradient>
+<clipPath id="k20"><rect width="128" height="128" rx="34" ry="34"/></clipPath>
+
+</defs>
+<g clip-path="url(#k20)">
+<rect width="128" height="128" fill="url(#g20)"/>
+<rect width="128" height="128" fill="url(#l20)"/>
+<g opacity="0.22" transform="translate(0 4)">
+
+<path d="M64 14 Q86 40 86 60 Q98 52 96 40 Q112 62 108 82 Q100 110 64 112 Q28 110 20 82 Q16 60 36 42 Q36 58 44 62 Q42 36 64 14 Z" fill="#000000"/>
+<path d="M64 52 Q82 70 80 88 Q78 104 64 104 Q50 104 48 88 Q46 70 64 52 Z" fill="#000000"/>
+<path d="M64 76 Q72 86 70 94 Q68 100 64 100 Q60 100 58 94 Q56 86 64 76 Z" fill="#000000" opacity="0.25"/>
+
+</g>
+
+<path d="M64 14 Q86 40 86 60 Q98 52 96 40 Q112 62 108 82 Q100 110 64 112 Q28 110 20 82 Q16 60 36 42 Q36 58 44 62 Q42 36 64 14 Z" fill="#ff922b"/>
+<path d="M64 52 Q82 70 80 88 Q78 104 64 104 Q50 104 48 88 Q46 70 64 52 Z" fill="#ffe8a3"/>
+<path d="M64 76 Q72 86 70 94 Q68 100 64 100 Q60 100 58 94 Q56 86 64 76 Z" fill="#3d0808" opacity="0.25"/>
+
+</g>
+</svg>

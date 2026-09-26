@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="g26" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#212e5c"/><stop offset="1" stop-color="#070b1f"/>
+</linearGradient>
+<radialGradient id="l26" cx="0.2" cy="0.1" r="0.9">
+<stop offset="0" stop-color="#ffffff" stop-opacity="0.28"/><stop offset="0.6" stop-color="#ffffff" stop-opacity="0"/>
+</radialGradient>
+<clipPath id="k26"><rect width="128" height="128" rx="34" ry="34"/></clipPath>
+
+</defs>
+<g clip-path="url(#k26)">
+<rect width="128" height="128" fill="url(#g26)"/>
+<rect width="128" height="128" fill="url(#l26)"/>
+<g opacity="0.22" transform="translate(0 4)">
+
+<g transform="rotate(40 64 64)">
+<path d="M52 92 Q64 124 76 92 Z" fill="#ffb02e"/>
+<path d="M57 92 Q64 112 71 92 Z" fill="#fff2b3"/>
+<path d="M44 70 L30 92 L46 88 Z M84 70 L98 92 L82 88 Z" fill="#000000"/>
+<path d="M64 12 Q86 32 86 64 L84 92 L44 92 L42 64 Q42 32 64 12 Z" fill="#000000"/>
+<circle cx="64" cy="52" r="11" fill="#000000"/>
+<circle cx="64" cy="52" r="6" fill="#000000"/>
+<path d="M54 92 L74 92 L70 98 L58 98 Z" fill="#000000"/>
+</g>
+<path d="M24.0 23.0 L25.5 28.5 L31.0 30.0 L25.5 31.5 L24.0 37.0 L22.5 31.5 L17.0 30.0 L22.5 28.5 Z" fill="#000000"/><path d="M30.0 95.0 L31.1 98.9 L35.0 100.0 L31.1 101.1 L30.0 105.0 L28.9 101.1 L25.0 100.0 L28.9 98.9 Z" fill="#000000"/><path d="M104.0 98.0 L105.3 102.7 L110.0 104.0 L105.3 105.3 L104.0 110.0 L102.7 105.3 L98.0 104.0 L102.7 102.7 Z" fill="#000000"/>
+
+</g>
+
+<g transform="rotate(40 64 64)">
+<path d="M52 92 Q64 124 76 92 Z" fill="#ffb02e"/>
+<path d="M57 92 Q64 112 71 92 Z" fill="#fff2b3"/>
+<path d="M44 70 L30 92 L46 88 Z M84 70 L98 92 L82 88 Z" fill="#ff4d6d"/>
+<path d="M64 12 Q86 32 86 64 L84 92 L44 92 L42 64 Q42 32 64 12 Z" fill="#f1f3ff"/>
+<circle cx="64" cy="52" r="11" fill="#ff4d6d"/>
+<circle cx="64" cy="52" r="6" fill="#070b1f"/>
+<path d="M54 92 L74 92 L70 98 L58 98 Z" fill="#ff4d6d"/>
+</g>
+<path d="M24.0 23.0 L25.5 28.5 L31.0 30.0 L25.5 31.5 L24.0 37.0 L22.5 31.5 L17.0 30.0 L22.5 28.5 Z" fill="#f1f3ff"/><path d="M30.0 95.0 L31.1 98.9 L35.0 100.0 L31.1 101.1 L30.0 105.0 L28.9 101.1 L25.0 100.0 L28.9 98.9 Z" fill="#f1f3ff"/><path d="M104.0 98.0 L105.3 102.7 L110.0 104.0 L105.3 105.3 L104.0 110.0 L102.7 105.3 L98.0 104.0 L102.7 102.7 Z" fill="#f1f3ff"/>
+
+</g>
+</svg>

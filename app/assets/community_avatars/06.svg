@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="g6" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#1098f7"/><stop offset="1" stop-color="#0b2e6f"/>
+</linearGradient>
+<radialGradient id="l6" cx="0.2" cy="0.1" r="0.9">
+<stop offset="0" stop-color="#ffffff" stop-opacity="0.28"/><stop offset="0.6" stop-color="#ffffff" stop-opacity="0"/>
+</radialGradient>
+<clipPath id="k6"><rect width="128" height="128" rx="34" ry="34"/></clipPath>
+
+</defs>
+<g clip-path="url(#k6)">
+<rect width="128" height="128" fill="url(#g6)"/>
+<rect width="128" height="128" fill="url(#l6)"/>
+<g opacity="0.22" transform="translate(0 4)">
+
+<circle cx="64" cy="64" r="32" fill="#000000" opacity="0.14"/>
+<circle cx="64" cy="64" r="32" fill="none" stroke="#000000" stroke-width="5"/>
+<ellipse cx="64" cy="64" rx="13" ry="32" fill="none" stroke="#000000" stroke-width="4"/>
+<path d="M32 64 L96 64 M37 48 Q64 54 91 48 M37 80 Q64 74 91 80" stroke="#000000" stroke-width="4" fill="none"/>
+<path d="M18 58 Q22 22 60 16" stroke="#000000" stroke-width="6" fill="none" stroke-linecap="round"/>
+<path d="M54 8 L66 16 L55 26 Z" fill="#000000"/>
+<path d="M110 70 Q106 106 68 112" stroke="#000000" stroke-width="6" fill="none" stroke-linecap="round"/>
+<path d="M74 120 L62 112 L73 102 Z" fill="#000000"/>
+
+</g>
+
+<circle cx="64" cy="64" r="32" fill="#eef7ff" opacity="0.14"/>
+<circle cx="64" cy="64" r="32" fill="none" stroke="#eef7ff" stroke-width="5"/>
+<ellipse cx="64" cy="64" rx="13" ry="32" fill="none" stroke="#eef7ff" stroke-width="4"/>
+<path d="M32 64 L96 64 M37 48 Q64 54 91 48 M37 80 Q64 74 91 80" stroke="#eef7ff" stroke-width="4" fill="none"/>
+<path d="M18 58 Q22 22 60 16" stroke="#7cf29a" stroke-width="6" fill="none" stroke-linecap="round"/>
+<path d="M54 8 L66 16 L55 26 Z" fill="#7cf29a"/>
+<path d="M110 70 Q106 106 68 112" stroke="#7cf29a" stroke-width="6" fill="none" stroke-linecap="round"/>
+<path d="M74 120 L62 112 L73 102 Z" fill="#7cf29a"/>
+
+</g>
+</svg>

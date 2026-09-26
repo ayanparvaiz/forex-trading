@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="g19" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#7048e8"/><stop offset="1" stop-color="#23104f"/>
+</linearGradient>
+<radialGradient id="l19" cx="0.2" cy="0.1" r="0.9">
+<stop offset="0" stop-color="#ffffff" stop-opacity="0.28"/><stop offset="0.6" stop-color="#ffffff" stop-opacity="0"/>
+</radialGradient>
+<clipPath id="k19"><rect width="128" height="128" rx="34" ry="34"/></clipPath>
+
+</defs>
+<g clip-path="url(#k19)">
+<rect width="128" height="128" fill="url(#g19)"/>
+<rect width="128" height="128" fill="url(#l19)"/>
+<g opacity="0.22" transform="translate(0 4)">
+
+<path d="M74 12 L32 70 L60 70 L50 116 L96 52 L68 52 L82 12 Z" fill="#000000" stroke="#000000" stroke-width="5" stroke-linejoin="round"/>
+<path d="M28.0 25.0 L29.9 32.1 L37.0 34.0 L29.9 35.9 L28.0 43.0 L26.1 35.9 L19.0 34.0 L26.1 32.1 Z" fill="#000000"/><path d="M102.0 86.0 L103.7 92.3 L110.0 94.0 L103.7 95.7 L102.0 102.0 L100.3 95.7 L94.0 94.0 L100.3 92.3 Z" fill="#000000"/>
+
+</g>
+
+<path d="M74 12 L32 70 L60 70 L50 116 L96 52 L68 52 L82 12 Z" fill="#ffd43b" stroke="#ffffff" stroke-width="5" stroke-linejoin="round"/>
+<path d="M28.0 25.0 L29.9 32.1 L37.0 34.0 L29.9 35.9 L28.0 43.0 L26.1 35.9 L19.0 34.0 L26.1 32.1 Z" fill="#ffffff"/><path d="M102.0 86.0 L103.7 92.3 L110.0 94.0 L103.7 95.7 L102.0 102.0 L100.3 95.7 L94.0 94.0 L100.3 92.3 Z" fill="#ffffff"/>
+
+</g>
+</svg>

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="g16" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#3b3b98"/><stop offset="1" stop-color="#0c0c2e"/>
+</linearGradient>
+<radialGradient id="l16" cx="0.2" cy="0.1" r="0.9">
+<stop offset="0" stop-color="#ffffff" stop-opacity="0.28"/><stop offset="0.6" stop-color="#ffffff" stop-opacity="0"/>
+</radialGradient>
+<clipPath id="k16"><rect width="128" height="128" rx="34" ry="34"/></clipPath>
+
+</defs>
+<g clip-path="url(#k16)">
+<rect width="128" height="128" fill="url(#g16)"/>
+<rect width="128" height="128" fill="url(#l16)"/>
+<g opacity="0.22" transform="translate(0 4)">
+
+<path d="M56.1 30.0 A36 36 0 1 0 91.1 80.1 A31 31 0 0 1 56.1 30.0 Z" fill="#000000"/>
+<circle cx="40" cy="80" r="5" fill="#000000" opacity="0.15"/><circle cx="52" cy="92" r="3.5" fill="#000000" opacity="0.15"/>
+<path d="M92.0 75.0 L94.3 83.7 L103.0 86.0 L94.3 88.3 L92.0 97.0 L89.7 88.3 L81.0 86.0 L89.7 83.7 Z" fill="#000000"/><path d="M104.0 23.0 L105.5 28.5 L111.0 30.0 L105.5 31.5 L104.0 37.0 L102.5 31.5 L97.0 30.0 L102.5 28.5 Z" fill="#000000"/><path d="M80.0 99.0 L81.1 102.9 L85.0 104.0 L81.1 105.1 L80.0 109.0 L78.9 105.1 L75.0 104.0 L78.9 102.9 Z" fill="#000000"/>
+
+</g>
+
+<path d="M56.1 30.0 A36 36 0 1 0 91.1 80.1 A31 31 0 0 1 56.1 30.0 Z" fill="#fff6d6"/>
+<circle cx="40" cy="80" r="5" fill="#0c0c2e" opacity="0.15"/><circle cx="52" cy="92" r="3.5" fill="#0c0c2e" opacity="0.15"/>
+<path d="M92.0 75.0 L94.3 83.7 L103.0 86.0 L94.3 88.3 L92.0 97.0 L89.7 88.3 L81.0 86.0 L89.7 83.7 Z" fill="#ffd43b"/><path d="M104.0 23.0 L105.5 28.5 L111.0 30.0 L105.5 31.5 L104.0 37.0 L102.5 31.5 L97.0 30.0 L102.5 28.5 Z" fill="#ffd43b"/><path d="M80.0 99.0 L81.1 102.9 L85.0 104.0 L81.1 105.1 L80.0 109.0 L78.9 105.1 L75.0 104.0 L78.9 102.9 Z" fill="#fff6d6"/>
+
+</g>
+</svg>

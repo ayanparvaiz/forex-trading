@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="g9" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#0ca678"/><stop offset="1" stop-color="#063d31"/>
+</linearGradient>
+<radialGradient id="l9" cx="0.2" cy="0.1" r="0.9">
+<stop offset="0" stop-color="#ffffff" stop-opacity="0.28"/><stop offset="0.6" stop-color="#ffffff" stop-opacity="0"/>
+</radialGradient>
+<clipPath id="k9"><rect width="128" height="128" rx="34" ry="34"/></clipPath>
+
+</defs>
+<g clip-path="url(#k9)">
+<rect width="128" height="128" fill="url(#g9)"/>
+<rect width="128" height="128" fill="url(#l9)"/>
+<g opacity="0.22" transform="translate(0 4)">
+
+<path d="M64 16 L102 30 Q102 80 64 110 Q26 80 26 30 Z" fill="#000000"/>
+<path d="M64 26 L92 36 Q92 76 64 100 Q36 76 36 36 Z" fill="#000000"/>
+<path d="M46 62 L59 75 L84 48" stroke="#000000" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+</g>
+
+<path d="M64 16 L102 30 Q102 80 64 110 Q26 80 26 30 Z" fill="#f1fff9"/>
+<path d="M64 26 L92 36 Q92 76 64 100 Q36 76 36 36 Z" fill="#1c7ed6"/>
+<path d="M46 62 L59 75 L84 48" stroke="#f1fff9" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+</g>
+</svg>

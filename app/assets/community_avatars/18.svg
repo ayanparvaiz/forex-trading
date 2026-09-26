@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="g18" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#15aabf"/><stop offset="1" stop-color="#073b4c"/>
+</linearGradient>
+<radialGradient id="l18" cx="0.2" cy="0.1" r="0.9">
+<stop offset="0" stop-color="#ffffff" stop-opacity="0.28"/><stop offset="0.6" stop-color="#ffffff" stop-opacity="0"/>
+</radialGradient>
+<clipPath id="k18"><rect width="128" height="128" rx="34" ry="34"/></clipPath>
+
+</defs>
+<g clip-path="url(#k18)">
+<rect width="128" height="128" fill="url(#g18)"/>
+<rect width="128" height="128" fill="url(#l18)"/>
+<g opacity="0.22" transform="translate(0 4)">
+
+<path d="M-4 112 L-4 86 Q10 58 42 50 Q76 44 92 66 Q82 58 72 62 Q58 70 66 84 Q76 96 96 90 Q114 84 132 70 L132 112 Z" fill="#000000"/>
+<path d="M-4 128 L-4 100 Q30 92 64 104 Q98 116 132 98 L132 128 Z" fill="#000000"/>
+<circle cx="98" cy="46" r="4" fill="#000000"/><circle cx="108" cy="58" r="3" fill="#000000"/><circle cx="88" cy="36" r="2.5" fill="#000000"/>
+
+</g>
+
+<path d="M-4 112 L-4 86 Q10 58 42 50 Q76 44 92 66 Q82 58 72 62 Q58 70 66 84 Q76 96 96 90 Q114 84 132 70 L132 112 Z" fill="#f0fcff"/>
+<path d="M-4 128 L-4 100 Q30 92 64 104 Q98 116 132 98 L132 128 Z" fill="#0b7285"/>
+<circle cx="98" cy="46" r="4" fill="#f0fcff"/><circle cx="108" cy="58" r="3" fill="#f0fcff"/><circle cx="88" cy="36" r="2.5" fill="#f0fcff"/>
+
+</g>
+</svg>
