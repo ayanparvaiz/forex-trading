@@ -13,6 +13,7 @@ class Community {
     required this.memberCount,
     required this.createdAt,
     this.avatarId,
+    this.locked = false,
   });
 
   static const nameMin = 3;
@@ -26,6 +27,10 @@ class Community {
   /// Its picture, one of CommunityAvatars — or null for one from before
   /// pictures, which shows its initial.
   final int? avatarId;
+
+  /// Locked by its admin: nobody new joins, and only the admin writes in its
+  /// chat and its feed.
+  final bool locked;
 
   /// The founder's uid — the admin.
   final String createdBy;

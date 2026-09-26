@@ -168,6 +168,10 @@ class CommunitiesRepository {
   Future<void> setDescription(String id, String description) =>
       _community(id).update({'description': description.trim()});
 
+  /// The admin locking it, or opening it again.
+  Future<void> setLocked(String id, bool locked) =>
+      _community(id).update({'locked': locked});
+
   /// The admin's choice of picture.
   Future<void> setAvatar(String id, int avatarId) =>
       _community(id).update({'avatarId': avatarId});
@@ -183,6 +187,7 @@ class CommunitiesRepository {
       memberCount: (data['memberCount'] as num?)?.toInt() ?? 0,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       avatarId: (data['avatarId'] as num?)?.toInt(),
+      locked: data['locked'] == true,
     );
   }
 }
