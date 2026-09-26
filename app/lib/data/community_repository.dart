@@ -179,6 +179,10 @@ abstract class CommunityRepository {
   /// [username]'s most recent posts, newest first.
   Future<List<FeedPost>> postsBy(String username, {int limit = 3});
 
+  /// Profiles for [uids], in that order. Anyone whose account is gone is
+  /// left out.
+  Future<List<Trader>> tradersByUid(List<String> uids);
+
   /// What a search is matched against: lower case, no "@", no spaces around.
   static String normaliseQuery(String query) =>
       query.trim().toLowerCase().replaceFirst(RegExp(r'^@'), '');
@@ -379,6 +383,10 @@ class LocalCommunityRepository implements CommunityRepository {
   /// Nothing to delete: this device never publishes to the feed.
   @override
   Future<void> deletePost(String postId) async {}
+
+  /// Nobody: the seeded accounts have no uids, and communities need a server.
+  @override
+  Future<List<Trader>> tradersByUid(List<String> uids) async => const [];
 
   @override
   Future<List<Trader>> searchPeople(String query, {int limit = 10}) async {

@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../firebase/firebase_bootstrap.dart';
 import '../models/community.dart';
+import '../models/trader.dart';
 
 /// The name someone asked for is already a community's.
 class CommunityNameTaken implements Exception {
@@ -41,6 +44,11 @@ class CommunitiesRepository {
       .map((s) => [for (final d in s.docs) ?_from(d)]);
 
   Stream<Community?> watch(String id) => _community(id).snapshots().map(_from);
+
+  /// Every community with its points, best first — live, as people join and
+  /// leave and as the leaderboard moves under them.
+  Stream<List<(Community, int)>> watchRanked(Stream<List<Trader>> board) =>
+      rankLive(watchAll(), board);
 
   /// Whether nobody has claimed [name] yet.
   Future<bool> nameAvailable(String name) async =>
@@ -170,6 +178,52 @@ class CommunitiesRepository {
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
+}
+
+/// [communities] ranked by the points [board] gives them, again whenever
+/// either changes.
+///
+/// Waits for the first board before saying anything, so the list does not
+/// open in one order and jump to another. If the board fails, the
+/// communities still come, all on zero.
+Stream<List<(Community, int)>> rankLive(
+  Stream<List<Community>> communities,
+  Stream<List<Trader>> board,
+) {
+  List<Community>? latest;
+  Map<String, int>? points;
+  StreamSubscription<List<Community>>? all;
+  StreamSubscription<List<Trader>>? standings;
+  late final StreamController<List<(Community, int)>> out;
+  void emit() {
+    if (latest case final c? when points != null) {
+      out.add(rankCommunities(c, points!));
+    }
+  }
+
+  out = StreamController(
+    onListen: () {
+      all = communities.listen((c) {
+        latest = c;
+        emit();
+      }, onError: out.addError);
+      standings = board.listen(
+        (b) {
+          points = communityPoints(b);
+          emit();
+        },
+        onError: (Object e) {
+          points ??= const {};
+          emit();
+        },
+      );
+    },
+    onCancel: () async {
+      await all?.cancel();
+      await standings?.cancel();
+    },
+  );
+  return out.stream;
 }
 
 /// Firestore when it is configured; nothing otherwise — communities need a

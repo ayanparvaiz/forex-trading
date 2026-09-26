@@ -674,6 +674,16 @@ class FirestoreCommunityRepository implements CommunityRepository {
     ];
   }
 
+  /// Thirty at a time, which is as many as one "in" query takes.
+  @override
+  Future<List<Trader>> tradersByUid(List<String> uids) async {
+    final pages = await Future.wait([
+      for (var i = 0; i < uids.length; i += 30)
+        _tradersByUid(uids.skip(i).take(30).toList()),
+    ]);
+    return [for (final page in pages) ...page];
+  }
+
   /// Newest first, by expiry — which is posting time plus a fixed week, so
   /// the same order, and it lets this share the feed's index.
   @override
