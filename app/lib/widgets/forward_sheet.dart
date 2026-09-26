@@ -7,25 +7,29 @@ import '../data/session_controller.dart';
 import '../models/chat.dart';
 import '../theme/app_theme.dart';
 import 'chat_bits.dart';
+import 'community_avatar.dart';
 
 /// Most conversations one message can be forwarded to at once, as in
 /// WhatsApp — enough to share, too few to spam with.
 const maxForwardTargets = 5;
 
-/// Somewhere a message can be forwarded to: a chat, or the Global room.
+/// Somewhere a message can be forwarded to: a chat, or a room — Global, or
+/// your community's.
 class ForwardTarget {
-  const ForwardTarget.chat(ChatThread this.thread) : isRoom = false;
-  const ForwardTarget.global() : thread = null, isRoom = true;
+  const ForwardTarget.chat(ChatThread this.thread) : room = null;
+  const ForwardTarget.room(RoomInfo this.room) : thread = null;
 
   final ChatThread? thread;
-  final bool isRoom;
+  final RoomInfo? room;
 
-  String get id => thread?.id ?? RoomRepository.globalId;
+  bool get isRoom => room != null;
+
+  String get id => thread?.id ?? room!.id;
 }
 
 /// Picks where to forward a message. Null if dismissed.
 ///
-/// The Global room when you have joined it, then your conversations, less
+/// The rooms you have joined, then your conversations, less
 /// anyone you have blocked. One you are no longer connected to is still
 /// listed — the send is refused and the caller says so.
 Future<List<ForwardTarget>?> pickForwardTargets(
@@ -104,8 +108,11 @@ Future<void> shareIntoChats(
       sendTo(target).catchError((Object e) {
         debugPrint('send to ${target.id} failed: $e');
         final t = target.thread;
+        final r = target.room;
         failed.add(
-          t == null ? s.globalChat : '@${t.otherUsername(profile.username)}',
+          r != null
+              ? roomTitle(s, r.id, r.name)
+              : '@${t!.otherUsername(profile.username)}',
         );
       }),
   ]);
@@ -140,8 +147,9 @@ class _ForwardSheetState extends State<_ForwardSheet> {
     final me = inbox.uid;
     final myUsername = context.session.profile?.username ?? '';
     final targets = [
-      if (inbox.rooms != null && inbox.joinedGlobal)
-        const ForwardTarget.global(),
+      for (final id in [RoomRepository.globalId, ?inbox.communityRoomId])
+        if (inbox.rooms != null && inbox.joinedRoom(id))
+          if (inbox.room(id) case final room?) ForwardTarget.room(room),
       for (final t in inbox.threads)
         if (!inbox.isBlocked(t.otherUid(me))) ForwardTarget.chat(t),
     ];
@@ -208,7 +216,11 @@ class _ForwardSheetState extends State<_ForwardSheet> {
                             : _chosen.add(target.id),
                       ),
                       leading: t == null
-                          ? const RoomAvatar(size: 42)
+                          ? RoomPicture(
+                              room: target.id,
+                              name: target.room!.name,
+                              size: 42,
+                            )
                           : ChatAvatar(
                               avatarId: partner?.avatarId ?? 1,
                               activeNow: false,
@@ -216,7 +228,7 @@ class _ForwardSheetState extends State<_ForwardSheet> {
                             ),
                       title: Text(
                         t == null
-                            ? s.globalChat
+                            ? roomTitle(s, target.id, target.room!.name)
                             : partner?.name.isNotEmpty == true
                             ? partner!.name
                             : '@$username',
@@ -226,7 +238,7 @@ class _ForwardSheetState extends State<_ForwardSheet> {
                       ),
                       subtitle: Text(
                         t == null
-                            ? s.members(inbox.global?.memberCount ?? 0)
+                            ? s.members(target.room!.memberCount)
                             : '@$username',
                         style: const TextStyle(
                           fontSize: 12.5,
