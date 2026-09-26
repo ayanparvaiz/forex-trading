@@ -13,6 +13,7 @@ import '../widgets/avatar_image.dart';
 import '../widgets/common.dart';
 import '../widgets/community_avatar.dart';
 import 'profile_screen.dart';
+import 'room_screen.dart';
 
 /// Opens community [id]'s page.
 Future<void> openCommunity(BuildContext context, String id) => Navigator.of(
@@ -400,8 +401,15 @@ class _CommunityProfileScreenState extends State<CommunityProfileScreen> {
               ],
             ),
           ),
-          if (!mine) ...[
-            Gap.h16,
+          Gap.h16,
+          if (mine)
+            // Joined with the community: its members' own room.
+            FilledButton.icon(
+              onPressed: () => openRoom(context, c.roomId),
+              icon: const Icon(Icons.chat_bubble_outline_rounded, size: 20),
+              label: Text(s.openChat),
+            )
+          else
             FilledButton.icon(
               onPressed: _busy
                   ? null
@@ -409,7 +417,6 @@ class _CommunityProfileScreenState extends State<CommunityProfileScreen> {
               icon: const Icon(Icons.group_add_outlined, size: 20),
               label: Text(s.join),
             ),
-          ],
           Gap.h24,
           _Members(
             community: c,
