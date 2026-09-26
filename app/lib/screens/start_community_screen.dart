@@ -6,6 +6,8 @@ import '../data/communities_repository.dart';
 import '../data/session_controller.dart';
 import '../models/community.dart';
 import '../theme/app_theme.dart';
+import '../widgets/community_badge.dart';
+import '../widgets/community_picture_picker.dart';
 import 'community_profile_screen.dart';
 
 /// Opens the form for a new community.
@@ -42,6 +44,14 @@ class _StartCommunityScreenState extends State<StartCommunityScreen> {
   int _asked = 0;
   bool _busy = false;
 
+  /// Its picture. Required: a community is known by it everywhere.
+  int? _avatarId;
+
+  Future<void> _choosePicture() async {
+    final picked = await pickCommunityPicture(context, current: _avatarId);
+    if (picked != null && mounted) setState(() => _avatarId = picked);
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -67,7 +77,8 @@ class _StartCommunityScreenState extends State<StartCommunityScreen> {
   bool get _nameFits =>
       _tidy.length >= Community.nameMin && _tidy.length <= Community.nameMax;
 
-  bool get _canStart => !_busy && _nameFits && _available != false;
+  bool get _canStart =>
+      !_busy && _nameFits && _available != false && _avatarId != null;
 
   void _nameChanged(String _) {
     _debounce?.cancel();
@@ -90,7 +101,10 @@ class _StartCommunityScreenState extends State<StartCommunityScreen> {
     final session = context.session;
     final profile = session.profile;
     final uid = session.uid;
-    if (repo == null || profile == null || uid == null) return;
+    final avatarId = _avatarId;
+    if (repo == null || profile == null || uid == null || avatarId == null) {
+      return;
+    }
     final s = context.s;
     final messenger = ScaffoldMessenger.of(context);
     final nav = Navigator.of(context);
@@ -102,6 +116,7 @@ class _StartCommunityScreenState extends State<StartCommunityScreen> {
         username: profile.username,
         name: name,
         description: _description.text,
+        avatarId: avatarId,
         leaving: profile.communityId,
       );
       session.setCommunity(id);
@@ -134,6 +149,32 @@ class _StartCommunityScreenState extends State<StartCommunityScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Center(
+              child: _PictureSlot(
+                avatarId: _avatarId,
+                name: _tidy,
+                onTap: _busy ? null : _choosePicture,
+              ),
+            ),
+            Gap.h8,
+            Center(
+              child: TextButton(
+                onPressed: _busy ? null : _choosePicture,
+                child: Text(
+                  _avatarId == null ? s.choosePicture : s.changePicture,
+                ),
+              ),
+            ),
+            if (_avatarId == null)
+              Text(
+                s.pictureNeeded,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            Gap.h16,
             Text(
               s.startCommunityBody,
               style: const TextStyle(
@@ -214,6 +255,58 @@ class _StartCommunityScreenState extends State<StartCommunityScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// The picture being chosen: an empty frame asking for one, then the one
+/// picked, at the size its page will show it.
+class _PictureSlot extends StatelessWidget {
+  const _PictureSlot({
+    required this.avatarId,
+    required this.name,
+    required this.onTap,
+  });
+
+  final int? avatarId;
+  final String name;
+  final VoidCallback? onTap;
+
+  static const _size = 104.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final id = avatarId;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 180),
+        transitionBuilder: (child, animation) =>
+            ScaleTransition(scale: animation, child: child),
+        child: id == null
+            ? Container(
+                key: const ValueKey('empty'),
+                width: _size,
+                height: _size,
+                decoration: BoxDecoration(
+                  color: AppColors.elevated,
+                  borderRadius: BorderRadius.circular(_size * 0.27),
+                  border: Border.all(color: AppColors.brand, width: 2),
+                ),
+                child: const Icon(
+                  Icons.add_photo_alternate_outlined,
+                  size: 38,
+                  color: AppColors.brand,
+                ),
+              )
+            : CommunityBadge(
+                key: ValueKey(id),
+                id: '',
+                name: name,
+                avatarId: id,
+                size: _size,
+              ),
       ),
     );
   }

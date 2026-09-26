@@ -61,7 +61,7 @@ class CommunitiesRepository {
     required String username,
     required String name,
     required String description,
-    int? avatarId,
+    required int avatarId,
     String? leaving,
   }) async {
     final tidy = Community.tidyName(name);
@@ -74,7 +74,7 @@ class CommunitiesRepository {
         'name': tidy,
         'nameLower': tidy.toLowerCase(),
         'description': description.trim(),
-        'avatarId': ?avatarId,
+        'avatarId': avatarId,
         'createdBy': me,
         'createdAt': now,
         'memberCount': 1,
