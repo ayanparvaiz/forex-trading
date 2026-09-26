@@ -2,9 +2,9 @@ import '../i18n/strings.dart';
 
 /// When these documents last changed. Shown at the top of each, and stored
 /// on a new account as the version it agreed to.
-const legalUpdated = '25 September 2026';
-const legalUpdatedBn = '২৫ সেপ্টেম্বর ২০২৬';
-const termsVersion = '2026-09-25';
+const legalUpdated = '26 September 2026';
+const legalUpdatedBn = '২৬ সেপ্টেম্বর ২০২৬';
+const termsVersion = '2026-09-26';
 
 /// A document is a title, an introduction and numbered sections. A line
 /// starting with "• " is drawn as a bullet; anything else as a paragraph.
@@ -90,6 +90,9 @@ const _privacyEn = LegalDocument(
       '• The Global chat: anyone signed in can read it, and what you write '
           'there shows your display name and username. Only members can '
           'write in it.',
+      "• Communities: anyone signed in can see a community's name, "
+          'description, members and points, and which community you are in. '
+          "Its feed and its chat can be read only by its members.",
       '• Reports: the people who moderate the app.',
     ]),
     LegalSection('4. Where it is stored', [
@@ -118,8 +121,10 @@ const _privacyEn = LegalDocument(
       '• Delete your account in Settings → Delete account. This permanently '
           'deletes your profile, trades and scores, posts, comments and likes, '
           'connections, notifications, profile-view records, your '
-          'conversations — for both people in them — and your messages in the '
-          'Global chat. It cannot be undone. Your '
+          'conversations — for both people in them — your messages in the '
+          'Global chat and in community chats, and your place in your '
+          'community. A community you started stays, for its members. It '
+          'cannot be undone. Your '
           'username is retired: it is linked to nothing any more, and nobody, '
           'you included, can register it again. Reports made by you or about '
           'you may be kept for moderation records, and views you added to '
@@ -184,6 +189,9 @@ const _privacyBn = LegalDocument(
           'রাখা থাকে; এগুলো এন্ড-টু-এন্ড এনক্রিপ্টেড নয়।',
       '• গ্লোবাল চ্যাট: লগইন করা যে কেউ পড়তে পারেন, আর সেখানে আপনার লেখার '
           'সাথে আপনার নাম আর ইউজারনেম দেখা যায়। শুধু সদস্যরা লিখতে পারেন।',
+      '• কমিউনিটি: লগইন করা যে কেউ কমিউনিটির নাম, বর্ণনা, সদস্য আর পয়েন্ট, '
+          'আর আপনি কোন কমিউনিটিতে আছেন তা দেখতে পারেন। এর ফিড আর চ্যাট শুধু '
+          'সদস্যরাই পড়তে পারেন।',
       '• রিপোর্ট: যাঁরা অ্যাপটা মডারেট করেন।',
     ]),
     LegalSection('৪. কোথায় রাখা হয়', [
@@ -212,8 +220,9 @@ const _privacyBn = LegalDocument(
       '• সেটিংস → অ্যাকাউন্ট ডিলিট থেকে অ্যাকাউন্ট মুছতে পারেন। এতে আপনার '
           'প্রোফাইল, ট্রেড ও স্কোর, পোস্ট, কমেন্ট ও লাইক, কানেকশন, '
           'নোটিফিকেশন, প্রোফাইল-ভিজিটের রেকর্ড, আপনার চ্যাটগুলো — দুজনের '
-          'জন্যই — আর গ্লোবাল চ্যাটে আপনার মেসেজ চিরতরে মুছে যায়। এটা আর '
-          'ফেরানো যায় না। আপনার ইউজারনেম '
+          'জন্যই — গ্লোবাল চ্যাট আর কমিউনিটি চ্যাটে আপনার মেসেজ, আর আপনার '
+          'কমিউনিটির সদস্যপদ চিরতরে মুছে যায়। আপনার খোলা কমিউনিটি এর সদস্যদের '
+          'জন্য থেকে যায়। এটা আর ফেরানো যায় না। আপনার ইউজারনেম '
           'অবসরে যায়: এটা আর কিছুর সাথে যুক্ত থাকে না, আর আপনিসহ কেউ এটা আবার '
           'নিতে পারে না। আপনার করা বা আপনাকে নিয়ে করা রিপোর্ট মডারেশনের রেকর্ড '
           'হিসেবে রাখা হতে পারে, আর অন্যের পোস্টে আপনার দেখা ভিউ কাউন্টে থেকে '
