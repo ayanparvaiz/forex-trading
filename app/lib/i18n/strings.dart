@@ -476,7 +476,7 @@ class Strings {
     'কমিউনিটি নিয়ে কয়েক কথা (ঐচ্ছিক)',
     'A few words about it (optional)',
   );
-  String get communityNameRule => _t('৩–৪০ অক্ষর', '3–40 characters');
+  String get communityNameRule => _t('৩–৬০ অক্ষর', '3–60 characters');
   String get communityNameTaken =>
       _t('এই নামে আগেই একটা কমিউনিটি আছে', 'A community already has this name');
   String communityCreated(String name) => _t(

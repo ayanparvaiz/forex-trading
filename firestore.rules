@@ -886,7 +886,7 @@ service cloud.firestore {
         && communityAvatarOk(request.resource.data)
         && request.resource.data.name is string
         && request.resource.data.name.size() >= 3
-        && request.resource.data.name.size() <= 40
+        && request.resource.data.name.size() <= 60
         && request.resource.data.name == request.resource.data.name.trim()
         && request.resource.data.nameLower == request.resource.data.name.lower()
         && request.resource.data.description is string

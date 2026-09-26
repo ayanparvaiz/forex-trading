@@ -16,7 +16,7 @@ class Community {
   });
 
   static const nameMin = 3;
-  static const nameMax = 40;
+  static const nameMax = 60;
   static const descriptionMax = 200;
 
   final String id;
