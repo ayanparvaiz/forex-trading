@@ -416,6 +416,84 @@ class Strings {
   );
   String get alreadyShared => _t('শেয়ার করা হয়েছে', 'Shared');
 
+  // --- Communities ------------------------------------------------------------
+
+  String get communities => _t('কমিউনিটি', 'Communities');
+  String get joinOrStart =>
+      _t('জয়েন করুন বা নতুন খুলুন', 'Join one, or start your own');
+  String get yourCommunity => _t('আপনার কমিউনিটি', 'Your community');
+  String get noCommunityYet => _t(
+    'এখনো কোনো কমিউনিটিতে নেই। একটায় জয়েন করুন, বা নিজে খুলুন।',
+    "You're not in a community yet. Join one, or start your own.",
+  );
+  String get startCommunity => _t('নতুন কমিউনিটি খুলুন', 'Start a community');
+  String get allCommunities => _t('সব কমিউনিটি', 'All communities');
+  String get noCommunities => _t(
+    'এখনো কোনো কমিউনিটি নেই — প্রথমটা আপনিই খুলুন!',
+    'No communities yet — start the first one!',
+  );
+  String communityPoints(int n) =>
+      _t('$n পয়েন্ট', n == 1 ? '1 point' : '$n points');
+  String get pointsExplain => _t(
+    'পয়েন্ট আসে লিডারবোর্ড থেকে: টপ ৫০-এ সদস্য যত উপরে, কমিউনিটি তত বেশি পয়েন্ট পায় (#১ = ৫০, #৫০ = ১)।',
+    'Points come from the leaderboard: the higher a member stands in the top '
+        '50, the more their community gets (#1 = 50, #50 = 1).',
+  );
+  String joinedCommunity(String name) =>
+      _t('$name-এ জয়েন করেছেন', 'You joined $name');
+  String get switchCommunityTitle =>
+      _t('কমিউনিটি বদলাবেন?', 'Switch community?');
+  String switchCommunityBody(String from, String to) => _t(
+    'একবারে একটা কমিউনিটিতেই থাকা যায়। $from ছেড়ে $to-তে জয়েন করবেন?',
+    'You can be in one community at a time. Leave $from and join $to?',
+  );
+  String get switchAction => _t('বদলান', 'Switch');
+  String get leaveCommunity => _t('কমিউনিটি ছাড়ুন', 'Leave community');
+  String leaveCommunityTitle(String name) =>
+      _t('$name ছাড়বেন?', 'Leave $name?');
+  String get leaveCommunityBody => _t(
+    'এর ফিড আর চ্যাট আর দেখতে পাবেন না। আপনার পোস্ট থেকে যাবে। যেকোনো সময় আবার জয়েন করতে পারবেন।',
+    "You won't see its feed or chat any more. Your posts stay. You can join "
+        'again any time.',
+  );
+  String leftCommunity(String name) => _t('$name ছেড়েছেন', 'You left $name');
+  String get communityAdmin => _t('অ্যাডমিন', 'Admin');
+  String get openChat => _t('চ্যাট খুলুন', 'Open chat');
+  String communityRank(int rank) =>
+      _t('কমিউনিটি র‍্যাংক #$rank', 'Community rank #$rank');
+  String get membersHeading => _t('সদস্য', 'Members');
+  String get editDescription => _t('বর্ণনা বদলান', 'Edit description');
+  String get communityName => _t('কমিউনিটির নাম', 'Community name');
+  String get communityDescriptionHint => _t(
+    'কমিউনিটি নিয়ে কয়েক কথা (ঐচ্ছিক)',
+    'A few words about it (optional)',
+  );
+  String get communityNameRule => _t('৩–৪০ অক্ষর', '3–40 characters');
+  String get communityNameTaken =>
+      _t('এই নামে আগেই একটা কমিউনিটি আছে', 'A community already has this name');
+  String communityCreated(String name) => _t(
+    '$name খোলা হয়েছে — আপনি অ্যাডমিন',
+    "$name is open — you're its admin",
+  );
+  String get startCommunityBody => _t(
+    'আপনি এর অ্যাডমিন হবেন, আর এর নিজের একটা চ্যাট রুম নিজে থেকেই খুলবে। যে কেউ জয়েন করতে পারবে।',
+    "You'll be its admin, and it gets its own chat room. Anyone can join.",
+  );
+  String startLeaves(String name) => _t(
+    'খুললে $name ছেড়ে দেবেন — একবারে একটাই।',
+    'Starting one leaves $name — one at a time.',
+  );
+  String get startAction => _t('খুলুন', 'Start');
+
+  // The feed, Global or a community's.
+  String get whichFeed => _t('কোন ফিড দেখবেন?', 'Which feed?');
+  String get everyonesPosts => _t('সবার পোস্ট', "Everyone's posts");
+  String get membersOnly => _t('শুধু সদস্যদের পোস্ট', 'Members only');
+  String get joinACommunity =>
+      _t('একটা কমিউনিটিতে জয়েন করুন', 'Join a community');
+  String postingTo(String where) =>
+      _t('$where-এ পোস্ট হবে', 'Posting to $where');
+
   // --- Search ---------------------------------------------------------------
 
   String get search => _t('সার্চ', 'Search');
