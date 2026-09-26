@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../data/communities_repository.dart';
+import '../data/community_admin.dart';
 import '../data/community_repository.dart';
 import '../data/firestore_community_repository.dart';
 import '../data/session_controller.dart';
@@ -33,9 +34,22 @@ Future<bool> joinCommunity(BuildContext context, Community target) async {
   final leaving = profile.communityId;
   if (leaving == target.id) return true;
   final messenger = ScaffoldMessenger.of(context);
+  if (target.locked) {
+    messenger.showSnackBar(
+      SnackBar(content: Text(s.communityLocked(target.name))),
+    );
+    return false;
+  }
   if (leaving != null) {
     final current = await repo.watch(leaving).first.catchError((_) => null);
     if (!context.mounted) return false;
+    // An admin never leaves theirs; they delete it.
+    if (current != null && current.createdBy == uid) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(s.adminOfCommunity(current.name))),
+      );
+      return false;
+    }
     final ok = await _confirm(
       context,
       title: s.switchCommunityTitle,
@@ -75,6 +89,10 @@ Future<bool> confirmLeaveCommunity(
   final repo = buildCommunitiesRepository();
   if (uid == null || repo == null) return false;
   final messenger = ScaffoldMessenger.of(context);
+  if (community.createdBy == uid) {
+    messenger.showSnackBar(SnackBar(content: Text(s.adminCantLeave)));
+    return false;
+  }
   final ok = await _confirm(
     context,
     title: s.leaveCommunityTitle(community.name),
@@ -93,6 +111,68 @@ Future<bool> confirmLeaveCommunity(
   messenger.showSnackBar(
     SnackBar(content: Text(s.leftCommunity(community.name))),
   );
+  return true;
+}
+
+/// Deletes [community], once its admin is sure: everyone in it leaves, and
+/// its chat and posts go. True once deleted.
+Future<bool> confirmDeleteCommunity(
+  BuildContext context,
+  Community community,
+) async {
+  final s = context.s;
+  final session = context.session;
+  final admin = communityAdmin;
+  if (admin == null) return false;
+  final messenger = ScaffoldMessenger.of(context);
+  final ok = await _confirm(
+    context,
+    title: s.deleteCommunityTitle(community.name),
+    body: s.deleteCommunityBody(community.memberCount),
+    action: s.deleteAction,
+  );
+  if (!ok) return false;
+  try {
+    await admin.delete(community.id);
+  } catch (e) {
+    debugPrint('delete community failed: $e');
+    messenger.showSnackBar(SnackBar(content: Text(s.couldNotChange)));
+    return false;
+  }
+  // The profile follows by itself; this is only sooner.
+  session.setCommunity(null);
+  messenger.showSnackBar(
+    SnackBar(content: Text(s.communityDeleted(community.name))),
+  );
+  return true;
+}
+
+/// Takes [member] out of [community], once its admin is sure.
+Future<bool> confirmRemoveMember(
+  BuildContext context,
+  Community community,
+  CommunityMember member,
+  String name,
+) async {
+  final s = context.s;
+  final admin = communityAdmin;
+  if (admin == null) return false;
+  final messenger = ScaffoldMessenger.of(context);
+  final ok = await _confirm(
+    context,
+    title: s.removeMemberTitle(name),
+    body: s.removeMemberBody,
+    action: s.removeAction,
+  );
+  if (!ok) return false;
+  try {
+    await admin.remove(community: community.id, uid: member.uid);
+  } catch (e) {
+    debugPrint('remove member failed: $e');
+    messenger.showSnackBar(SnackBar(content: Text(s.couldNotChange)));
+    return false;
+  }
+  messenger.showSnackBar(SnackBar(content: Text(s.memberRemoved(name))));
   return true;
 }
 
@@ -130,8 +210,10 @@ Future<bool> _confirm(
 
 /// A community's page: what it is, where it stands, and who is in it.
 ///
-/// Anyone can look; members can leave from here, and anyone else can join.
-/// The admin — whoever started it — can change the description.
+/// Anyone can look; members can leave from here, and anyone else can join
+/// unless it is locked. The admin — whoever started it — changes its
+/// picture and description, locks it, removes people, and instead of
+/// leaving, deletes it.
 class CommunityProfileScreen extends StatefulWidget {
   const CommunityProfileScreen({super.key, required this.id});
 
@@ -262,6 +344,26 @@ class _CommunityProfileScreenState extends State<CommunityProfileScreen> {
     }
   }
 
+  Future<void> _setLocked(Community c, bool locked) async {
+    final s = context.s;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await _communities!.setLocked(c.id, locked);
+    } catch (e) {
+      debugPrint('lock failed: $e');
+      messenger.showSnackBar(SnackBar(content: Text(s.couldNotSave)));
+    }
+  }
+
+  Future<void> _delete(Community c) async {
+    final nav = Navigator.of(context);
+    await _run(() async {
+      final deleted = await confirmDeleteCommunity(context, c);
+      if (deleted) nav.pop();
+      return deleted;
+    });
+  }
+
   Future<void> _editDescription(Community c) async {
     final s = context.s;
     final messenger = ScaffoldMessenger.of(context);
@@ -368,13 +470,27 @@ class _CommunityProfileScreenState extends State<CommunityProfileScreen> {
                         color: AppColors.textMuted,
                       ),
                     ),
-                    if (mine) ...[
+                    if (mine || c.locked) ...[
                       Gap.h8,
-                      Pill(
-                        text: s.yourCommunity,
-                        icon: Icons.check_rounded,
-                        color: AppColors.brand,
-                        dense: true,
+                      Wrap(
+                        spacing: Gap.xs,
+                        runSpacing: Gap.xs,
+                        children: [
+                          if (mine)
+                            Pill(
+                              text: s.yourCommunity,
+                              icon: Icons.check_rounded,
+                              color: AppColors.brand,
+                              dense: true,
+                            ),
+                          if (c.locked)
+                            Pill(
+                              text: s.lockedLabel,
+                              icon: Icons.lock_rounded,
+                              color: AppColors.warning,
+                              dense: true,
+                            ),
+                        ],
                       ),
                     ],
                   ],
@@ -455,7 +571,22 @@ class _CommunityProfileScreenState extends State<CommunityProfileScreen> {
               icon: const Icon(Icons.chat_bubble_outline_rounded, size: 20),
               label: Text(s.openChat),
             )
-          else
+          else if (c.locked) ...[
+            OutlinedButton.icon(
+              onPressed: null,
+              icon: const Icon(Icons.lock_rounded, size: 18),
+              label: Text(s.lockedLabel),
+            ),
+            Gap.h8,
+            Text(
+              s.communityLocked(c.name),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 12.5,
+                color: AppColors.textMuted,
+              ),
+            ),
+          ] else
             FilledButton.icon(
               onPressed: _busy
                   ? null
@@ -463,6 +594,57 @@ class _CommunityProfileScreenState extends State<CommunityProfileScreen> {
               icon: const Icon(Icons.group_add_outlined, size: 20),
               label: Text(s.join),
             ),
+          if (isAdmin) ...[
+            Gap.h16,
+            SectionCard(
+              padding: const EdgeInsets.fromLTRB(
+                Gap.lg,
+                Gap.md,
+                Gap.md,
+                Gap.md,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    c.locked ? Icons.lock_rounded : Icons.lock_open_rounded,
+                    color: c.locked
+                        ? AppColors.warning
+                        : AppColors.textSecondary,
+                  ),
+                  Gap.w12,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          s.lockCommunity,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          s.lockHint,
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            height: 1.35,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch(
+                    value: c.locked,
+                    onChanged: _busy ? null : (v) => _setLocked(c, v),
+                    activeThumbColor: Colors.white,
+                    activeTrackColor: AppColors.warning,
+                  ),
+                ],
+              ),
+            ),
+          ],
           Gap.h24,
           _Members(
             community: c,
@@ -470,8 +652,36 @@ class _CommunityProfileScreenState extends State<CommunityProfileScreen> {
             profiles: _profiles,
             board: _board,
             repository: _social!,
+            // The admin can take anyone else out.
+            onRemove: isAdmin && !_busy
+                ? (m, name) =>
+                      _run(() => confirmRemoveMember(context, c, m, name))
+                : null,
           ),
-          if (mine) ...[
+          if (isAdmin) ...[
+            Gap.h24,
+            Text(
+              s.adminCantLeave,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 12.5,
+                color: AppColors.textMuted,
+              ),
+            ),
+            Center(
+              child: TextButton.icon(
+                onPressed: _busy ? null : () => _delete(c),
+                icon: _busy
+                    ? const SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.delete_forever_outlined, size: 19),
+                label: Text(s.deleteCommunity),
+                style: TextButton.styleFrom(foregroundColor: AppColors.loss),
+              ),
+            ),
+          ] else if (mine) ...[
             Gap.h24,
             Center(
               child: TextButton.icon(
@@ -499,6 +709,7 @@ class _Members extends StatelessWidget {
     required this.profiles,
     required this.board,
     required this.repository,
+    this.onRemove,
   });
 
   final Community community;
@@ -506,6 +717,9 @@ class _Members extends StatelessWidget {
   final Map<String, Trader> profiles;
   final List<Trader> board;
   final CommunityRepository repository;
+
+  /// Set for the admin: takes someone out, by name.
+  final void Function(CommunityMember member, String name)? onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -541,6 +755,7 @@ class _Members extends StatelessWidget {
                     isAdmin: m.uid == community.createdBy,
                     boardRank: place[m.username],
                     repository: repository,
+                    onRemove: m.uid == community.createdBy ? null : onRemove,
                   ),
               ],
             ),
@@ -555,6 +770,7 @@ class _MemberRow extends StatelessWidget {
     required this.isAdmin,
     required this.boardRank,
     required this.repository,
+    this.onRemove,
   });
 
   final CommunityMember member;
@@ -562,6 +778,7 @@ class _MemberRow extends StatelessWidget {
   final bool isAdmin;
   final int? boardRank;
   final CommunityRepository repository;
+  final void Function(CommunityMember member, String name)? onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -608,6 +825,36 @@ class _MemberRow extends StatelessWidget {
                 icon: Icons.shield_outlined,
                 color: AppColors.brand,
                 dense: true,
+              )
+            else if (onRemove != null)
+              // Behind a menu, so nobody is removed by a stray tap.
+              PopupMenuButton<void>(
+                icon: const Icon(
+                  Icons.more_vert,
+                  size: 20,
+                  color: AppColors.textMuted,
+                ),
+                color: AppColors.elevated,
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                    onTap: () =>
+                        onRemove!(member, t?.name ?? '@${member.username}'),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.person_remove_outlined,
+                          size: 19,
+                          color: AppColors.loss,
+                        ),
+                        Gap.w12,
+                        Text(
+                          s.removeFromCommunity,
+                          style: const TextStyle(color: AppColors.loss),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
           ],
         ),
