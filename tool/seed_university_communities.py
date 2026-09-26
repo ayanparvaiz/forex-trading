@@ -670,6 +670,20 @@ def remove() -> None:
                                    (room, "messages")]:
             listing = request("GET", f"{DOCS}/{parent}/{collection}?pageSize=300", token)
             below += [{"delete": d["name"]} for d in listing.get("documents", [])]
+            # Anyone still in it who is not a demo account — someone who
+            # joined, or was made its admin — is taken out, not left pointing
+            # at a community that is gone.
+            if parent.startswith("communities/"):
+                for d in listing.get("documents", []):
+                    uid = d["name"].split("/")[-1]
+                    profile = get(f"users/{uid}", token) or {}
+                    here = profile.get("fields", {}).get("communityId", {}).get("stringValue")
+                    if here == cid:
+                        below.append({
+                            "update": {"name": name(f"users/{uid}"),
+                                       "fields": {"communityId": s("")}},
+                            "updateMask": {"fieldPaths": ["communityId"]},
+                        })
         reply = commit(
             below + [
                 {"delete": name(f"communities/{cid}")},
