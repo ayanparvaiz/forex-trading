@@ -2,6 +2,7 @@
 """Five university communities, and thirty demo traders to fill them.
 
     python3 tool/seed_university_communities.py           # create what is missing
+    python3 tool/seed_university_communities.py --chat    # a first conversation in each
     python3 tool/seed_university_communities.py --remove  # take all of it away
 
 Demo scaffolding, like seed_firestore.py: until real students arrive, this
@@ -15,6 +16,11 @@ Nobody's scores are typed in. Each trader gets a journal of closed trades
 the stats worker scores it through the same endpoint the app uses — so their
 places on the leaderboard, and their communities' points, are whatever those
 trades earn.
+
+The conversations (--chat) are written by the members themselves, signed in
+as them, so the rules check every message as they would anyone's — which is
+also why each one is timed as it is sent. A room that already has messages
+is left alone.
 
 Re-running is safe: an account, a journal or a community that is already
 there is left as it is. --remove deletes the accounts the way the app does
@@ -137,6 +143,125 @@ COMMUNITIES = [
         "practising forex the disciplined way.",
     ),
 ]
+
+
+# A first conversation in each community: (username, text, index of the
+# message it replies to). About the process, never a call — nobody here
+# hands out entries, and the members say so.
+CHATS = {
+    "buet": [
+        ("tahmid_h", "Welcome to the BUET community, everyone! One rule here: share "
+         "your process, not signals. And journal every trade 📓", None),
+        ("nafisa_r", "Thanks Tahmid bhai! Nine days of journaling in a row now 🔥", None),
+        ("sakib_c", "London session was choppy today. Took one EUR/USD trade at the H4 "
+         "support and got stopped out at −1R. The stop was exactly where the plan "
+         "said.", None),
+        ("labiba_h", "A −1R that follows the plan is a good trade. What did you risk?", 2),
+        ("sakib_c", "1% of the day's points. Kept it small after last week 😅", 3),
+        ("raisa_a", "Backtested the retest setup on 60 old GBP/USD charts over the "
+         "weekend — about 52% at 2R. Worth sticking with.", None),
+        ("fahim_i", "Honest confession: I moved my stop yesterday. A −1R became −2.3R, "
+         "and my discipline score took the hit 😬", None),
+        ("tahmid_h", "Good that you wrote it down. Sticky note next to the laptop: the "
+         "stop never moves against you.", 6),
+        ("labiba_h", "Can someone explain how community points work?", None),
+        ("nafisa_r", "Everyone of ours in the leaderboard's top 50 adds points — #1 is "
+         "worth 50, #50 is worth 1. So careful trading moves all of us up.", 8),
+        ("raisa_a", "And we're #1 right now 🏆 Let's keep it that way — no revenge "
+         "trades!", None),
+        ("fahim_i", "Noted 🙏 One trade tomorrow, max.", None),
+        ("tahmid_h", "That's the spirit. Chart review after class tomorrow, 9 pm?", None),
+        ("labiba_h", "Count me in 👍", 12),
+    ],
+    "ruet": [
+        ("mahir_r", "Assalamu alaikum, RUET traders! This is our space — post your "
+         "lessons, ask anything, help each other out.", None),
+        ("tanjila_a", "Excited to be here! Just closed a USD/JPY trade at +1.8R ✅", None),
+        ("rafsan_k", "+3.5R on GBP/USD today 🚀 went in right before the news", None),
+        ("samira_h", "Congrats, but a news trade is a coin flip. What was your risk on "
+         "that one?", 2),
+        ("rafsan_k", "…about 5% 😅 I know, I know", 3),
+        ("mahir_r", "A win at 5% risk teaches the wrong lesson. The board ranks "
+         "discipline, not R — you'd climb faster at 1%.", 4),
+        ("ashik_m", "Three losses in a row this week. Thinking of doubling my size to "
+         "win it back.", None),
+        ("nabila_s", "Please don't! That's exactly the revenge-trade trap. Take a day "
+         "off the charts.", 6),
+        ("tanjila_a", "Happened to me last month too. Smaller size, one setup, and the "
+         "streak ended by itself.", 6),
+        ("ashik_m", "Okay. Taking tomorrow off and journaling those three losses "
+         "instead 📓", None),
+        ("samira_h", "Tip for everyone: the journal shows which rule you break most. "
+         "Mine was poor risk-reward 🙈", None),
+        ("mahir_r", "We're #5 in the community ranking. Two more of us in the top 50 "
+         "and we pass KUET 💪", None),
+        ("nabila_s", "Challenge accepted 😄", 11),
+    ],
+    "cuet": [
+        ("zarif_a", "Welcome aboard, CUET! Chattogram's traders — one planned trade at "
+         "a time 🌊", None),
+        ("maliha_c", "Hi all! Anyone else watching the London open from the library? 😄",
+         None),
+        ("arnab_d", "Every day at 1 pm, right after lab 😂", 1),
+        ("nayeem_u", "Can someone just give me an entry for EUR/USD tonight?", None),
+        ("tasfia_k", "No signals here bhai, that's the one rule 😄 Share your own idea "
+         "and we'll go through it together.", 3),
+        ("nayeem_u", "Fair. I'm thinking of a pullback to the daily support near the "
+         "Asian range low, stop below the wick.", 4),
+        ("zarif_a", "Now that's a plan. Check the reward is at least 1.5R before you "
+         "take it.", 5),
+        ("sumaiya_n", "Lost 1R today, but I waited for the candle to close like my plan "
+         "said. Small win for me 😌", None),
+        ("maliha_c", "That's the real win. The results come later.", 7),
+        ("arnab_d", "Journal streak at 5 days. Didn't think I'd stick with it this long",
+         None),
+        ("zarif_a", "We're #2 in the ranking, right behind BUET 👀", None),
+        ("tasfia_k", "Let's catch them the boring way — fewer, better trades.", 10),
+        ("sumaiya_n", "Boring is the new exciting 😄", 11),
+    ],
+    "kuet": [
+        ("rakib_h", "Welcome to the KUET community! Anchored in risk management ⚓ — 1% "
+         "a trade, a journal every day.", None),
+        ("lamia_i", "Nine-day journal streak and still down 11R 😅 but every rule "
+         "followed.", None),
+        ("fariha_t", "And the best discipline score in here. The R will follow.", 1),
+        ("shafin_a", "+30R this month 😎", None),
+        ("towhid_a", "Teach us, master 🙏", 3),
+        ("rakib_h", "Congrats Shafin — but your discipline is at 76. Which rules are "
+         "you breaking?", 3),
+        ("shafin_a", "Mostly oversized trades… and a couple I never journaled. Fair "
+         "point.", 5),
+        ("jannatul_f", "Question: is it okay to hold a practice trade overnight?", None),
+        ("fariha_t", "It's allowed, but the swap is charged just like on a real "
+         "account — check it before you hold.", 7),
+        ("towhid_a", "Lost 5R this week, mostly from moving stops. Fresh plan from "
+         "tomorrow.", None),
+        ("lamia_i", "Write the plan before the session, not during it. That's what "
+         "fixed it for me.", 9),
+        ("rakib_h", "We're #4 right now — a single point behind DUET 😤", None),
+        ("jannatul_f", "One point! Let's go KUET 🔥", 11),
+    ],
+    "duet": [
+        ("imtiaz_h", "Welcome to the DUET community, Gazipur gang ⚡ Quick to learn, "
+         "careful to act.", None),
+        ("ayesha_s", "Happy to be here! Eight days of journaling done ✅", None),
+        ("nahid_h", "Took 6 trades today. Pretty sure 4 of them were boredom 😬", None),
+        ("mahjabin_r", "Overtrading costs you discipline every time. Try a hard limit "
+         "— two trades a day.", 2),
+        ("nahid_h", "Setting the limit now. Thanks apu 🙏", 3),
+        ("asif_i", "Anyone notice the prices here sit at the real market level? "
+         "EUR/USD was right at this morning's ECB rate.", None),
+        ("imtiaz_h", "Yes — the practice market starts each day from the ECB reference "
+         "rates. The movement is simulated, the level is real.", 5),
+        ("nowshin_a", "First week done. Small risk, lots of learning 🌱", None),
+        ("ayesha_s", "That's the way. The leaderboard rewards the careful ones.", 7),
+        ("imtiaz_h", "+24R this month with discipline around 90. Still room to "
+         "improve 📈", None),
+        ("asif_i", "We're #3 now, just 1 point ahead of KUET 👀", None),
+        ("mahjabin_r", "Then no revenge trades this week, everyone 😄", 10),
+        ("nahid_h", "Two trades a day. Promise 🤝", 11),
+    ],
+}
 
 
 def s(v):
@@ -405,6 +530,104 @@ def create() -> None:
         create_community(c, members, token, now)
 
 
+# --- talking -------------------------------------------------------------------
+
+
+def new_id() -> str:
+    """A document id the way Firestore makes them: twenty letters and digits."""
+    import secrets
+    import string
+
+    return "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(20))
+
+
+def chat() -> None:
+    """Each community's first conversation, sent by its members — each
+    message as the app sends one: the message, the room's preview and the
+    sender's read mark, in one write, under the sender's own sign-in."""
+    token = access_token()
+    key = web_api_key()
+    for c in COMMUNITIES:
+        room = f"rooms/c_{c['id']}"
+        info = get(room, token)
+        print(f"\n{c['name']}")
+        if not info:
+            print("  ✗ no room — run without --chat first")
+            continue
+        if "mapValue" in info.get("fields", {}).get("lastMessage", {}):
+            print("  · already talking — left as it is")
+            continue
+
+        people: dict[str, tuple[str, str, str]] = {}
+        sent: list[tuple[str, str]] = []
+        for username, text, reply_to in CHATS[c["key"]]:
+            if username not in people:
+                uid, id_token = sign_in(username, key)
+                profile = get(f"users/{uid}", token) or {}
+                display = profile.get("fields", {}).get("displayName", {}).get("stringValue", "")
+                people[username] = (uid, id_token, display)
+            uid, id_token, display = people[username]
+            mid = new_id()
+            fields = {
+                "senderUid": s(uid),
+                "senderName": s(display),
+                "senderUsername": s(username),
+                "text": s(text),
+                "unsent": {"booleanValue": False},
+            }
+            if reply_to is not None:
+                rid, ruid = sent[reply_to]
+                fields["replyTo"] = {"mapValue": {"fields": {"id": s(rid), "senderUid": s(ruid)}}}
+            now = [{"fieldPath": "sentAt", "setToServerValue": "REQUEST_TIME"}]
+            reply = commit(
+                [
+                    {
+                        "update": {"name": name(f"{room}/messages/{mid}"), "fields": fields},
+                        "updateTransforms": now,
+                        "currentDocument": {"exists": False},
+                    },
+                    {
+                        "update": {
+                            "name": name(room),
+                            "fields": {
+                                "lastMessage": {
+                                    "mapValue": {
+                                        "fields": {
+                                            "id": s(mid),
+                                            "senderUid": s(uid),
+                                            "senderName": s(display),
+                                            "text": s(text),
+                                            "unsent": {"booleanValue": False},
+                                        }
+                                    }
+                                }
+                            },
+                        },
+                        "updateMask": {"fieldPaths": ["lastMessage"]},
+                        "updateTransforms": [
+                            {"fieldPath": "updatedAt", "setToServerValue": "REQUEST_TIME"}
+                        ],
+                    },
+                    {
+                        "update": {"name": name(f"{room}/members/{uid}"), "fields": {}},
+                        "updateMask": {"fieldPaths": []},
+                        "updateTransforms": [
+                            {"fieldPath": "readAt", "setToServerValue": "REQUEST_TIME"}
+                        ],
+                    },
+                ],
+                id_token,
+            )
+            if "__error" in reply:
+                print(f"  ✗ @{username}: {reply['body'][:160]}")
+                break
+            sent.append((mid, uid))
+            arrow = f"↳ {CHATS[c['key']][reply_to][0]}: " if reply_to is not None else ""
+            print(f"  {display:<17} {arrow}{text[:60]}{'…' if len(text) > 60 else ''}")
+            # A conversation, not a burst.
+            time.sleep(1.5)
+
+
 # --- removing ------------------------------------------------------------------
 
 
@@ -459,4 +682,9 @@ def remove() -> None:
 
 
 if __name__ == "__main__":
-    remove() if "--remove" in sys.argv else create()
+    if "--remove" in sys.argv:
+        remove()
+    elif "--chat" in sys.argv:
+        chat()
+    else:
+        create()
