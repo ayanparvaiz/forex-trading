@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 
 import '../data/chat_inbox.dart';
+import '../data/communities_repository.dart';
 import '../data/push.dart';
 import '../data/session_controller.dart';
 import '../i18n/strings.dart';
 import '../legal/legal_text.dart';
+import '../models/community.dart';
 import '../theme/app_theme.dart';
 import '../widgets/avatar_image.dart';
 import 'blocked_accounts_screen.dart';
 import 'change_avatar_screen.dart';
 import 'change_password_screen.dart';
+import 'communities_screen.dart';
 import 'delete_account_screen.dart';
 import 'edit_name_screen.dart';
 import 'legal_screen.dart';
@@ -100,6 +103,13 @@ class SettingsScreen extends StatelessWidget {
                     ),
                   ],
                 ),
+                if (buildCommunitiesRepository() != null) ...[
+                  Gap.h24,
+                  SettingsSection(
+                    title: s.communities,
+                    children: const [_CommunityTile()],
+                  ),
+                ],
                 if (pushService != null) ...[
                   Gap.h24,
                   SettingsSection(
@@ -316,6 +326,39 @@ class SettingsTile extends StatelessWidget {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// The community you are in, or the way into one.
+class _CommunityTile extends StatefulWidget {
+  const _CommunityTile();
+
+  @override
+  State<_CommunityTile> createState() => _CommunityTileState();
+}
+
+class _CommunityTileState extends State<_CommunityTile> {
+  final _repo = buildCommunitiesRepository();
+  String? _id;
+  Stream<Community?>? _community;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.s;
+    final id = context.session.profile?.communityId;
+    if (id != _id) {
+      _id = id;
+      _community = id == null ? null : _repo?.watch(id);
+    }
+    return StreamBuilder<Community?>(
+      stream: _community,
+      builder: (context, snap) => SettingsTile(
+        icon: Icons.groups_2_outlined,
+        title: s.yourCommunity,
+        subtitle: id == null ? s.joinOrStart : snap.data?.name ?? '…',
+        onTap: () => openCommunities(context),
       ),
     );
   }
