@@ -195,6 +195,17 @@
   ],
   "fieldOverrides": [
     {
+      "comment": "Deleting an account: whatever it said in any room, including communities it has since left.",
+      "collectionGroup": "messages",
+      "fieldPath": "senderUid",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "order": "DESCENDING", "queryScope": "COLLECTION" },
+        { "arrayConfig": "CONTAINS", "queryScope": "COLLECTION" },
+        { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }
+      ]
+    },
+    {
       "comment": "Push notifications: the phones of everyone being told, thirty at a time.",
       "collectionGroup": "devices",
       "fieldPath": "uid",
