@@ -459,6 +459,11 @@ class Strings {
   String leftCommunity(String name) => _t('$name ছেড়েছেন', 'You left $name');
   String get communityAdmin => _t('অ্যাডমিন', 'Admin');
   String get openChat => _t('চ্যাট খুলুন', 'Open chat');
+  String get viewCommunity => _t('কমিউনিটি দেখুন', 'View community');
+  String get communityChatEmpty => _t(
+    'এখানে শুধু সদস্যরা কথা বলে। প্রথম কথাটা আপনিই বলুন!',
+    'Only members talk here. Say the first word!',
+  );
   String communityRank(int rank) =>
       _t('কমিউনিটি র‍্যাংক #$rank', 'Community rank #$rank');
   String get membersHeading => _t('সদস্য', 'Members');
