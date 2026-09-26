@@ -122,6 +122,23 @@ test('not members who muted the room, and not anyone who left', async () => {
   assert.equal(sent.length, 0);
 });
 
+test("a community's room tells its members, by the community's name", async () => {
+  const docs = world();
+  docs.set('rooms/c_bulls1', { name: 'Bulls', memberCount: 2 });
+  docs.set('rooms/c_bulls1/members/u-me', {});
+  docs.set('rooms/c_bulls1/members/u-bo', {});
+  docs.set('rooms/c_bulls1/messages/b1', { senderUid: 'u-me', senderName: 'Me', text: 'hi bulls', sentAt: ago(1), unsent: false });
+  const { sent } = await run(docs, 'u-me', { type: 'room', roomId: 'c_bulls1', messageId: 'b1' });
+  assert.deepEqual(sent.map((m) => m.token), ['tok-bo']);
+  assert.equal(sent[0].notification.title, 'Bulls');
+  assert.equal(sent[0].notification.body, 'Me: hi bulls');
+  assert.deepEqual(sent[0].data, { type: 'room', roomId: 'c_bulls1' });
+
+  // No such room, no such message: nothing.
+  const nowhere = await run(docs, 'u-me', { type: 'room', roomId: 'c_bears1', messageId: 'b1' });
+  assert.equal(nowhere.sent.length, 0);
+});
+
 test('a connection request, and its acceptance', async () => {
   const request = await run(world(), 'u-me', { type: 'connectionRequest', pair: 'ana-me' });
   assert.equal(request.sent[0].notification.body, 'sent you a connection request');
@@ -149,6 +166,16 @@ test('a new post goes to connections, not to pending requests', async () => {
   assert.deepEqual(sent[0].data, { type: 'post', postId: 'p9' });
 
   assert.equal((await run(world(), 'u-ana', { type: 'post', postId: 'p9' })).sent.length, 0);
+});
+
+test("a community's post goes only to connections who are in it", async () => {
+  const docs = world();
+  Object.assign(docs.get('connections/ana-me'), { uids: ['u-me', 'u-ana'], accepted: true });
+  docs.set('posts/p-c', { authorUid: 'u-me', lesson: 'members only', postedAt: ago(1), community: 'bulls1' });
+  docs.set('communities/bulls1/members/u-ana', { role: 'member' });
+  const { sent } = await run(docs, 'u-me', { type: 'post', postId: 'p-c' });
+  // Ana is in it, on both her phones; Bo is connected but not a member.
+  assert.deepEqual(sent.map((m) => m.token).sort(), ['tok-ana', 'tok-ana-old']);
 });
 
 test('never more than the cap in one request', async () => {

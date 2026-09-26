@@ -22,7 +22,8 @@ const FRESH_MS = 10 * 60 * 1000;
  */
 export const MAX_PUSHES = 25;
 
-const ROOMS = ['global'];
+/** Global, or a community's room: `c_` and the community's id. */
+const isRoom = (id) => id === 'global' || (typeof id === 'string' && /^c_[A-Za-z0-9]{6,40}$/.test(id));
 
 const TEXT = {
   bn: {
@@ -162,11 +163,14 @@ async function aMessage(store, push, caller, { chatId, messageId }, now) {
 }
 
 async function aRoomMessage(store, push, caller, { roomId, messageId }, now) {
-  if (!ROOMS.includes(roomId) || !isId(messageId)) return skip('bad request');
-  const msg = await store.get(`rooms/${roomId}/messages/${messageId}`, [
-    'senderUid', 'senderName', 'text', 'sentAt', 'unsent', 'attachment',
-  ]);
-  if (!msg || msg.senderUid !== caller || msg.unsent || !fresh(msg.sentAt, now)) {
+  if (!isRoom(roomId) || !isId(messageId)) return skip('bad request');
+  const docs = await store.getAll(
+    [`rooms/${roomId}`, `rooms/${roomId}/messages/${messageId}`],
+    ['name', 'senderUid', 'senderName', 'text', 'sentAt', 'unsent', 'attachment'],
+  );
+  const room = docs.get(`rooms/${roomId}`);
+  const msg = docs.get(`rooms/${roomId}/messages/${messageId}`);
+  if (!room || !msg || msg.senderUid !== caller || msg.unsent || !fresh(msg.sentAt, now)) {
     return skip('not news');
   }
   if (!(await firstTime(store, `room_${roomId}_${messageId}`, now))) return skip('already told');
@@ -192,7 +196,8 @@ async function aRoomMessage(store, push, caller, { roomId, messageId }, now) {
     const t = textFor(d.language);
     return pushMessage({
       token: d.token,
-      title: t.global,
+      // Global in their language; a community's room by its name.
+      title: roomId === 'global' ? t.global : room.name ?? '',
       body: `${msg.senderName ?? ''}: ${preview(t, msg.text ?? '', msg.attachment)}`,
       data: { type: 'room', roomId },
       group: roomId,
@@ -232,7 +237,7 @@ async function aConnection(store, push, caller, { pair }, now, accepted) {
 
 async function aPost(store, push, caller, { postId }, now) {
   if (!isId(postId)) return skip('bad request');
-  const post = await store.get(`posts/${postId}`, ['authorUid', 'lesson', 'postedAt']);
+  const post = await store.get(`posts/${postId}`, ['authorUid', 'lesson', 'postedAt', 'community']);
   if (!post || post.authorUid !== caller || !fresh(post.postedAt, now)) return skip('not news');
   if (!(await firstTime(store, `post_${postId}`, now))) return skip('already told');
 
@@ -245,10 +250,18 @@ async function aPost(store, push, caller, { postId }, now) {
     limit: 300,
     fields: ['uids', 'accepted'],
   });
-  const to = connections
+  let to = connections
     .filter((c) => c.data.accepted === true)
     .map((c) => (c.data.uids ?? []).find((u) => u !== caller))
     .filter(Boolean);
+
+  // A community's post is for its members: only connections who are in it
+  // can read it, so only they hear about it.
+  const community = post.community ?? 'global';
+  if (community !== 'global' && to.length) {
+    const members = await store.getAll(to.map((u) => `communities/${community}/members/${u}`), ['role']);
+    to = to.filter((u) => members.get(`communities/${community}/members/${u}`));
+  }
   if (!to.length) return { sent: 0 };
 
   const who = (await store.get(`users/${caller}`, ['displayName'])) ?? {};
