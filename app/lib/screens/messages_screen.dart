@@ -8,10 +8,13 @@ import '../data/room_repository.dart';
 import '../data/session_controller.dart';
 import '../i18n/strings.dart';
 import '../models/chat.dart';
+import '../models/community.dart';
 import '../theme/app_theme.dart';
 import '../widgets/chat_bits.dart';
+import '../widgets/community_avatar.dart';
 import '../widgets/mute_sheet.dart';
 import 'chat_screen.dart';
+import 'community_profile_screen.dart';
 import 'profile_screen.dart';
 import 'room_screen.dart';
 import 'search_screen.dart';
@@ -114,8 +117,12 @@ class _List extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final threads = inbox.threads;
-    final pinned = inbox.rooms != null;
-    // With no chats yet, Global still sits on top and the hint goes under it.
+    // Global on top, and your community's room under it.
+    final pinned = [
+      if (inbox.rooms != null) RoomRepository.globalId,
+      if (inbox.rooms != null) ?inbox.communityRoomId,
+    ];
+    // With no chats yet, the rooms still sit on top and the hint goes under.
     final Widget? empty = threads.isNotEmpty
         ? null
         : inbox.error != null
@@ -125,12 +132,19 @@ class _List extends StatelessWidget {
             title: s.noChatsTitle,
             hint: s.noChatsHint,
           );
-    final head = pinned ? 1 : 0;
+    final head = pinned.length;
     return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: Gap.sm),
       itemCount: head + (empty == null ? threads.length : 1),
       itemBuilder: (context, i) {
-        if (pinned && i == 0) return _GlobalRow(inbox: inbox, s: s);
+        if (i < head) {
+          return _RoomRow(
+            key: ValueKey(pinned[i]),
+            id: pinned[i],
+            inbox: inbox,
+            s: s,
+          );
+        }
         if (empty != null) {
           return Padding(padding: const EdgeInsets.only(top: 48), child: empty);
         }
@@ -140,35 +154,45 @@ class _List extends StatelessWidget {
   }
 }
 
-/// The Global room, pinned above every chat.
+/// A room pinned above every chat: Global, or your community's.
 ///
-/// Before joining it says "Join now" and counts nothing. Joined, it reads
-/// like any chat: the last thing said and who said it, the time, and what
-/// you have not read — quieter when muted.
-class _GlobalRow extends StatelessWidget {
-  const _GlobalRow({required this.inbox, required this.s});
+/// Before joining Global it says "Join now" and counts nothing. Joined, a
+/// room reads like any chat: the last thing said and who said it, the time,
+/// and what you have not read — quieter when muted.
+class _RoomRow extends StatelessWidget {
+  const _RoomRow({
+    super.key,
+    required this.id,
+    required this.inbox,
+    required this.s,
+  });
 
+  final String id;
   final ChatInbox inbox;
   final Strings s;
 
-  static const _id = RoomRepository.globalId;
+  bool get _ofCommunity => Community.ofRoom(id) != null;
 
   @override
   Widget build(BuildContext context) {
     final me = inbox.uid;
     final now = DateTime.now();
-    final room = inbox.global;
-    final joined = inbox.joinedGlobal;
-    final prefs = inbox.prefsFor(_id);
+    final room = inbox.room(id);
+    final known = inbox.roomKnown(id);
+    final joined = inbox.joinedRoom(id);
+    final prefs = inbox.prefsFor(id);
     final muted = joined && prefs.mutedAt(now);
-    final unread = inbox.globalUnread;
+    final unread = inbox.roomUnread(id);
     final loud = unread > 0 && !muted;
     final last = room?.lastMessage;
+    // A community's room is joined with the community, never from here.
+    final invite = known && !joined && !_ofCommunity;
 
     // What the second line says, and whether it is a note rather than words.
     final (String line, bool note) = switch (last) {
-      _ when !inbox.globalKnown => ('', false),
-      _ when !joined => (s.joinNow, false),
+      _ when !known => ('', false),
+      _ when invite => (s.joinNow, false),
+      _ when !joined => (s.members(room?.memberCount ?? 0), true),
       null => (s.members(room?.memberCount ?? 0), true),
       _ when prefs.clearedBy(room!.updatedAt) => (
         s.members(room.memberCount),
@@ -200,13 +224,13 @@ class _GlobalRow extends StatelessWidget {
         : null;
 
     return InkWell(
-      onTap: () => openGlobalChat(context),
-      onLongPress: inbox.globalKnown ? () => _actions(context) : null,
+      onTap: () => openRoom(context, id),
+      onLongPress: known ? () => _actions(context) : null,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: 10),
         child: Row(
           children: [
-            const RoomAvatar(size: 52),
+            RoomPicture(room: id, name: room?.name ?? '', size: 52),
             Gap.w12,
             Expanded(
               child: Column(
@@ -216,7 +240,9 @@ class _GlobalRow extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          s.globalChat,
+                          room == null && _ofCommunity
+                              ? '…'
+                              : roomTitle(s, id, room?.name ?? ''),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -255,10 +281,10 @@ class _GlobalRow extends StatelessWidget {
                             fontStyle: note
                                 ? FontStyle.italic
                                 : FontStyle.normal,
-                            fontWeight: !joined || unread > 0
+                            fontWeight: invite || unread > 0
                                 ? FontWeight.w700
                                 : FontWeight.w400,
-                            color: !joined
+                            color: invite
                                 ? AppColors.brand
                                 : unread > 0
                                 ? AppColors.textPrimary
@@ -321,8 +347,8 @@ class _GlobalRow extends StatelessWidget {
 
   Future<void> _actions(BuildContext context) async {
     final now = DateTime.now();
-    final joined = inbox.joinedGlobal;
-    final prefs = inbox.prefsFor(_id);
+    final joined = inbox.joinedRoom(id);
+    final prefs = inbox.prefsFor(id);
     final muted = prefs.mutedAt(now);
     final action = await showModalBottomSheet<String>(
       context: context,
@@ -353,7 +379,13 @@ class _GlobalRow extends StatelessWidget {
               title: Text(s.deleteChat),
               onTap: () => Navigator.of(sheet).pop('clear'),
             ),
-            if (joined)
+            if (_ofCommunity)
+              ListTile(
+                leading: const Icon(Icons.groups_2_outlined),
+                title: Text(s.viewCommunity),
+                onTap: () => Navigator.of(sheet).pop('community'),
+              )
+            else if (joined)
               ListTile(
                 leading: const Icon(
                   Icons.logout_rounded,
@@ -384,15 +416,17 @@ class _GlobalRow extends StatelessWidget {
     if (!context.mounted || action == null) return;
     switch (action) {
       case 'mute':
-        await muteChat(context, inbox, _id);
+        await muteChat(context, inbox, id);
       case 'unmute':
-        await unmuteChat(inbox, _id);
+        await unmuteChat(inbox, id);
       case 'clear':
-        await confirmClearRoom(context, _id);
+        await confirmClearRoom(context, id);
       case 'join':
-        await joinRoom(context, _id);
+        await joinRoom(context, id);
       case 'leave':
-        await confirmLeaveRoom(context, _id);
+        await confirmLeaveRoom(context, id);
+      case 'community':
+        await openCommunity(context, Community.ofRoom(id)!);
     }
   }
 }

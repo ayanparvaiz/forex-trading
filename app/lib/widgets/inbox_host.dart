@@ -12,7 +12,7 @@ import '../screens/chat_screen.dart';
 import '../screens/room_screen.dart';
 import '../theme/app_theme.dart';
 import 'avatar_image.dart';
-import 'chat_bits.dart';
+import 'community_avatar.dart';
 
 /// Keeps the signed-in trader's inbox alive above every screen, and shows a
 /// banner when a message arrives in a conversation you are not looking at.
@@ -45,8 +45,14 @@ class _InboxHostState extends State<InboxHost> {
     super.didChangeDependencies();
     // A new account gets a new inbox; signing out drops it. Nothing from one
     // person's conversations may survive into another's session.
-    final uid = SessionScope.of(context).uid;
-    if (uid == _uid) return;
+    final session = SessionScope.of(context);
+    final uid = session.uid;
+    final communityId = session.profile?.communityId;
+    if (uid == _uid) {
+      // Joined, switched or left a community: its room comes and goes with it.
+      _inbox?.followCommunity(communityId);
+      return;
+    }
     _uid = uid;
     _teardown();
 
@@ -57,6 +63,7 @@ class _InboxHostState extends State<InboxHost> {
       uid: uid,
       safety: buildSafetyRepository(),
       rooms: buildRoomRepository(),
+      communityId: communityId,
     );
     _inbox = inbox;
     _arrivals = inbox.arrivals.listen(_show);
@@ -81,7 +88,7 @@ class _InboxHostState extends State<InboxHost> {
     if (me == null || nav == null) return;
     final thread = arrival.thread;
     if (thread == null) {
-      openGlobalChat(nav);
+      openRoom(nav, arrival.room?.id ?? RoomRepository.globalId);
       return;
     }
     openChat(
@@ -188,7 +195,7 @@ class _Banner extends StatelessWidget {
               child: Row(
                 children: [
                   if (room != null)
-                    const RoomAvatar(size: 40)
+                    RoomPicture(room: room.id, name: room.name, size: 40)
                   else
                     AvatarImage(partner?.avatarId, size: 40),
                   Gap.w12,
@@ -199,7 +206,7 @@ class _Banner extends StatelessWidget {
                       children: [
                         Text(
                           room != null
-                              ? context.s.globalChat
+                              ? roomTitle(context.s, room.id, room.name)
                               : partner?.name ?? '',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
