@@ -167,6 +167,10 @@ class FirestoreCommunityRepository implements CommunityRepository {
       tradeCount: (data['tradeCount'] as num?)?.toInt() ?? 0,
       winRate: (data['winRate'] as num?)?.toDouble() ?? 0,
       journalStreak: (data['journalStreak'] as num?)?.toInt() ?? 0,
+      communityId: switch (data['communityId']) {
+        final String id when id.isNotEmpty => id,
+        _ => null,
+      },
       // Derived on read rather than stored, so a cohort label follows the
       // language the reader picked instead of the one the account signed up in.
       cohort: created == null ? '' : UserProfile.cohortFor(created, language),
@@ -1057,6 +1061,7 @@ class FirestoreCommunityRepository implements CommunityRepository {
         claps: (data['claps'] as num?)?.toInt() ?? 0,
         commentCount: (data['commentCount'] as num?)?.toInt() ?? 0,
         reach: (data['reach'] as num?)?.toInt() ?? 0,
+        community: data['community'] as String? ?? 'global',
       );
     }
 
@@ -1072,6 +1077,7 @@ class FirestoreCommunityRepository implements CommunityRepository {
       claps: (data['claps'] as num?)?.toInt() ?? 0,
       commentCount: (data['commentCount'] as num?)?.toInt() ?? 0,
       reach: (data['reach'] as num?)?.toInt() ?? 0,
+      community: data['community'] as String? ?? 'global',
     );
   }
 }

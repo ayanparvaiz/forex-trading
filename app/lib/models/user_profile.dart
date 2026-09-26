@@ -34,6 +34,7 @@ class UserProfile {
     required this.avatarId,
     required this.createdAt,
     required this.cohort,
+    this.communityId,
   });
 
   /// Lowercase, unique, permanent. Doubles as the account id.
@@ -50,6 +51,9 @@ class UserProfile {
   /// The monthly batch this learner started with.
   final String cohort;
 
+  /// The community they are in — one at a time — or null for none.
+  final String? communityId;
+
   UserProfile copyWith({
     String? displayName,
     Gender? gender,
@@ -64,8 +68,21 @@ class UserProfile {
       avatarId: avatarId ?? this.avatarId,
       createdAt: createdAt,
       cohort: cohort,
+      communityId: communityId,
     );
   }
+
+  /// The same person, in community [id] — or in none.
+  UserProfile inCommunity(String? id) => UserProfile(
+    username: username,
+    displayName: displayName,
+    gender: gender,
+    language: language,
+    avatarId: avatarId,
+    createdAt: createdAt,
+    cohort: cohort,
+    communityId: id == null || id.isEmpty ? null : id,
+  );
 
   Map<String, dynamic> toJson() => {
     'username': username,
@@ -87,6 +104,10 @@ class UserProfile {
     avatarId: Avatars.from(json['avatarId']).id,
     createdAt: DateTime.parse(json['createdAt'] as String),
     cohort: json['cohort'] as String? ?? '',
+    communityId: switch (json['communityId']) {
+      final String id when id.isNotEmpty => id,
+      _ => null,
+    },
   );
 
   /// Label for the batch someone joined in, e.g. `সেপ্টেম্বর ব্যাচ`.

@@ -14,6 +14,7 @@ class Trader {
     required this.journalStreak,
     required this.cohort,
     this.isYou = false,
+    this.communityId,
   });
 
   /// Username — unique, and the account they log in with.
@@ -44,6 +45,10 @@ class Trader {
   final String cohort;
 
   final bool isYou;
+
+  /// The community they are in, if any — what a community's points are
+  /// counted from.
+  final String? communityId;
 }
 
 /// What a feed post is about.
@@ -77,6 +82,7 @@ class FeedPost {
     required this.claps,
     required this.commentCount,
     this.reach = 0,
+    this.community = 'global',
   }) : kind = PostKind.trade,
        rank = null,
        disciplineScore = null;
@@ -95,6 +101,7 @@ class FeedPost {
     required this.claps,
     required this.commentCount,
     this.reach = 0,
+    this.community = 'global',
   }) : kind = PostKind.rank,
        symbol = '',
        rMultiple = 0,
@@ -136,4 +143,7 @@ class FeedPost {
   /// signal the feed ranks strangers' posts by, once posts from people you
   /// know have been shown.
   final int reach;
+
+  /// Where it was posted: 'global', or a community's id.
+  final String community;
 }
