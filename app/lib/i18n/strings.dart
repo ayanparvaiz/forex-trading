@@ -492,6 +492,16 @@ class Strings {
     'Starting one leaves $name — one at a time.',
   );
   String get startAction => _t('খুলুন', 'Start');
+  String get choosePicture => _t('একটা ছবি বাছুন', 'Choose a picture');
+  String get pictureNeeded => _t(
+    'প্রতিটা কমিউনিটির একটা ছবি লাগে — ট্যাপ করে বাছুন',
+    'Every community needs a picture — tap to choose one',
+  );
+  String get changePicture => _t('ছবি বদলান', 'Change picture');
+  String get topicMarket => _t('বাজার', 'The market');
+  String get topicDiscipline => _t('শৃঙ্খলা', 'Discipline');
+  String get topicNature => _t('প্রকৃতি', 'Nature');
+  String get topicEmblem => _t('প্রতীক', 'Emblems');
 
   // The feed, Global or a community's.
   String get whichFeed => _t('কোন ফিড দেখবেন?', 'Which feed?');
