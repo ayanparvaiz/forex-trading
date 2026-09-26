@@ -3,12 +3,13 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 
 import '../models/chat.dart';
+import '../models/community.dart';
 import 'chat_repository.dart';
 import 'room_repository.dart';
 import 'safety_repository.dart';
 
 /// A message that arrived in a conversation you are not looking at — a chat
-/// with someone, or the Global room.
+/// with someone, or a room: Global, or your community's.
 class ChatArrival {
   const ChatArrival({required ChatThread this.thread, required this.partner})
     : room = null;
@@ -40,6 +41,7 @@ class ChatInbox extends ChangeNotifier with WidgetsBindingObserver {
     required this.uid,
     this.safety,
     this.rooms,
+    String? communityId,
   }) {
     WidgetsBinding.instance.addObserver(this);
     _blocksSub = safety?.watchBlocks(uid).listen((blocked) {
@@ -53,7 +55,8 @@ class ChatInbox extends ChangeNotifier with WidgetsBindingObserver {
     _threadsSub = repository
         .watchThreads(uid)
         .listen(_onThreads, onError: _onError);
-    _watchGlobal();
+    _follow(RoomRepository.globalId);
+    followCommunity(communityId);
     _startHeartbeat();
     // Connections made before messaging existed get their conversation now,
     // so everyone you know is already in the list.
@@ -72,7 +75,8 @@ class ChatInbox extends ChangeNotifier with WidgetsBindingObserver {
   /// profiles all need to know who you have blocked.
   final SafetyRepository? safety;
 
-  /// The Global room, which everyone sees at the top of the inbox.
+  /// Global, which everyone sees at the top of the inbox, and your
+  /// community's room under it.
   final RoomRepository? rooms;
 
   StreamSubscription<List<BlockedAccount>>? _blocksSub;
@@ -113,50 +117,74 @@ class ChatInbox extends ChangeNotifier with WidgetsBindingObserver {
   Map<String, DateTime> _presence = const {};
   DateTime? lastActive(String otherUid) => _presence[otherUid];
 
-  // --- The Global room -------------------------------------------------------
+  // --- Rooms -----------------------------------------------------------------
+  //
+  // Global, which everyone sees, and the room of the community you are in —
+  // each followed for its newest message, your membership and your unread.
 
-  StreamSubscription<RoomInfo?>? _roomSub;
-  StreamSubscription<RoomMembership?>? _memberSub;
+  final Map<String, _FollowedRoom> _followed = {};
 
-  RoomInfo? _global;
-  RoomInfo? get global => _global;
+  /// The room of the community you are in, if you are in one.
+  String? _communityRoomId;
+  String? get communityRoomId => _communityRoomId;
 
-  /// Past the first snapshot: from here on, a new message is news.
-  bool _roomSeen = false;
-
-  RoomMembership? _membership;
-  RoomMembership? get globalMembership => _membership;
+  RoomInfo? room(String id) => _followed[id]?.info;
+  RoomMembership? membershipOf(String id) => _followed[id]?.membership;
 
   /// Joined: the room counts unread for you and brings banners.
-  bool get joinedGlobal => _membership != null;
+  bool joinedRoom(String id) => _followed[id]?.membership != null;
 
-  /// Whether the membership has been heard from yet — until then, the row
-  /// cannot say "Join now" without flickering for people who have joined.
-  bool _membershipKnown = false;
-  bool get globalKnown => _global != null && _membershipKnown;
+  /// Whether the room and your membership have both been heard from — until
+  /// then, a row cannot say "Join now" without flickering for members.
+  bool roomKnown(String id) {
+    final r = _followed[id];
+    return r != null && r.info != null && r.membershipKnown;
+  }
 
-  int _globalUnread = 0;
+  /// Messages since you last looked; nothing where you are not a member.
+  int roomUnread(String id) {
+    final r = _followed[id];
+    return r == null || r.membership == null ? 0 : r.unread;
+  }
 
-  /// Messages since you last looked; nothing for someone who has not joined.
-  int get globalUnread => joinedGlobal ? _globalUnread : 0;
+  RoomInfo? get global => room(RoomRepository.globalId);
+  RoomMembership? get globalMembership => membershipOf(RoomRepository.globalId);
+  bool get joinedGlobal => joinedRoom(RoomRepository.globalId);
+  bool get globalKnown => roomKnown(RoomRepository.globalId);
+  int get globalUnread => roomUnread(RoomRepository.globalId);
 
-  void _watchGlobal() {
+  /// Follows the room of community [id] instead of the one before — or none.
+  /// Called whenever the profile's community changes.
+  void followCommunity(String? id) {
+    final roomId = id == null ? null : Community.roomIdFor(id);
+    if (roomId == _communityRoomId) return;
+    final before = _communityRoomId;
+    if (before != null) _followed.remove(before)?.cancel();
+    _communityRoomId = roomId;
+    if (roomId != null) _follow(roomId);
+    notifyListeners();
+  }
+
+  void _follow(String id) {
     final rooms = this.rooms;
     if (rooms == null) return;
-    _roomSub = rooms.watchRoom(RoomRepository.globalId).listen((room) {
+    final followed = _FollowedRoom(id);
+    _followed[id] = followed;
+    followed.roomSub = rooms.watchRoom(id).listen((room) {
       final arrived =
           room != null &&
           isRoomArrival(
-            first: !_roomSeen,
-            beforeId: _global?.lastMessage?.id,
+            first: !followed.seen,
+            beforeId: followed.info?.lastMessage?.id,
             room: room,
             me: uid,
-            joined: joinedGlobal,
+            joined: followed.membership != null,
             openChatId: openChatId,
           );
-      _roomSeen = true;
-      _global = room;
-      _refreshGlobalUnread();
+      followed
+        ..seen = true
+        ..info = room;
+      _refreshUnread(followed);
       if (arrived &&
           _foreground &&
           !isBlocked(room.lastMessage!.senderUid) &&
@@ -164,41 +192,40 @@ class ChatInbox extends ChangeNotifier with WidgetsBindingObserver {
         _arrivals.add(ChatArrival.room(room));
       }
       notifyListeners();
-    }, onError: (Object e) => debugPrint('global room stream failed: $e'));
-    _memberSub = rooms.watchMembership(RoomRepository.globalId, uid).listen((
-      m,
-    ) {
-      _membership = m;
-      _membershipKnown = true;
-      _refreshGlobalUnread();
+    }, onError: (Object e) => debugPrint('room $id stream failed: $e'));
+    followed.memberSub = rooms.watchMembership(id, uid).listen((m) {
+      followed
+        ..membership = m
+        ..membershipKnown = true;
+      _refreshUnread(followed);
       notifyListeners();
-    }, onError: (Object e) => debugPrint('membership stream failed: $e'));
+    }, onError: (Object e) => debugPrint('room $id membership failed: $e'));
   }
-
-  /// Bumped per question, so a slow answer never overwrites a newer one.
-  int _unreadAsked = 0;
 
   /// Counts what is new since your mark. One aggregate read, and only when
   /// something has been said since — never for an up-to-date member.
-  Future<void> _refreshGlobalUnread() async {
+  Future<void> _refreshUnread(_FollowedRoom followed) async {
     final rooms = this.rooms;
-    final m = _membership;
-    final room = _global;
-    final ask = ++_unreadAsked;
+    final m = followed.membership;
+    final room = followed.info;
+    final ask = ++followed.unreadAsked;
     if (rooms == null || m == null || room == null || !m.behind(room)) {
-      if (_globalUnread != 0) {
-        _globalUnread = 0;
+      if (followed.unread != 0) {
+        followed.unread = 0;
         notifyListeners();
       }
       return;
     }
     try {
       final n = await rooms.unreadSince(room.id, m.readAt);
-      if (ask != _unreadAsked) return;
-      _globalUnread = n;
+      // Asked again since, or no longer followed.
+      if (ask != followed.unreadAsked || _followed[followed.id] != followed) {
+        return;
+      }
+      followed.unread = n;
       notifyListeners();
     } catch (e) {
-      debugPrint('global unread failed: $e');
+      debugPrint('room unread failed: $e');
     }
   }
 
@@ -211,9 +238,10 @@ class ChatInbox extends ChangeNotifier with WidgetsBindingObserver {
     final chats = threads
         .where((t) => t.unreadFor(uid) > 0 && !prefsFor(t.id).mutedAt(now))
         .length;
-    final global =
-        globalUnread > 0 && !prefsFor(RoomRepository.globalId).mutedAt(now);
-    return chats + (global ? 1 : 0);
+    final rooms = _followed.keys
+        .where((id) => roomUnread(id) > 0 && !prefsFor(id).mutedAt(now))
+        .length;
+    return chats + rooms;
   }
 
   /// The conversation currently on screen, if any. Its messages get no
@@ -383,8 +411,9 @@ class ChatInbox extends ChangeNotifier with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _threadsSub?.cancel();
-    _roomSub?.cancel();
-    _memberSub?.cancel();
+    for (final r in _followed.values) {
+      r.cancel();
+    }
     _prefsSub?.cancel();
     _blocksSub?.cancel();
     _presenceSub?.cancel();
@@ -400,6 +429,33 @@ class ChatInbox extends ChangeNotifier with WidgetsBindingObserver {
       if (a[i] != b[i]) return false;
     }
     return true;
+  }
+}
+
+/// A room [ChatInbox] follows, and where you are in it.
+class _FollowedRoom {
+  _FollowedRoom(this.id);
+
+  final String id;
+  StreamSubscription<RoomInfo?>? roomSub;
+  StreamSubscription<RoomMembership?>? memberSub;
+
+  RoomInfo? info;
+
+  /// Past the first snapshot: from here on, a new message is news.
+  bool seen = false;
+
+  RoomMembership? membership;
+  bool membershipKnown = false;
+
+  int unread = 0;
+
+  /// Bumped per question, so a slow answer never overwrites a newer one.
+  int unreadAsked = 0;
+
+  void cancel() {
+    roomSub?.cancel();
+    memberSub?.cancel();
   }
 }
 
