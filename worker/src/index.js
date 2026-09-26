@@ -27,10 +27,15 @@
 // connection request, a post — to the phones of the people it concerns,
 // once it has checked that it happened (notify.js). And every morning a
 // cron trigger reminds everyone that the day's points are in.
+//
+// POST /community is a community's admin removing someone from it, or
+// deleting it (community.js) — the two things that change other people's
+// profiles. Only the admin the community names can do either.
 
 import { MIN_RANKED_TRADES, leaderboardStats } from './stats.js';
 import { serviceAccountToken, signedInRecently, verifyIdTokenClaims } from './google.js';
 import { TryAgain, listTrades, restStore, statsUpdatedAt, writeStats } from './firestore.js';
+import { deleteCommunity, isCommunityId, removeMember } from './community.js';
 import { eraseAccount } from './erase.js';
 import { sendPush } from './fcm.js';
 import { dailyReminder, forgetOldAnnouncements, notify } from './notify.js';
@@ -98,6 +103,7 @@ const routes = {
   '/recompute': (claims, env) => recompute(claims.sub, env),
   '/delete-account': deleteAccount,
   '/notify': notifyRoute,
+  '/community': communityRoute,
 };
 
 export default {
@@ -156,6 +162,49 @@ async function notifyRoute(claims, env, request) {
     if (error instanceof TryAgain) return json({ sent: 0, skipped: 'busy' });
     console.error('notify failed for', claims.sub, error);
     return json({ error: 'could not notify' }, 500);
+  }
+}
+
+/**
+ * A community's admin removing someone ({action: 'remove', communityId,
+ * uid}) or deleting it ({action: 'delete', communityId}).
+ *
+ * {done: false} means call again, as with deleting an account: a large
+ * community takes more than one request to delete.
+ */
+async function communityRoute(claims, env, request) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: 'bad request' }, 400);
+  }
+  const { action, communityId, uid } = body ?? {};
+  const removing = action === 'remove';
+  if (!isCommunityId(communityId) || (!removing && action !== 'delete')) {
+    return json({ error: 'bad request' }, 400);
+  }
+  if (removing && (typeof uid !== 'string' || !/^[A-Za-z0-9]{1,128}$/.test(uid))) {
+    return json({ error: 'bad request' }, 400);
+  }
+  try {
+    const token = await serviceAccountToken(env);
+    const store = restStore(env.FIREBASE_PROJECT_ID, token, { budget: ERASE_BUDGET });
+    const community = await store.get(`communities/${communityId}`, ['createdBy']);
+    // Already deleted: nothing left to do, and nothing to remove anyone from.
+    if (!community) return json({ done: true });
+    if (community.createdBy !== claims.sub) return json({ error: 'not your community' }, 403);
+    if (removing) {
+      if (uid === claims.sub) return json({ error: 'the admin is not removed, the community is deleted' }, 400);
+      await removeMember(store, communityId, uid);
+    } else {
+      await deleteCommunity(store, communityId);
+    }
+    return json({ done: true });
+  } catch (error) {
+    if (error instanceof TryAgain) return json({ done: false });
+    console.error('community change failed for', claims.sub, error);
+    return json({ error: 'could not change the community' }, 500);
   }
 }
 
