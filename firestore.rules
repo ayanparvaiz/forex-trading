@@ -871,13 +871,19 @@ service cloud.firestore {
             || (n.memberCount == o.memberCount - 1 && exists(member) && !existsAfter(member)));
     }
 
+    // One of the pictures in app/lib/data/community_avatars.dart.
+    function communityAvatarOk(c) {
+      return c.avatarId is int && c.avatarId >= 1 && c.avatarId <= 28;
+    }
+
     match /communities/{cid} {
       allow read: if isSignedIn();
       allow create: if isSignedIn()
         && cid.matches('[A-Za-z0-9]{6,40}')
         && request.resource.data.keys()
-             .hasOnly(['name', 'nameLower', 'description', 'createdBy', 'createdAt', 'memberCount'])
+             .hasOnly(['name', 'nameLower', 'description', 'avatarId', 'createdBy', 'createdAt', 'memberCount'])
         && request.resource.data.createdBy == request.auth.uid
+        && communityAvatarOk(request.resource.data)
         && request.resource.data.name is string
         && request.resource.data.name.size() >= 3
         && request.resource.data.name.size() <= 40
@@ -890,13 +896,15 @@ service cloud.firestore {
         && getAfter(/databases/$(database)/documents/communityNames/$(request.resource.data.nameLower)).data.communityId == cid
         && getAfter(/databases/$(database)/documents/communities/$(cid)/members/$(request.auth.uid)).data.role == 'admin'
         && existsAfter(/databases/$(database)/documents/rooms/$('c_' + cid));
-      // Joining and leaving count; the admin may change the description.
+      // Joining and leaving count; the admin may change the description and
+      // the picture.
       allow update: if isSignedIn()
         && (communityCountOk(cid)
             || (resource.data.createdBy == request.auth.uid
-                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['description'])
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['description', 'avatarId'])
                 && request.resource.data.description is string
-                && request.resource.data.description.size() <= 200));
+                && request.resource.data.description.size() <= 200
+                && communityAvatarOk(request.resource.data)));
       allow delete: if false;
 
       // Who is in it. Public, like connections: a community's members are
