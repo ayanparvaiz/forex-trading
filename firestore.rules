@@ -22,6 +22,17 @@ service cloud.firestore {
         || (field in resource.data && request.resource.data[field] == resource.data[field]);
     }
 
+    /// The community the person asking is in, or '' for none. One at a time,
+    /// kept on their profile, and held to their membership (see users).
+    function myCommunity() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data
+        .get('communityId', '');
+    }
+
+    function communityPath(cid) {
+      return /databases/$(database)/documents/communities/$(cid);
+    }
+
     /// Whether either of two people has blocked the other.
     function blockedEitherWay(a, b) {
       return exists(/databases/$(database)/documents/users/$(a)/blocks/$(b))
@@ -96,6 +107,21 @@ service cloud.firestore {
       // can only match the start of a field, and only as written. It has to
       // be the real name: nobody can turn up in a search for a name they do
       // not have.
+      // The community you are in, which has to agree with your membership:
+      // a new one only with its membership written in the same write, and
+      // leaving one only with that membership gone. So nobody is ever in two,
+      // or claims one they have not joined.
+      function communityIdOk() {
+        let before = resource.data.get('communityId', '');
+        let after = request.resource.data.get('communityId', '');
+        return after is string
+          && (after == before
+              || ((after == ''
+                   || existsAfter(/databases/$(database)/documents/communities/$(after)/members/$(uid)))
+                  && (before == ''
+                   || !existsAfter(/databases/$(database)/documents/communities/$(before)/members/$(uid)))));
+      }
+
       function nameLowerOk() {
         return request.resource.data.nameLower
           == request.resource.data.displayName.lower();
@@ -120,7 +146,7 @@ service cloud.firestore {
       // Settings are the trader's own; stats are not. The username is fixed at
       // creation — the claim document points at this uid and nothing updates it.
       //
-      // Named rather than merely not-forbidden: an update may touch these five
+      // Named rather than merely not-forbidden: an update may touch these six
       // and nothing else. A blocklist of server-owned fields keeps scores safe,
       // but it still lets a client hang any field it likes on a public profile.
       allow update: if isOwner(uid)
@@ -128,7 +154,8 @@ service cloud.firestore {
         && unchanged('username')
         && unchanged('createdAt')
         && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['displayName', 'nameLower', 'gender', 'language', 'avatarId'])
+             .hasOnly(['displayName', 'nameLower', 'gender', 'language', 'avatarId', 'communityId'])
+        && communityIdOk()
         && request.resource.data.displayName is string
         && request.resource.data.displayName.size() > 0
         && request.resource.data.displayName.size() <= 40
@@ -250,8 +277,24 @@ service cloud.firestore {
 
     // --- Public feed --------------------------------------------------------
 
+    // Who can see a post: anyone, for Global; the members of its community,
+    // for a community's; and its author, always.
+    //
+    // No default for a missing community: every post has one (older ones were
+    // backfilled), and a default here lets a query that does not filter by
+    // community be taken as allowed — it returned other communities' posts.
+    function canSee(post) {
+      return post.community == 'global'
+        || post.authorUid == request.auth.uid
+        || post.community == myCommunity();
+    }
+
     match /posts/{postId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && canSee(resource.data);
+
+      function thePost() {
+        return get(/databases/$(database)/documents/posts/$(postId)).data;
+      }
 
       // A post is either a trade or a leaderboard position. Posts written
       // before rank sharing existed carry no kind at all, so a missing kind
@@ -280,6 +323,11 @@ service cloud.firestore {
         && request.resource.data.lesson.size() >= 10
         && request.resource.data.claps == 0
         && request.resource.data.commentCount == 0
+        // To Global, or to the community the author is in.
+        && request.resource.data.community is string
+        && (request.resource.data.community == 'global'
+            || (request.resource.data.community != ''
+                && request.resource.data.community == myCommunity()))
         && postKind() in ['trade', 'rank']
         && (postKind() != 'rank' || rankShapeOk());
 
@@ -303,9 +351,11 @@ service cloud.firestore {
             // are not. A shared rank stays the rank that was shared.
             && unchanged('kind')
             && unchanged('rank')
-            && unchanged('disciplineScore'))
+            && unchanged('disciplineScore')
+            && unchanged('community'))
           ||
           (onlyCounters()
+            && canSee(resource.data)
             && withinOne('claps')
             && withinOne('commentCount')
             && withinOne('reach'))
@@ -324,8 +374,9 @@ service cloud.firestore {
       }
 
       match /comments/{commentId} {
-        allow read: if isSignedIn();
+        allow read: if isSignedIn() && canSee(thePost());
         allow create: if isSignedIn()
+          && canSee(thePost())
           && request.resource.data.authorUid == request.auth.uid
           && request.resource.data.body is string
           && request.resource.data.body.size() > 0
@@ -343,8 +394,9 @@ service cloud.firestore {
       // cannot be queried across posts, so deleting an account finds its
       // likes by this field.
       match /claps/{uid} {
-        allow read: if isSignedIn();
+        allow read: if isSignedIn() && canSee(thePost());
         allow create: if isOwner(uid)
+          && canSee(thePost())
           && request.resource.data.keys().hasOnly(['uid', 'at'])
           && request.resource.data.uid == uid;
         allow delete: if isOwner(uid) || (isSignedIn() && isPostAuthor());
@@ -355,8 +407,8 @@ service cloud.firestore {
       // people, not scrolls. Views are never removed — a post that was seen
       // stays seen.
       match /views/{uid} {
-        allow read: if isSignedIn();
-        allow create: if isOwner(uid);
+        allow read: if isSignedIn() && canSee(thePost());
+        allow create: if isOwner(uid) && canSee(thePost());
         allow update: if false;
         // Only with the post itself.
         allow delete: if isSignedIn() && isPostAuthor();
@@ -676,6 +728,18 @@ service cloud.firestore {
       return /databases/$(database)/documents/rooms/$(roomId);
     }
 
+    // Global is everyone's; a community's room is its members'.
+    function canUseRoom(roomId) {
+      return roomId == 'global' || roomId == 'c_' + myCommunity();
+    }
+
+    // The same, as it will be once this write lands — for joining.
+    function canJoinRoom(roomId) {
+      return roomId == 'global'
+        || roomId == 'c_' + getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data
+             .get('communityId', '');
+    }
+
     function isMember(roomId) {
       return exists(/databases/$(database)/documents/rooms/$(roomId)/members/$(request.auth.uid));
     }
@@ -717,18 +781,38 @@ service cloud.firestore {
     }
 
     match /rooms/{roomId} {
-      allow read: if isSignedIn();
-      allow create, delete: if false;
+      allow read: if isSignedIn() && canUseRoom(roomId);
+      allow delete: if false;
+
+      // A community's room, made with the community, by its founder.
+      allow create: if isSignedIn()
+        && roomId.matches('c_[A-Za-z0-9]{6,40}')
+        && request.resource.data.keys()
+             .hasOnly(['name', 'community', 'memberCount', 'lastMessage', 'createdAt', 'updatedAt'])
+        && request.resource.data.community == roomId.split('_')[1]
+        && !exists(communityPath(request.resource.data.community))
+        && getAfter(communityPath(request.resource.data.community)).data.createdBy == request.auth.uid
+        && request.resource.data.name == getAfter(communityPath(request.resource.data.community)).data.name
+        && request.resource.data.memberCount == 1
+        && request.resource.data.lastMessage == null
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
       allow update: if isSignedIn() && (roomPreviewOk(roomId) || roomCountOk(roomId));
 
       // Your membership, and how far you have read. Nobody else's business.
       match /members/{uid} {
         allow read: if isOwner(uid);
         allow create: if isOwner(uid)
+          && canJoinRoom(roomId)
           && request.resource.data.keys().hasOnly(['joinedAt', 'readAt'])
           && request.resource.data.joinedAt == request.time
           && request.resource.data.readAt == request.time
-          && getAfter(roomPath(roomId)).data.memberCount == get(roomPath(roomId)).data.memberCount + 1;
+          // Counted in: the first member of a room made in this same write,
+          // or one more than there were.
+          && ((!exists(roomPath(roomId)) && getAfter(roomPath(roomId)).data.memberCount == 1)
+              || (exists(roomPath(roomId))
+                  && getAfter(roomPath(roomId)).data.memberCount
+                       == get(roomPath(roomId)).data.memberCount + 1));
         allow update: if isOwner(uid)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readAt'])
           && request.resource.data.readAt == request.time;
@@ -737,9 +821,10 @@ service cloud.firestore {
       }
 
       match /messages/{messageId} {
-        allow read: if isSignedIn();
+        allow read: if isSignedIn() && canUseRoom(roomId);
         allow create: if isSignedIn()
           && isMember(roomId)
+          && canUseRoom(roomId)
           && request.resource.data.keys().hasOnly([
                'senderUid', 'senderName', 'senderUsername', 'text', 'sentAt', 'unsent',
                'replyTo', 'forwarded', 'attachment'])
@@ -769,6 +854,91 @@ service cloud.firestore {
       }
     }
 
+    // --- Communities ----------------------------------------------------------
+    //
+    // Anyone can start one, and anyone can join any of them — no approval —
+    // but each person is in one at a time. Starting one makes you its admin
+    // and makes its chat room, in the same write. The name is claimed like a
+    // username, so no two communities share one.
+
+    // The member count moves by one, with your own joining or leaving.
+    function communityCountOk(cid) {
+      let o = resource.data;
+      let n = request.resource.data;
+      let member = /databases/$(database)/documents/communities/$(cid)/members/$(request.auth.uid);
+      return n.diff(o).affectedKeys().hasOnly(['memberCount'])
+        && ((n.memberCount == o.memberCount + 1 && !exists(member) && existsAfter(member))
+            || (n.memberCount == o.memberCount - 1 && exists(member) && !existsAfter(member)));
+    }
+
+    match /communities/{cid} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && cid.matches('[A-Za-z0-9]{6,40}')
+        && request.resource.data.keys()
+             .hasOnly(['name', 'nameLower', 'description', 'createdBy', 'createdAt', 'memberCount'])
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 3
+        && request.resource.data.name.size() <= 40
+        && request.resource.data.name == request.resource.data.name.trim()
+        && request.resource.data.nameLower == request.resource.data.name.lower()
+        && request.resource.data.description is string
+        && request.resource.data.description.size() <= 200
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.memberCount == 1
+        && getAfter(/databases/$(database)/documents/communityNames/$(request.resource.data.nameLower)).data.communityId == cid
+        && getAfter(/databases/$(database)/documents/communities/$(cid)/members/$(request.auth.uid)).data.role == 'admin'
+        && existsAfter(/databases/$(database)/documents/rooms/$('c_' + cid));
+      // Joining and leaving count; the admin may change the description.
+      allow update: if isSignedIn()
+        && (communityCountOk(cid)
+            || (resource.data.createdBy == request.auth.uid
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['description'])
+                && request.resource.data.description is string
+                && request.resource.data.description.size() <= 200));
+      allow delete: if false;
+
+      // Who is in it. Public, like connections: a community's members are
+      // what a community is.
+      match /members/{uid} {
+        allow read: if isSignedIn();
+        allow create: if isOwner(uid)
+          && request.resource.data.keys().hasOnly(['role', 'joinedAt', 'username'])
+          && request.resource.data.joinedAt == request.time
+          && request.resource.data.username
+               == get(/databases/$(database)/documents/users/$(uid)).data.username
+          && getAfter(/databases/$(database)/documents/users/$(uid)).data.get('communityId', '') == cid
+          && (
+            // The founder, as the community is made.
+            (request.resource.data.role == 'admin'
+              && !exists(communityPath(cid))
+              && getAfter(communityPath(cid)).data.createdBy == uid)
+            // Anyone else, counted in.
+            || (request.resource.data.role == 'member'
+              && exists(communityPath(cid))
+              && getAfter(communityPath(cid)).data.memberCount
+                   == get(communityPath(cid)).data.memberCount + 1));
+        allow update: if false;
+        // Leaving: counted out, and no longer your community.
+        allow delete: if isOwner(uid)
+          && getAfter(/databases/$(database)/documents/users/$(uid)).data.get('communityId', '') != cid
+          && getAfter(communityPath(cid)).data.memberCount
+               == get(communityPath(cid)).data.memberCount - 1;
+      }
+    }
+
+    // One claim per name, like usernames, so no two communities share one.
+    match /communityNames/{name} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.keys().hasOnly(['communityId'])
+        && !exists(communityPath(request.resource.data.communityId))
+        && getAfter(communityPath(request.resource.data.communityId)).data.nameLower == name
+        && getAfter(communityPath(request.resource.data.communityId)).data.createdBy == request.auth.uid;
+      allow update, delete: if false;
+    }
+
     // --- Reports ------------------------------------------------------------
     //
     // Write-only for everyone. A report is read by the people who moderate
@@ -782,12 +952,13 @@ service cloud.firestore {
     // report with words put in someone else's mouth.
     function reportEvidenceOk(r) {
       return (r.kind == 'user')
-        // A message in the Global room: anyone can read it, so anyone can
-        // report it — as long as the quote is what it says.
-        || (r.kind == 'message' && r.chatId == 'global'
-            && get(/databases/$(database)/documents/rooms/global/messages/$(r.messageId)).data.senderUid == r.targetUid
-            && get(/databases/$(database)/documents/rooms/global/messages/$(r.messageId)).data.text == r.quote)
-        || (r.kind == 'message' && r.chatId != 'global'
+        // A message in a room — Global, or a community's: anyone who can
+        // read it can report it, as long as the quote is what it says.
+        || (r.kind == 'message' && r.chatId.matches('global|c_[A-Za-z0-9]+')
+            && canUseRoom(r.chatId)
+            && get(/databases/$(database)/documents/rooms/$(r.chatId)/messages/$(r.messageId)).data.senderUid == r.targetUid
+            && get(/databases/$(database)/documents/rooms/$(r.chatId)/messages/$(r.messageId)).data.text == r.quote)
+        || (r.kind == 'message' && !r.chatId.matches('global|c_[A-Za-z0-9]+')
             && request.auth.uid in get(/databases/$(database)/documents/chats/$(r.chatId)).data.uids
             && get(/databases/$(database)/documents/chats/$(r.chatId)/messages/$(r.messageId)).data.senderUid == r.targetUid
             && get(/databases/$(database)/documents/chats/$(r.chatId)/messages/$(r.messageId)).data.text == r.quote)
