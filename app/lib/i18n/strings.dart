@@ -462,6 +462,9 @@ class Strings {
   String communityRank(int rank) =>
       _t('কমিউনিটি র‍্যাংক #$rank', 'Community rank #$rank');
   String get membersHeading => _t('সদস্য', 'Members');
+  String get pointsHeading => _t('পয়েন্ট', 'Points');
+  String get communityGone =>
+      _t('এই কমিউনিটি আর নেই', "This community isn't here any more");
   String get editDescription => _t('বর্ণনা বদলান', 'Edit description');
   String get communityName => _t('কমিউনিটির নাম', 'Community name');
   String get communityDescriptionHint => _t(
