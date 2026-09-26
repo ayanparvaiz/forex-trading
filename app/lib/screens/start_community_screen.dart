@@ -32,8 +32,10 @@ class _StartCommunityScreenState extends State<StartCommunityScreen> {
   final _description = TextEditingController();
   final _repo = buildCommunitiesRepository();
 
-  /// The name the one you are in goes by — starting one leaves it.
+  /// The one you are in — starting another leaves it. Unless you are its
+  /// admin: an admin never leaves, so cannot start another.
   String? _leavingName;
+  bool _adminOfLeaving = false;
   bool _started = false;
 
   /// Whether the name in the box is free: null while unknown.
@@ -59,8 +61,13 @@ class _StartCommunityScreenState extends State<StartCommunityScreen> {
     _started = true;
     final current = context.session.profile?.communityId;
     if (current == null || _repo == null) return;
+    final uid = context.session.uid;
     _repo.watch(current).first.then((c) {
-      if (mounted) setState(() => _leavingName = c?.name);
+      if (!mounted) return;
+      setState(() {
+        _leavingName = c?.name;
+        _adminOfLeaving = c != null && c.createdBy == uid;
+      });
     }, onError: (_) {});
   }
 
@@ -78,7 +85,11 @@ class _StartCommunityScreenState extends State<StartCommunityScreen> {
       _tidy.length >= Community.nameMin && _tidy.length <= Community.nameMax;
 
   bool get _canStart =>
-      !_busy && _nameFits && _available != false && _avatarId != null;
+      !_busy &&
+      !_adminOfLeaving &&
+      _nameFits &&
+      _available != false &&
+      _avatarId != null;
 
   void _nameChanged(String _) {
     _debounce?.cancel();
@@ -229,7 +240,9 @@ class _StartCommunityScreenState extends State<StartCommunityScreen> {
                   Gap.w8,
                   Expanded(
                     child: Text(
-                      s.startLeaves(leaving),
+                      _adminOfLeaving
+                          ? s.adminOfCommunity(leaving)
+                          : s.startLeaves(leaving),
                       style: const TextStyle(
                         fontSize: 13,
                         color: AppColors.warning,

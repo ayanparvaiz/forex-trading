@@ -243,6 +243,14 @@ class _YourCommunity extends StatelessWidget {
                   ],
                 ),
               ),
+              if (c.locked) ...[
+                Gap.w8,
+                const Icon(
+                  Icons.lock_rounded,
+                  size: 18,
+                  color: AppColors.warning,
+                ),
+              ],
               if (rank != null) ...[
                 Gap.w8,
                 Pill(
@@ -346,6 +354,15 @@ class _CommunityRow extends StatelessWidget {
             Gap.w8,
             if (isMine)
               const Icon(Icons.check_circle_rounded, color: AppColors.brand)
+            else if (c.locked)
+              // Not taking anyone: no button to promise otherwise.
+              Tooltip(
+                message: s.communityLocked(c.name),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: Gap.sm),
+                  child: Icon(Icons.lock_rounded, color: AppColors.warning),
+                ),
+              )
             else if (joining)
               const SizedBox(
                 width: 22,
