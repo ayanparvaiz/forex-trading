@@ -8,6 +8,9 @@
     "three collection-scope defaults have to be restated or they are dropped."
   ],
   "indexes": [
+    {"comment": "A feed, one community (or Global) at a time: posts by people you know, newest first.", "collectionGroup": "posts", "queryScope": "COLLECTION", "fields": [{"fieldPath": "community", "order": "ASCENDING"}, {"fieldPath": "authorUid", "order": "ASCENDING"}, {"fieldPath": "expiresAt", "order": "DESCENDING"}]},
+    {"comment": "A feed, one community (or Global) at a time: everything still showing, newest first.", "collectionGroup": "posts", "queryScope": "COLLECTION", "fields": [{"fieldPath": "community", "order": "ASCENDING"}, {"fieldPath": "expiresAt", "order": "DESCENDING"}]},
+    {"comment": "How many new posts have come into this feed since it was loaded.", "collectionGroup": "posts", "queryScope": "COLLECTION", "fields": [{"fieldPath": "community", "order": "ASCENDING"}, {"fieldPath": "postedAt", "order": "ASCENDING"}]},
     {
       "comment": "Leaderboard reads profiles directly: discipline first, trade count as the tiebreak.",
       "collectionGroup": "users",
