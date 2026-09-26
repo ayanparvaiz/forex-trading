@@ -150,6 +150,15 @@ class SessionController extends ChangeNotifier {
     return error;
   }
 
+  /// Joined, switched or left a community: already written with the
+  /// membership, so this only brings the profile here up to date.
+  void setCommunity(String? id) {
+    final profile = _profile;
+    if (profile == null || profile.communityId == id) return;
+    _profile = profile.inCommunity(id);
+    notifyListeners();
+  }
+
   /// Shows the change at once, and takes it back if the write fails.
   ///
   /// Waiting for the server before showing a new avatar would make the edit
