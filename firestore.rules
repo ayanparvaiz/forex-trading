@@ -33,6 +33,13 @@ service cloud.firestore {
       return /databases/$(database)/documents/communities/$(cid);
     }
 
+    /// Whether community [cid] takes writing from the person asking: always,
+    /// unless its admin has locked it — then only from the admin.
+    function communityOpenTo(cid) {
+      let c = get(communityPath(cid)).data;
+      return c.get('locked', false) != true || c.createdBy == request.auth.uid;
+    }
+
     /// Whether either of two people has blocked the other.
     function blockedEitherWay(a, b) {
       return exists(/databases/$(database)/documents/users/$(a)/blocks/$(b))
@@ -327,7 +334,8 @@ service cloud.firestore {
         && request.resource.data.community is string
         && (request.resource.data.community == 'global'
             || (request.resource.data.community != ''
-                && request.resource.data.community == myCommunity()))
+                && request.resource.data.community == myCommunity()
+                && communityOpenTo(request.resource.data.community)))
         && postKind() in ['trade', 'rank']
         && (postKind() != 'rank' || rankShapeOk());
 
@@ -825,6 +833,8 @@ service cloud.firestore {
         allow create: if isSignedIn()
           && isMember(roomId)
           && canUseRoom(roomId)
+          // A locked community's room: only its admin writes.
+          && (roomId == 'global' || communityOpenTo(roomId.split('_')[1]))
           && request.resource.data.keys().hasOnly([
                'senderUid', 'senderName', 'senderUsername', 'text', 'sentAt', 'unsent',
                'replyTo', 'forwarded', 'attachment'])
@@ -897,14 +907,18 @@ service cloud.firestore {
         && getAfter(/databases/$(database)/documents/communities/$(cid)/members/$(request.auth.uid)).data.role == 'admin'
         && existsAfter(/databases/$(database)/documents/rooms/$('c_' + cid));
       // Joining and leaving count; the admin may change the description and
-      // the picture.
+      // the picture, and lock it: no one joins a locked community, and only
+      // its admin writes in it. Deleting it, or removing someone, goes
+      // through the worker, which can clear the profiles of everyone in it.
       allow update: if isSignedIn()
         && (communityCountOk(cid)
             || (resource.data.createdBy == request.auth.uid
-                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['description', 'avatarId'])
+                && request.resource.data.diff(resource.data).affectedKeys()
+                     .hasOnly(['description', 'avatarId', 'locked'])
                 && request.resource.data.description is string
                 && request.resource.data.description.size() <= 200
-                && communityAvatarOk(request.resource.data)));
+                && communityAvatarOk(request.resource.data)
+                && request.resource.data.get('locked', false) is bool));
       allow delete: if false;
 
       // Who is in it. Public, like connections: a community's members are
@@ -922,14 +936,18 @@ service cloud.firestore {
             (request.resource.data.role == 'admin'
               && !exists(communityPath(cid))
               && getAfter(communityPath(cid)).data.createdBy == uid)
-            // Anyone else, counted in.
+            // Anyone else, counted in — unless it is locked.
             || (request.resource.data.role == 'member'
               && exists(communityPath(cid))
+              && get(communityPath(cid)).data.get('locked', false) != true
               && getAfter(communityPath(cid)).data.memberCount
                    == get(communityPath(cid)).data.memberCount + 1));
         allow update: if false;
-        // Leaving: counted out, and no longer your community.
+        // Leaving: counted out, and no longer your community. Not for its
+        // admin, who deletes it instead — a community is never left without
+        // one.
         allow delete: if isOwner(uid)
+          && get(communityPath(cid)).data.createdBy != uid
           && getAfter(/databases/$(database)/documents/users/$(uid)).data.get('communityId', '') != cid
           && getAfter(communityPath(cid)).data.memberCount
                == get(communityPath(cid)).data.memberCount - 1;
