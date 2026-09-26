@@ -230,10 +230,15 @@ class FirestoreCommunityRepository implements CommunityRepository {
   }
 
   @override
-  Stream<int> watchNewPostCount(DateTime since, {int cap = 20}) {
+  Stream<int> watchNewPostCount(
+    DateTime since, {
+    int cap = 20,
+    String community = 'global',
+  }) {
     // Capped, because the badge only ever needs to say "a lot" past a point
     // and every document in the window is a read.
     return _posts
+        .where('community', isEqualTo: community)
         .where('postedAt', isGreaterThan: Timestamp.fromDate(since))
         .orderBy('postedAt')
         .limit(cap)
@@ -581,11 +586,12 @@ class FirestoreCommunityRepository implements CommunityRepository {
     required String reason,
     required String lesson,
     required bool followedRules,
+    String community = 'global',
   }) async {
     final now = DateTime.now();
     try {
       final doc = await _posts.add({
-        ..._envelope(uid, username, now),
+        ..._envelope(uid, username, now, community),
         'kind': 'trade',
         'symbol': symbol,
         'rMultiple': rMultiple,
@@ -607,11 +613,12 @@ class FirestoreCommunityRepository implements CommunityRepository {
     required int rank,
     required double score,
     required String lesson,
+    String community = 'global',
   }) async {
     final now = DateTime.now();
     try {
       final doc = await _posts.add({
-        ..._envelope(uid, username, now),
+        ..._envelope(uid, username, now, community),
         'kind': 'rank',
         // Both are what the board showed when the post was written, and both
         // are taken from this device's own numbers.
@@ -673,7 +680,9 @@ class FirestoreCommunityRepository implements CommunityRepository {
   Future<List<FeedPost>> postsBy(String username, {int limit = 3}) async {
     final uid = await _uidFor(username);
     if (uid == null) return const [];
+    // Global posts only: a community's are for its members.
     final page = await _posts
+        .where('community', isEqualTo: 'global')
         .where('authorUid', isEqualTo: uid)
         .orderBy('expiresAt', descending: true)
         .limit(limit)
@@ -703,9 +712,17 @@ class FirestoreCommunityRepository implements CommunityRepository {
   }
 
   /// The fields every post carries whatever it is about.
-  Map<String, Object?> _envelope(String uid, String username, DateTime now) => {
+  Map<String, Object?> _envelope(
+    String uid,
+    String username,
+    DateTime now,
+    String community,
+  ) => {
     'authorUid': uid,
     'authorUsername': username,
+    // Global, or the author's community — the rules hold it to one of those,
+    // and only its members can read it.
+    'community': community,
     'claps': 0,
     'commentCount': 0,
     // Written explicitly, not left to default on read. Firestore's orderBy
@@ -751,21 +768,26 @@ class FirestoreCommunityRepository implements CommunityRepository {
   /// dropped. That is the cost of ranking by reach without a server, and it is
   /// small while the feed is.
   @override
-  Future<ResultPage<FeedPost>> feed({Object? cursor, int limit = 8}) async {
+  Future<ResultPage<FeedPost>> feed({
+    Object? cursor,
+    int limit = 8,
+    String community = 'global',
+  }) async {
     final state = cursor is _FeedCursor ? cursor : const _FeedCursor();
 
     if (state.phase == _FeedPhase.connections) {
-      final page = await _connectionPosts(state, limit);
+      final page = await _connectionPosts(state, limit, community);
       if (page != null) return page;
       // Nobody connected, or their posts are exhausted — fall through.
     }
 
-    return _rankedPosts(state, limit);
+    return _rankedPosts(state, limit, community);
   }
 
   Future<ResultPage<FeedPost>?> _connectionPosts(
     _FeedCursor state,
     int limit,
+    String community,
   ) async {
     final me = viewerUid;
     if (me == null) return null;
@@ -773,7 +795,11 @@ class FirestoreCommunityRepository implements CommunityRepository {
     final friends = await _connectionUidsFor(me);
     if (friends.isEmpty) return null;
 
+    // Every query names its feed: the rules only let a reader list posts
+    // they are allowed to see, and a query that does not say which feed
+    // could return any.
     var query = _posts
+        .where('community', isEqualTo: community)
         .where('authorUid', whereIn: friends)
         .where('expiresAt', isGreaterThan: Timestamp.now())
         .orderBy('expiresAt', descending: true)
@@ -832,11 +858,13 @@ class FirestoreCommunityRepository implements CommunityRepository {
   Future<ResultPage<FeedPost>> _rankedPosts(
     _FeedCursor state,
     int limit,
+    String community,
   ) async {
     // The window is scored once and paged from memory afterwards.
     if (state.ranked.isNotEmpty) return _slice(state, limit);
 
     final snapshot = await _posts
+        .where('community', isEqualTo: community)
         .where('expiresAt', isGreaterThan: Timestamp.now())
         .orderBy('expiresAt', descending: true)
         .limit(_rankingWindow)

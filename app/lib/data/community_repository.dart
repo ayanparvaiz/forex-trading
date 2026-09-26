@@ -32,9 +32,18 @@ abstract class CommunityRepository {
   /// while someone is reading it moves the card under their thumb; saying
   /// "3 new posts" and letting them choose when to look is the difference
   /// between a live feed and a jumpy one.
-  Stream<int> watchNewPostCount(DateTime since, {int cap = 20});
+  /// [community] is the feed: 'global', or a community's id.
+  Stream<int> watchNewPostCount(
+    DateTime since, {
+    int cap = 20,
+    String community = 'global',
+  });
 
-  Future<ResultPage<FeedPost>> feed({Object? cursor, int limit = 8});
+  Future<ResultPage<FeedPost>> feed({
+    Object? cursor,
+    int limit = 8,
+    String community = 'global',
+  });
 
   Future<Trader?> trader(String username);
 
@@ -141,6 +150,9 @@ abstract class CommunityRepository {
     required String reason,
     required String lesson,
     required bool followedRules,
+
+    /// Where it goes: 'global', or the author's community.
+    String community = 'global',
   });
 
   /// Publishes a leaderboard position to the feed. Returns the new post's id.
@@ -153,6 +165,7 @@ abstract class CommunityRepository {
     required int rank,
     required double score,
     required String lesson,
+    String community = 'global',
   });
 
   /// One post, for opening it from a chat it was shared into. Null when it
@@ -263,8 +276,11 @@ class LocalCommunityRepository implements CommunityRepository {
 
   /// Nobody else posts to an on-device feed.
   @override
-  Stream<int> watchNewPostCount(DateTime since, {int cap = 20}) =>
-      Stream.value(0);
+  Stream<int> watchNewPostCount(
+    DateTime since, {
+    int cap = 20,
+    String community = 'global',
+  }) => Stream.value(0);
 
   /// One snapshot and done: nothing on this device changes anyone else's row.
   @override
@@ -277,7 +293,11 @@ class LocalCommunityRepository implements CommunityRepository {
   }
 
   @override
-  Future<ResultPage<FeedPost>> feed({Object? cursor, int limit = 8}) async {
+  Future<ResultPage<FeedPost>> feed({
+    Object? cursor,
+    int limit = 8,
+    String community = 'global',
+  }) async {
     return _slice(MockCommunity.liveFeed(language), cursor, limit);
   }
 
@@ -335,6 +355,7 @@ class LocalCommunityRepository implements CommunityRepository {
     required String reason,
     required String lesson,
     required bool followedRules,
+    String community = 'global',
   }) async => null;
 
   @override
@@ -344,6 +365,7 @@ class LocalCommunityRepository implements CommunityRepository {
     required int rank,
     required double score,
     required String lesson,
+    String community = 'global',
   }) async => null;
 
   @override
