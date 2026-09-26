@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 
 import '../data/account_scope.dart';
 import '../data/chat_inbox.dart';
+import '../data/communities_repository.dart';
 import '../data/community_repository.dart';
+import '../data/feed_scope.dart';
 import '../data/firestore_community_repository.dart';
 import '../data/notification_repository.dart';
 import '../data/one_time_notice.dart';
@@ -14,11 +16,13 @@ import '../data/session_controller.dart';
 import '../i18n/strings.dart';
 import '../models/app_notification.dart';
 import '../models/chat.dart';
+import '../models/community.dart';
 import '../models/post_comment.dart';
 import '../models/trader.dart';
 import '../theme/app_theme.dart';
 import '../widgets/avatar_image.dart';
 import '../widgets/common.dart';
+import '../widgets/feed_picker.dart';
 import '../widgets/forward_sheet.dart';
 import '../widgets/medal_pill.dart';
 import '../widgets/paged_list.dart';
@@ -50,10 +54,64 @@ class _CommunityScreenState extends State<CommunityScreen>
   /// there rather than waiting for a pull-to-refresh nobody thinks to do.
   int _feedVersion = 0;
 
+  /// The feed chosen: Global, or the reader's community. Shown only while it
+  /// is still theirs — see [FeedScope.valid].
+  String _scope = FeedScope.global;
+  final _scopes = FeedScope();
+  bool _scopeLoaded = false;
+
+  /// The community the reader is in, followed for its name.
+  String? _communityId;
+  Community? _community;
+  StreamSubscription<Community?>? _following;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final session = context.session;
+    final uid = session.uid;
+    final id = session.profile?.communityId;
+    if (!_scopeLoaded && uid != null) {
+      _scopeLoaded = true;
+      _scopes.load(uid, id).then((scope) {
+        if (mounted) setState(() => _scope = scope);
+      });
+    }
+    if (id != _communityId) {
+      _communityId = id;
+      _community = null;
+      _following?.cancel();
+      _following = id == null
+          ? null
+          : buildCommunitiesRepository()
+                ?.watch(id)
+                .listen((c) => setState(() => _community = c), onError: (_) {});
+    }
+  }
+
   @override
   void dispose() {
+    _following?.cancel();
     _tabs.dispose();
     super.dispose();
+  }
+
+  String get _feed => FeedScope.valid(_scope, _communityId);
+
+  void _setFeed(String scope) {
+    setState(() => _scope = scope);
+    final uid = context.session.uid;
+    if (uid != null) _scopes.save(uid, scope);
+  }
+
+  Future<void> _chooseFeed() async {
+    final picked = await pickFeed(
+      context,
+      current: _feed,
+      communityId: _communityId,
+      community: _community,
+    );
+    if (picked != null && mounted) _setFeed(picked);
   }
 
   /// The signed-in trader as a leaderboard row, built from their live numbers.
@@ -95,9 +153,12 @@ class _CommunityScreenState extends State<CommunityScreen>
       context,
       repository: repository,
       rank: rank,
+      scope: _feed,
     );
     if (!mounted || posted == null) return;
 
+    // To the feed it went to, which the author may have changed on the way.
+    _setFeed(posted);
     setState(() => _feedVersion++);
     // Land on the feed whichever tab it was written from. A post you cannot
     // see is indistinguishable from one that failed.
@@ -120,7 +181,18 @@ class _CommunityScreenState extends State<CommunityScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(s.navCommunity),
+        // On the feed, which feed: tapped to switch between Global and the
+        // reader's community. The leaderboard is everyone's either way.
+        title: AnimatedBuilder(
+          animation: _tabs.animation!,
+          builder: (context, _) => _tabs.animation!.value.round() == 1
+              ? _FeedTitle(
+                  scope: _feed,
+                  community: _community,
+                  onTap: _chooseFeed,
+                )
+              : Text(s.navCommunity),
+        ),
         actions: [
           IconButton(
             onPressed: () => openSearch(context),
@@ -173,7 +245,12 @@ class _CommunityScreenState extends State<CommunityScreen>
             you: you,
             onShareRank: (share) => _compose(repository, rank: share),
           ),
-          _Feed(s: s, repository: repository, version: _feedVersion),
+          _Feed(
+            s: s,
+            repository: repository,
+            version: _feedVersion,
+            scope: _feed,
+          ),
         ],
       ),
     );
@@ -835,15 +912,60 @@ class _LeaderboardRow extends StatelessWidget {
   }
 }
 
+/// The feed's name at the top of the screen, which opens the choice of feed.
+class _FeedTitle extends StatelessWidget {
+  const _FeedTitle({required this.scope, this.community, required this.onTap});
+
+  final String scope;
+  final Community? community;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: Radii.pill,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: Gap.xs),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: FeedLabel(
+                scope: scope,
+                community: community,
+                size: 28,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
+                ),
+              ),
+            ),
+            const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: AppColors.textSecondary,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _Feed extends StatefulWidget {
   const _Feed({
     required this.s,
     required this.repository,
     required this.version,
+    required this.scope,
   });
 
   final Strings s;
   final CommunityRepository repository;
+
+  /// Whose posts: 'global', or a community's id.
+  final String scope;
 
   /// Changes when something has been posted, which rebuilds the list from the
   /// first page so the new post is at the top where its author expects it.
@@ -856,7 +978,10 @@ class _Feed extends StatefulWidget {
 class _FeedState extends State<_Feed> {
   /// When the list on screen was loaded. Posts after this are "new".
   DateTime _loadedAt = DateTime.now();
-  late Stream<int> _newPosts = widget.repository.watchNewPostCount(_loadedAt);
+  late Stream<int> _newPosts = _watchNew();
+
+  Stream<int> _watchNew() =>
+      widget.repository.watchNewPostCount(_loadedAt, community: widget.scope);
 
   /// Bumped when the reader asks for the new posts.
   int _refreshes = 0;
@@ -872,14 +997,16 @@ class _FeedState extends State<_Feed> {
     // parent rebuilds every second, and a new listener each time would cost a
     // read a second for nothing. A post of your own or a language change is
     // a real reload, so those start the window again.
-    if (old.version != widget.version || old.s.lang != widget.s.lang) {
+    if (old.version != widget.version ||
+        old.s.lang != widget.s.lang ||
+        old.scope != widget.scope) {
       _restartWindow();
     }
   }
 
   void _restartWindow() {
     _loadedAt = DateTime.now();
-    _newPosts = widget.repository.watchNewPostCount(_loadedAt);
+    _newPosts = _watchNew();
   }
 
   void _showNewPosts() {
@@ -896,7 +1023,9 @@ class _FeedState extends State<_Feed> {
     return Stack(
       children: [
         PagedListView<FeedPost>(
-          key: ValueKey('${s.lang}-${widget.version}-$_refreshes'),
+          key: ValueKey(
+            '${s.lang}-${widget.scope}-${widget.version}-$_refreshes',
+          ),
           padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.xxl),
           pageSize: 6,
           // Posts by anyone you have blocked are left out. Filtered here
@@ -909,6 +1038,7 @@ class _FeedState extends State<_Feed> {
             final page = await widget.repository.feed(
               cursor: cursor,
               limit: limit,
+              community: widget.scope,
             );
             if (blocked == null || blocked.isEmpty) return page;
             return ResultPage(
