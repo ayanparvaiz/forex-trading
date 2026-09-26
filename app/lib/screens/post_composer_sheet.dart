@@ -100,8 +100,16 @@ class _ComposerState extends State<_Composer> {
   String? _scope;
   final _scopes = FeedScope();
 
-  /// The author's community, for its name.
+  /// The author's community, for its name and whether it is locked.
   Community? _community;
+  String? _uid;
+
+  /// Posting to a community its admin has locked: only the admin may.
+  bool get _lockedOut {
+    final c = _community;
+    return c != null && _scope == c.id && c.locked && c.createdBy != _uid;
+  }
+
   bool _started = false;
 
   bool get _fromTrade => widget.trade != null;
@@ -115,6 +123,7 @@ class _ComposerState extends State<_Composer> {
     final session = context.session;
     final uid = session.uid;
     final communityId = session.profile?.communityId;
+    _uid = uid;
     if (widget.scope != null || uid == null) {
       _scope = FeedScope.valid(widget.scope, communityId);
     } else {
@@ -154,6 +163,7 @@ class _ComposerState extends State<_Composer> {
       _lesson.text.trim().length >= 10 &&
       (_fromRank || _reason.text.trim().isNotEmpty) &&
       _scope != null &&
+      !_lockedOut &&
       !_posting;
 
   Future<void> _publish() async {
@@ -233,6 +243,29 @@ class _ComposerState extends State<_Composer> {
                 ? null
                 : _pickScope,
           ),
+          if (_lockedOut)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(Gap.lg, 0, Gap.lg, Gap.sm),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.lock_rounded,
+                    size: 15,
+                    color: AppColors.warning,
+                  ),
+                  Gap.w8,
+                  Expanded(
+                    child: Text(
+                      s.lockedPostNote(_community!.name),
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: AppColors.warning,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           const Divider(height: 1),
           Flexible(child: _body(s)),
           const Divider(height: 1),
