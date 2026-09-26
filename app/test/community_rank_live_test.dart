@@ -12,9 +12,10 @@ void main() {
     final all = StreamController<List<Community>>();
     final board = StreamController<List<Trader>>();
     final seen = <List<String>>[];
-    final sub = rankLive(all.stream, board.stream).listen(
-      (r) => seen.add([for (final (c, p) in r) '${c.id}:$p']),
-    );
+    final sub = rankLive(
+      all.stream,
+      board.stream,
+    ).listen((r) => seen.add([for (final (c, p) in r) '${c.id}:$p']));
 
     all.add([community('a', 'A', members: 5), community('b', 'B')]);
     await pumpEventQueue();
