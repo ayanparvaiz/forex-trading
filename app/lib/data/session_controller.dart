@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 
 import '../i18n/strings.dart';
@@ -41,7 +43,37 @@ class SessionController extends ChangeNotifier {
     _uid = await _auth.currentUid();
     if (_profile != null) _language = _profile!.language;
     _restoring = false;
+    _followCommunity();
     notifyListeners();
+  }
+
+  /// The profile's community, followed while signed in. Someone else can
+  /// change it — an admin removing you, or deleting the community — and the
+  /// feed, the chats and the rules have to agree with it at once.
+  StreamSubscription<String?>? _community;
+
+  void _followCommunity() {
+    _community?.cancel();
+    _community = null;
+    final uid = _uid;
+    if (uid == null || _profile == null) return;
+    _community = _auth
+        .watchCommunityId(uid)
+        .listen(
+          setCommunity,
+          onError: (Object e) => debugPrint('community stream failed: $e'),
+        );
+  }
+
+  void _stopFollowingCommunity() {
+    _community?.cancel();
+    _community = null;
+  }
+
+  @override
+  void dispose() {
+    _stopFollowingCommunity();
+    super.dispose();
   }
 
   void setLanguage(AppLanguage language) {
@@ -82,6 +114,7 @@ class SessionController extends ChangeNotifier {
     if (result is AuthSuccess) {
       _profile = result.profile;
       _uid = await _auth.currentUid();
+      _followCommunity();
       notifyListeners();
     }
     return result;
@@ -96,6 +129,7 @@ class SessionController extends ChangeNotifier {
       _profile = result.profile;
       _language = result.profile.language;
       _uid = await _auth.currentUid();
+      _followCommunity();
       notifyListeners();
     }
     return result;
@@ -124,6 +158,7 @@ class SessionController extends ChangeNotifier {
   }
 
   Future<void> logOut() async {
+    _stopFollowingCommunity();
     await _runSignOutHooks(_uid);
     await _auth.logOut();
     _profile = null;
@@ -142,6 +177,7 @@ class SessionController extends ChangeNotifier {
     final uid = _uid;
     final error = await _auth.deleteAccount(password: password);
     if (error == null) {
+      _stopFollowingCommunity();
       await _runSignOutHooks(uid);
       _profile = null;
       _uid = null;

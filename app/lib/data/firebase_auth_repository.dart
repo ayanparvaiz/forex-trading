@@ -206,6 +206,18 @@ class FirebaseAuthRepository implements AuthRepository {
   Future<void> logOut() => _auth.signOut();
 
   @override
+  Stream<String?> watchCommunityId(String uid) => _users
+      .doc(uid)
+      .snapshots()
+      .map(
+        (d) => switch (d.data()?['communityId']) {
+          final String id when id.isNotEmpty => id,
+          _ => null,
+        },
+      )
+      .distinct();
+
+  @override
   Future<void> updateProfile(UserProfile profile) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;

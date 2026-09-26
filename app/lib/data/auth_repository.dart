@@ -87,6 +87,10 @@ abstract class AuthRepository {
 
   Future<void> updateProfile(UserProfile profile);
 
+  /// The community [uid]'s profile says they are in, live — null for none.
+  /// Someone else can change it: an admin removing them, or deleting it.
+  Stream<String?> watchCommunityId(String uid);
+
   /// Replaces the signed-in account's password, after checking the current
   /// one. Asking for the current password is not a formality: without it,
   /// anyone who picked up an unlocked phone could lock its owner out, and
@@ -315,6 +319,10 @@ class LocalAuthRepository implements AuthRepository {
     await prefs.remove(_sessionKey);
     return null;
   }
+
+  /// Nothing to follow: on this phone nobody else can change it.
+  @override
+  Stream<String?> watchCommunityId(String uid) => const Stream.empty();
 
   @override
   Future<void> updateProfile(UserProfile profile) async {
