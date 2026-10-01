@@ -845,6 +845,29 @@ service cloud.firestore {
         && p.senderName == msg.senderName;
     }
 
+    /// Whether the person asking is the admin of the community a room
+    /// belongs to. Global has none.
+    function isRoomAdmin(roomId) {
+      return roomId != 'global'
+        && get(communityPath(roomId.split('_')[1])).data.createdBy == request.auth.uid;
+    }
+
+    // The admin took the newest message down: the preview says so, and
+    // nothing else about it changes.
+    function roomRemovalPreviewOk(roomId) {
+      let o = resource.data;
+      let n = request.resource.data;
+      return isRoomAdmin(roomId)
+        && n.diff(o).affectedKeys().hasOnly(['lastMessage'])
+        && o.lastMessage.id == n.lastMessage.id
+        && n.lastMessage.keys().hasOnly(['id', 'senderUid', 'senderName', 'text', 'unsent'])
+        && n.lastMessage.senderUid == o.lastMessage.senderUid
+        && n.lastMessage.senderName == o.lastMessage.senderName
+        && n.lastMessage.text == ''
+        && n.lastMessage.unsent == true
+        && getAfter(roomMessagePath(roomId, n.lastMessage.id)).data.get('removed', false) == true;
+    }
+
     match /rooms/{roomId} {
       allow read: if isSignedIn() && canUseRoom(roomId);
       allow delete: if false;
@@ -863,7 +886,8 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time;
       allow update: if isSignedIn()
-        && (roomPreviewOk(roomId) || roomCountOk(roomId) || roomPinOk(roomId));
+        && (roomPreviewOk(roomId) || roomCountOk(roomId) || roomPinOk(roomId)
+            || roomRemovalPreviewOk(roomId));
 
       // Your membership, and how far you have read. Nobody else's business.
       match /members/{uid} {
@@ -909,7 +933,8 @@ service cloud.firestore {
           && (!('forwarded' in request.resource.data)
               || request.resource.data.forwarded == true);
 
-        // Unsending: the sender blanks their own, as in a chat. Reacting:
+        // Unsending: the sender blanks their own, as in a chat. Removing:
+        // a community's admin blanks anyone's, marked as removed. Reacting:
         // any member, where they could write.
         allow update: if isSignedIn()
           && ((resource.data.senderUid == request.auth.uid
@@ -919,6 +944,14 @@ service cloud.firestore {
                && !('attachment' in request.resource.data)
                && request.resource.data.unsent == true
                && request.resource.data.text == '')
+              || (isRoomAdmin(roomId)
+                  && resource.data.unsent == false
+                  && request.resource.data.diff(resource.data).affectedKeys()
+                       .hasOnly(['text', 'unsent', 'attachment', 'removed'])
+                  && !('attachment' in request.resource.data)
+                  && request.resource.data.unsent == true
+                  && request.resource.data.text == ''
+                  && request.resource.data.removed == true)
               || (isMember(roomId)
                   && canUseRoom(roomId)
                   && (roomId == 'global' || communityOpenTo(roomId.split('_')[1]))
