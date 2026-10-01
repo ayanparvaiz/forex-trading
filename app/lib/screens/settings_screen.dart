@@ -17,6 +17,7 @@ import 'communities_screen.dart';
 import 'delete_account_screen.dart';
 import 'edit_name_screen.dart';
 import 'legal_screen.dart';
+import 'saved_posts_screen.dart';
 
 Future<void> openSettings(BuildContext context) => Navigator.of(
   context,
@@ -96,6 +97,11 @@ class SettingsScreen extends StatelessWidget {
                       icon: Icons.password_rounded,
                       title: s.changePassword,
                       onTap: () => _push(context, const ChangePasswordScreen()),
+                    ),
+                    SettingsTile(
+                      icon: Icons.bookmark_border,
+                      title: s.savedPosts,
+                      onTap: () => openSavedPosts(context),
                     ),
                     SettingsTile(
                       icon: Icons.translate_rounded,
