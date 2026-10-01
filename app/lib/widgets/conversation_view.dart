@@ -77,6 +77,7 @@ class ConversationView extends StatefulWidget {
     required this.nameOf,
     required this.emptyText,
     this.bottom,
+    this.top,
     this.statusOf,
     this.showSenderNames = false,
     this.hiddenSenders = const {},
@@ -104,6 +105,10 @@ class ConversationView extends StatefulWidget {
 
   /// Replaces the box — why you cannot send here, or a way to join.
   final Widget? bottom;
+
+  /// Above the messages — a pinned one — given the way to scroll to a
+  /// message by its id.
+  final Widget Function(ValueChanged<String> jumpTo)? top;
 
   /// The tick on a message of mine, when this conversation has ticks.
   final MessageStatus? Function(ChatMessage m)? statusOf;
@@ -631,6 +636,7 @@ class _ConversationViewState extends State<ConversationView> {
 
     return Column(
       children: [
+        ?widget.top?.call(_jumpTo),
         Expanded(
           child: Stack(
             children: [
