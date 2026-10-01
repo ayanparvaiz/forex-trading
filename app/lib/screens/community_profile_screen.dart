@@ -386,6 +386,17 @@ class _CommunityProfileScreenState extends State<CommunityProfileScreen> {
     }
   }
 
+  Future<void> _setSlowMode(Community c, int seconds) async {
+    final s = context.s;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await _communities!.setSlowMode(c.id, seconds);
+    } catch (e) {
+      debugPrint('slow mode failed: $e');
+      messenger.showSnackBar(SnackBar(content: Text(s.couldNotSave)));
+    }
+  }
+
   Future<void> _delete(Community c) async {
     final nav = Navigator.of(context);
     await _run(() async {
@@ -671,6 +682,75 @@ class _CommunityProfileScreenState extends State<CommunityProfileScreen> {
                     onChanged: _busy ? null : (v) => _setLocked(c, v),
                     activeThumbColor: Colors.white,
                     activeTrackColor: AppColors.warning,
+                  ),
+                ],
+              ),
+            ),
+            Gap.h12,
+            SectionCard(
+              padding: const EdgeInsets.all(Gap.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.timer_outlined,
+                        color: c.slowSeconds > 0
+                            ? AppColors.brand
+                            : AppColors.textSecondary,
+                      ),
+                      Gap.w12,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              s.slowMode,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              s.slowModeHint,
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                height: 1.35,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  Gap.h12,
+                  SegmentedButton<int>(
+                    segments: [
+                      for (final seconds in Community.slowModes)
+                        ButtonSegment(
+                          value: seconds,
+                          label: Text(s.slowModeEvery(seconds)),
+                        ),
+                    ],
+                    selected: {c.slowSeconds},
+                    showSelectedIcon: false,
+                    onSelectionChanged: _busy
+                        ? null
+                        : (v) => _setSlowMode(c, v.first),
+                    style: SegmentedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      selectedBackgroundColor: AppColors.brandDim,
+                      selectedForegroundColor: AppColors.textPrimary,
+                      foregroundColor: AppColors.textSecondary,
+                      side: const BorderSide(color: AppColors.border),
+                      textStyle: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ],
               ),
