@@ -41,6 +41,9 @@ class RoomRepository {
         return RoomMembership(
           joinedAt: time(data['joinedAt']),
           readAt: time(data['readAt']),
+          lastSentAt: data.containsKey('lastSentAt')
+              ? time(data['lastSentAt'])
+              : null,
         );
       });
 

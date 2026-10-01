@@ -61,6 +61,20 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
   StreamSubscription<Community?>? _following;
   Community? _community;
 
+  /// Ticks once a second while slow mode has me waiting, for the countdown.
+  Timer? _slowTicker;
+
+  void _tickWhile(bool waiting) {
+    if (waiting && _slowTicker == null) {
+      _slowTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() {});
+      });
+    } else if (!waiting) {
+      _slowTicker?.cancel();
+      _slowTicker = null;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -103,6 +117,7 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _slowTicker?.cancel();
     _following?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _inbox?.removeListener(_maybeMarkRead);
@@ -234,6 +249,15 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
         community != null && community.locked && community.createdBy != _me;
     // Its admin pins a message for everyone.
     final isAdmin = community != null && community.createdBy == _me;
+    // Slow mode: how long until I may write again. Never for the admin.
+    final slow = community?.slowSeconds ?? 0;
+    final lastSent = inbox?.membershipOf(widget.roomId)?.lastSentAt;
+    // A second more than the rule, so a phone clock a little behind the
+    // server's never sends one the rules refuse.
+    final waitLeft = slow > 0 && !isAdmin && lastSent != null
+        ? slow + 1 - now.difference(lastSent).inSeconds
+        : 0;
+    _tickWhile(waitLeft > 0);
     final pinned = room?.pinned;
     final prefs = inbox?.prefsFor(widget.roomId) ?? ChatPrefs.none;
     final muted = joined && prefs.mutedAt(now);
@@ -365,7 +389,7 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
           : ConversationView(
               source: source,
               me: _me,
-              canSend: joined && !lockedOut,
+              canSend: joined && !lockedOut && waitLeft <= 0,
               nameOf: (uid, m) {
                 if (uid == _me) return s.you;
                 final name = m?.senderName ?? '';
@@ -387,6 +411,8 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
                     )
                   : lockedOut
                   ? ComposerNote(text: s.lockedChatNote)
+                  : waitLeft > 0
+                  ? ComposerNote(text: s.slowModeWait(waitLeft))
                   : null,
               showSenderNames: true,
               // Blocking cannot keep anyone out of a room, so their

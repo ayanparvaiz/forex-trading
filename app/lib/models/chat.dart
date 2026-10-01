@@ -106,10 +106,17 @@ class RoomInfo {
 
 /// You, in a room: how far you have read. Absent when you have not joined.
 class RoomMembership {
-  const RoomMembership({required this.joinedAt, required this.readAt});
+  const RoomMembership({
+    required this.joinedAt,
+    required this.readAt,
+    this.lastSentAt,
+  });
 
   final DateTime joinedAt;
   final DateTime readAt;
+
+  /// When you last wrote here — what slow mode times. Null if never.
+  final DateTime? lastSentAt;
 
   /// Whether anything has been said since you last looked.
   bool behind(RoomInfo room) => room.updatedAt.isAfter(readAt);
