@@ -526,6 +526,8 @@ class Strings {
     "Couldn't do that — check your connection and try again.",
   );
   String get openChat => _t('চ্যাট খুলুন', 'Open chat');
+  String get achievementsHeading => _t('অর্জন', 'Achievements');
+  String get notEarnedYet => _t('এখনো পাওয়া হয়নি', 'Not earned yet');
   String get pinMessage => _t('পিন করুন', 'Pin');
   String get unpinMessage => _t('পিন সরান', 'Unpin');
   String get pinnedLabel => _t('পিন করা', 'Pinned');
