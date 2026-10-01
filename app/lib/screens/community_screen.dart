@@ -289,6 +289,15 @@ class _Leaderboard extends StatefulWidget {
 class _LeaderboardState extends State<_Leaderboard> {
   late Stream<List<Trader>> _board = widget.repository.watchLeaderboard();
 
+  /// This week's board instead of all time's — opened the first time asked.
+  bool _weekly = false;
+  Stream<List<Trader>>? _weekBoard;
+
+  void _showWeekly(bool weekly) => setState(() {
+    _weekly = weekly;
+    if (weekly) _weekBoard ??= widget.repository.watchWeeklyLeaderboard();
+  });
+
   /// Every community by id, for the badge beside each trader's name.
   Map<String, Community> _communities = const {};
   StreamSubscription<List<Community>>? _following;
@@ -317,6 +326,9 @@ class _LeaderboardState extends State<_Leaderboard> {
     // alters what the board says — the cohort labels come back translated.
     if (old.s.lang != widget.s.lang) {
       _board = widget.repository.watchLeaderboard();
+      if (_weekBoard != null) {
+        _weekBoard = widget.repository.watchWeeklyLeaderboard();
+      }
     }
   }
 
@@ -326,14 +338,15 @@ class _LeaderboardState extends State<_Leaderboard> {
     final you = widget.you;
 
     return StreamBuilder<List<Trader>>(
-      stream: _board,
+      stream: _weekly ? _weekBoard : _board,
       builder: (context, snapshot) {
         // The signed-in trader's own numbers are swapped in wherever their row
         // lands. They are computed here with the worker's formula, so they
-        // are what the worker is about to write — just sooner.
+        // are what the worker is about to write — just sooner. Not on the
+        // week's board, whose numbers are the week's alone.
         final rows = [
           for (final t in snapshot.data ?? const <Trader>[])
-            if (you != null && t.id == you.id) you else t,
+            if (!_weekly && you != null && t.id == you.id) you else t,
         ];
 
         // Changes whenever anyone on the board moves, which is exactly when
@@ -345,7 +358,7 @@ class _LeaderboardState extends State<_Leaderboard> {
         return Column(
           children: [
             Expanded(child: _list(context, snapshot, rows)),
-            if (you != null)
+            if (you != null && !_weekly)
               _YourRankBar(
                 you: you,
                 s: s,
@@ -380,6 +393,14 @@ class _LeaderboardState extends State<_Leaderboard> {
       );
     }
 
+    if (status == null && rows.isEmpty && _weekly) {
+      status = Text(
+        s.weeklyEmpty,
+        textAlign: TextAlign.center,
+        style: const TextStyle(color: AppColors.textMuted, height: 1.45),
+      );
+    }
+
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.lg),
       itemCount: status == null ? rows.length + 1 : 2,
@@ -387,7 +408,41 @@ class _LeaderboardState extends State<_Leaderboard> {
         if (i == 0) {
           return Padding(
             padding: const EdgeInsets.only(bottom: Gap.md),
-            child: _RankingExplainer(s: s),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    for (final (weekly, label) in [
+                      (false, s.allTime),
+                      (true, s.thisWeek),
+                    ])
+                      Padding(
+                        padding: const EdgeInsets.only(right: Gap.sm),
+                        child: ChoiceChip(
+                          label: Text(label),
+                          selected: _weekly == weekly,
+                          showCheckmark: false,
+                          onSelected: (_) => _showWeekly(weekly),
+                          backgroundColor: AppColors.elevated,
+                          selectedColor: AppColors.brandDim,
+                          side: BorderSide(
+                            color: _weekly == weekly
+                                ? AppColors.brand
+                                : AppColors.border,
+                          ),
+                          labelStyle: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                Gap.h12,
+                _RankingExplainer(s: s),
+              ],
+            ),
           );
         }
         if (status != null) {
