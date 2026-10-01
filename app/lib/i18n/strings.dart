@@ -542,6 +542,17 @@ class Strings {
   String get achievementsHeading => _t('অর্জন', 'Achievements');
   String get notEarnedYet => _t('এখনো পাওয়া হয়নি', 'Not earned yet');
   String get pinMessage => _t('পিন করুন', 'Pin');
+  String get removeMessage => _t('মেসেজ সরান', 'Remove message');
+  String get removeMessageTitle =>
+      _t('মেসেজটা সরাবেন?', 'Remove this message?');
+  String get removeMessageBody => _t(
+    'কমিউনিটির সবার কাছ থেকে সরে যাবে, তার জায়গায় লেখা থাকবে যে অ্যাডমিন সরিয়েছেন।',
+    "It's taken down for everyone in the community, and marked as removed "
+        'by the admin.',
+  );
+  String get removedByAdmin =>
+      _t('অ্যাডমিন সরিয়ে দিয়েছেন', 'Removed by the admin');
+  String get messageRemoved => _t('মেসেজ সরানো হয়েছে', 'Message removed');
   String get unpinMessage => _t('পিন সরান', 'Unpin');
   String get pinnedLabel => _t('পিন করা', 'Pinned');
   String get messagePinned => _t('মেসেজ পিন করা হয়েছে', 'Message pinned');
