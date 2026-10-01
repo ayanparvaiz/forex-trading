@@ -553,6 +553,13 @@ class Strings {
     "Couldn't do that — check your connection and try again.",
   );
   String get openChat => _t('চ্যাট খুলুন', 'Open chat');
+  String get allTime => _t('সব সময়', 'All time');
+  String get thisWeek => _t('এই সপ্তাহ', 'This week');
+  String get weeklyEmpty => _t(
+    'এই সপ্তাহে এখনো কেউ ৩টা ট্রেড ক্লোজ করেনি — করলেই আপনি বোর্ডে।',
+    "Nobody has closed three trades this week yet — close three and you're "
+        'on the board.',
+  );
 
   // The monthly report card.
   String get monthlyReport => _t('মাসের রিপোর্ট', 'Monthly report');
