@@ -10,6 +10,7 @@ import '../data/firestore_community_repository.dart';
 import '../data/session_controller.dart';
 import '../i18n/strings.dart';
 import '../models/chat.dart';
+import '../models/mentions.dart';
 import '../models/trader.dart';
 import '../theme/app_theme.dart';
 import 'chat_bits.dart';
@@ -189,6 +190,7 @@ class _ConversationViewState extends State<ConversationView> {
     super.initState();
     _scroll.addListener(_onScroll);
     _input.addListener(() => widget.onDraftChanged?.call(_input.text));
+    _input.addListener(_suggestPeople);
     _latestSub = _source.watchLatest().listen((latest) {
       if (!mounted) return;
       setState(() {
@@ -448,6 +450,96 @@ class _ConversationViewState extends State<ConversationView> {
   }
 
   /// The strip above the box while a reply is being written.
+  // --- @names ----------------------------------------------------------------
+
+  /// People who could be meant by the @name being typed, and where it is.
+  List<(String, String)> _suggestions = const [];
+  (int, String)? _typingName;
+
+  /// Everyone who has written in what is loaded — their username and name —
+  /// newest first, me left out. Only rooms carry usernames on messages; two
+  /// people have no one else to name.
+  List<(String, String)> get _people {
+    final seen = <String>{};
+    return [
+      for (final m in _messages)
+        if (m.senderUid != _me &&
+            m.senderUsername != null &&
+            m.senderUsername!.isNotEmpty &&
+            seen.add(m.senderUsername!))
+          (m.senderUsername!, m.senderName ?? m.senderUsername!),
+    ];
+  }
+
+  void _suggestPeople() {
+    final at = mentionAt(_input.text, _input.selection.baseOffset);
+    final next = at == null
+        ? const <(String, String)>[]
+        : [
+            for (final p in _people)
+              if (p.$1.startsWith(at.$2) ||
+                  p.$2.toLowerCase().startsWith(at.$2))
+                p,
+          ].take(6).toList();
+    if (next.isEmpty && _suggestions.isEmpty) return;
+    setState(() {
+      _typingName = at;
+      _suggestions = next;
+    });
+  }
+
+  void _pickPerson(String username) {
+    final at = _typingName;
+    if (at == null) return;
+    final (text, cursor) = completeMention(
+      _input.text,
+      at.$1,
+      _input.selection.baseOffset,
+      username,
+    );
+    _input.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: cursor),
+    );
+  }
+
+  Widget? _mentionBar() {
+    if (_suggestions.isEmpty) return null;
+    return SizedBox(
+      height: 44,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(Gap.sm, Gap.sm, Gap.sm, 0),
+        children: [
+          for (final (username, name) in _suggestions)
+            Padding(
+              padding: const EdgeInsets.only(right: Gap.xs),
+              child: ActionChip(
+                onPressed: () => _pickPerson(username),
+                backgroundColor: AppColors.elevated,
+                side: const BorderSide(color: AppColors.border),
+                label: Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: name,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      TextSpan(
+                        text: '  @$username',
+                        style: const TextStyle(color: AppColors.textMuted),
+                      ),
+                    ],
+                  ),
+                  style: const TextStyle(fontSize: 12.5),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget? _replyBar(Strings s) {
     final r = _replyTo;
     if (r == null) return null;
@@ -720,7 +812,14 @@ class _ConversationViewState extends State<ConversationView> {
               hint: s.typeMessage,
               enabled: widget.canSend,
               onSend: _send,
-              above: _replyBar(s),
+              above: switch ((_mentionBar(), _replyBar(s))) {
+                (null, final reply) => reply,
+                (final names?, null) => names,
+                (final names?, final reply?) => Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [names, reply],
+                ),
+              },
             ),
       ],
     );
@@ -1052,7 +1151,7 @@ class _Bubble extends StatelessWidget {
         : Text.rich(
             TextSpan(
               children: [
-                TextSpan(text: message.text),
+                ...mentionSpans(message.text),
                 WidgetSpan(child: SizedBox(width: metaWidth)),
               ],
             ),
@@ -1202,6 +1301,29 @@ class _Bubble extends StatelessWidget {
       ),
     );
   }
+}
+
+/// [text] as spans, with every @name in it picked out.
+List<InlineSpan> mentionSpans(String text) {
+  final spans = <InlineSpan>[];
+  var from = 0;
+  for (final m in mentionPattern.allMatches(text)) {
+    if (m.start > from) {
+      spans.add(TextSpan(text: text.substring(from, m.start)));
+    }
+    spans.add(
+      TextSpan(
+        text: m[0],
+        style: const TextStyle(
+          color: AppColors.brand,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+    from = m.end;
+  }
+  if (from < text.length) spans.add(TextSpan(text: text.substring(from)));
+  return spans;
 }
 
 /// A reaction picked from the long-press sheet.

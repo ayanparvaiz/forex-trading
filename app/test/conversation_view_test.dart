@@ -324,4 +324,46 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('🔥'), findsNothing);
   });
+
+  testWidgets('typing @ offers the people talking here, and fills one in', (
+    tester,
+  ) async {
+    final source = await pump(tester, showSenderNames: true);
+    source.latest.add([
+      ChatMessage(
+        id: 'm1',
+        senderUid: 'u-t',
+        text: 'chart review at 9?',
+        sentAt: t0,
+        unsent: false,
+        pending: false,
+        senderName: 'Tahmid Hasan',
+        senderUsername: 'tahmid_h',
+      ),
+      ChatMessage(
+        id: 'm2',
+        senderUid: 'u-n',
+        text: 'count me in @tahmid_h',
+        sentAt: t0.add(const Duration(minutes: 1)),
+        unsent: false,
+        pending: false,
+        senderName: 'Nafisa Rahman',
+        senderUsername: 'nafisa_r',
+      ),
+    ]);
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'sure @ta');
+    await tester.pump();
+    expect(find.byType(ActionChip), findsOneWidget);
+    expect(find.textContaining('@tahmid_h', findRichText: true), findsWidgets);
+
+    await tester.tap(find.byType(ActionChip));
+    await tester.pump();
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      'sure @tahmid_h ',
+    );
+    expect(find.byType(ActionChip), findsNothing);
+  });
 }
