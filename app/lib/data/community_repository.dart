@@ -136,6 +136,15 @@ abstract class CommunityRepository {
     required String name,
     required int avatarId,
     required String body,
+    CommentReply? replyTo,
+  });
+
+  /// [uid] likes the comment, or stops.
+  Future<void> likeComment({
+    required String postId,
+    required String commentId,
+    required String uid,
+    required bool like,
   });
 
   /// Who wrote [postId], so a reaction can notify them.
@@ -372,6 +381,15 @@ class LocalCommunityRepository implements CommunityRepository {
     required String name,
     required int avatarId,
     required String body,
+    CommentReply? replyTo,
+  }) async {}
+
+  @override
+  Future<void> likeComment({
+    required String postId,
+    required String commentId,
+    required String uid,
+    required bool like,
   }) async {}
 
   @override

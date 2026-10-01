@@ -1074,6 +1074,20 @@ class FirestoreCommunityRepository implements CommunityRepository {
                 createdAt:
                     (doc.data()['createdAt'] as Timestamp?)?.toDate() ??
                     DateTime.now(),
+                likedBy: {
+                  for (final u
+                      in doc.data()['likedBy'] as List<dynamic>? ?? const [])
+                    if (u is String) u,
+                },
+                replyTo: switch (doc.data()['replyTo']) {
+                  {'id': final String id} && final Map<String, dynamic> r =>
+                    CommentReply(
+                      id: id,
+                      authorUid: r['authorUid'] as String? ?? '',
+                      name: r['name'] as String? ?? '',
+                    ),
+                  _ => null,
+                },
               ),
           ],
         );
@@ -1087,6 +1101,7 @@ class FirestoreCommunityRepository implements CommunityRepository {
     required String name,
     required int avatarId,
     required String body,
+    CommentReply? replyTo,
   }) async {
     final trimmed = body.trim();
     if (trimmed.isEmpty) return;
@@ -1104,6 +1119,12 @@ class FirestoreCommunityRepository implements CommunityRepository {
             ? trimmed.substring(0, PostComment.maxLength)
             : trimmed,
         'createdAt': FieldValue.serverTimestamp(),
+        if (replyTo != null)
+          'replyTo': {
+            'id': replyTo.id,
+            'authorUid': replyTo.authorUid,
+            'name': replyTo.name,
+          },
       });
       batch.update(post, {'commentCount': FieldValue.increment(1)});
       await batch.commit();
@@ -1111,6 +1132,18 @@ class FirestoreCommunityRepository implements CommunityRepository {
       debugPrint('comment failed: ${error.code}');
     }
   }
+
+  @override
+  Future<void> likeComment({
+    required String postId,
+    required String commentId,
+    required String uid,
+    required bool like,
+  }) => _posts.doc(postId).collection('comments').doc(commentId).update({
+    'likedBy': like
+        ? FieldValue.arrayUnion([uid])
+        : FieldValue.arrayRemove([uid]),
+  });
 
   @override
   Future<String?> postAuthorUid(String postId) async {
