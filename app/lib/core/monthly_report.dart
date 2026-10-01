@@ -62,9 +62,7 @@ class MonthlyReport {
       wins: rs.where((r) => r > 0).length,
       totalR: rs.fold(0, (a, b) => a + b),
       discipline: breakdown.score,
-      journaled: closed
-          .where((t) => (t.lesson ?? '').trim().isNotEmpty)
-          .length,
+      journaled: closed.where((t) => (t.lesson ?? '').trim().isNotEmpty).length,
       daysTraded: {
         for (final t in closed)
           DateTime(t.closedAt!.year, t.closedAt!.month, t.closedAt!.day),
