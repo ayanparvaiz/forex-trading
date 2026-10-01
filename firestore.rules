@@ -95,7 +95,11 @@ service cloud.firestore {
         && unchanged('balance')
         && unchanged('ranked')
         && unchanged('statsUpdatedAt')
-        && unchanged('achievements');
+        && unchanged('achievements')
+        && unchanged('weekBoard')
+        && unchanged('weekScore')
+        && unchanged('weekTrades')
+        && unchanged('weekR');
     }
 
     // --- Username claims ----------------------------------------------------
@@ -165,8 +169,10 @@ service cloud.firestore {
         // once it has closed enough trades to be judged on.
         && !('ranked' in request.resource.data)
         && !('statsUpdatedAt' in request.resource.data)
-        // Nor with achievements: those are earned, from trades.
-        && !('achievements' in request.resource.data);
+        // Nor with achievements, or a place on this week's board: those are
+        // earned, from trades.
+        && !('achievements' in request.resource.data)
+        && !('weekBoard' in request.resource.data);
 
       // Settings are the trader's own; stats are not. The username is fixed at
       // creation — the claim document points at this uid and nothing updates it.
