@@ -1457,6 +1457,9 @@ class _PostActionsState extends State<_PostActions> {
   bool _liked = false;
   bool _busy = false;
 
+  /// Kept for later, by me.
+  bool _saved = false;
+
   bool _started = false;
 
   @override
@@ -1479,8 +1482,39 @@ class _PostActionsState extends State<_PostActions> {
     // here rather than on a tap. Counted once per person, ever.
     unawaited(widget.repository.recordReach(widget.post.id, uid));
 
-    final liked = await widget.repository.hasClapped(widget.post.id, uid);
-    if (mounted) setState(() => _liked = liked);
+    final (liked, saved) = await (
+      widget.repository.hasClapped(widget.post.id, uid),
+      widget.repository.isSaved(widget.post.id, uid),
+    ).wait;
+    if (mounted) {
+      setState(() {
+        _liked = liked;
+        _saved = saved;
+      });
+    }
+  }
+
+  /// Saves it for later, or forgets it — shown at once, put back if the
+  /// write is refused.
+  Future<void> _toggleSaved() async {
+    final uid = context.session.uid;
+    if (uid == null) return;
+    final s = context.s;
+    final messenger = ScaffoldMessenger.of(context);
+    final saved = !_saved;
+    setState(() => _saved = saved);
+    try {
+      await widget.repository.setSaved(widget.post.id, uid, saved: saved);
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(content: Text(saved ? s.postSaved : s.postUnsaved)),
+        );
+    } catch (e) {
+      debugPrint('save failed: $e');
+      if (mounted) setState(() => _saved = !saved);
+      messenger.showSnackBar(SnackBar(content: Text(s.couldNotSave)));
+    }
   }
 
   /// Sends the post into chats — any conversation, or the Global room.
@@ -1654,6 +1688,19 @@ class _PostActionsState extends State<_PostActions> {
                 ),
               ),
             ],
+            Gap.w4,
+            InkWell(
+              onTap: _toggleSaved,
+              borderRadius: Radii.pill,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                child: Icon(
+                  _saved ? Icons.bookmark : Icons.bookmark_border,
+                  size: 17,
+                  color: _saved ? AppColors.warning : AppColors.textMuted,
+                ),
+              ),
+            ),
           ],
         );
       },
