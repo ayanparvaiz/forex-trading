@@ -32,7 +32,8 @@ class Community {
   /// chat and its feed.
   final bool locked;
 
-  /// The founder's uid — the admin.
+  /// The admin's uid: whoever started it, until they hand it to someone
+  /// else.
   final String createdBy;
   final int memberCount;
   final DateTime createdAt;

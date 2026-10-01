@@ -168,6 +168,20 @@ class CommunitiesRepository {
   Future<void> setDescription(String id, String description) =>
       _community(id).update({'description': description.trim()});
 
+  /// The admin handing [id] to [to], another member. [from] becomes a
+  /// member like anyone else — free to leave, or to join elsewhere.
+  Future<void> handOver({
+    required String id,
+    required String from,
+    required String to,
+  }) {
+    final batch = _db.batch()
+      ..update(_community(id), {'createdBy': to})
+      ..update(_member(id, to), {'role': 'admin'})
+      ..update(_member(id, from), {'role': 'member'});
+    return batch.commit();
+  }
+
   /// The admin locking it, or opening it again.
   Future<void> setLocked(String id, bool locked) =>
       _community(id).update({'locked': locked});
