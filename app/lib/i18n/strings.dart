@@ -852,6 +852,8 @@ class Strings {
 
   // Replying and forwarding.
   String get reply => _t('রিপ্লাই', 'Reply');
+  String replyingTo(String name) =>
+      _t('$name-কে রিপ্লাই দিচ্ছেন', 'Replying to $name');
   String get forward => _t('ফরোয়ার্ড', 'Forward');
   String get forwarded => _t('ফরোয়ার্ড করা', 'Forwarded');
   String get forwardTo => _t('কাকে পাঠাবেন?', 'Forward to…');
