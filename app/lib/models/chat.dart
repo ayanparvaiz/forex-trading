@@ -227,6 +227,7 @@ class ChatMessage {
     this.attachment,
     this.cursor,
     this.reactions = const {},
+    this.removed = false,
   });
 
   final String id;
@@ -260,6 +261,9 @@ class ChatMessage {
   /// Who reacted, and with what: one each, by uid.
   final Map<String, String> reactions;
 
+  /// Taken down by a community's admin, rather than unsent by its sender.
+  final bool removed;
+
   /// The same message with [uid]'s reaction set to [emoji], or taken away.
   ChatMessage withReaction(String uid, String? emoji) => ChatMessage(
     id: id,
@@ -279,6 +283,7 @@ class ChatMessage {
         if (e.key != uid) e.key: e.value,
       uid: ?emoji,
     },
+    removed: removed,
   );
 
   /// Each reaction with how many gave it — most first, then in the order

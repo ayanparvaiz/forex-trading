@@ -510,6 +510,7 @@ ChatMessage messageFromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
           )
         : null,
     forwarded: data['forwarded'] == true,
+    removed: data['removed'] == true,
     senderName: data['senderName'] as String?,
     senderUsername: data['senderUsername'] as String?,
     attachment: MessageAttachment.fromJson(data['attachment']),

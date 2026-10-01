@@ -125,6 +125,37 @@ class RoomRepository {
     return message.id;
   }
 
+  /// The community's admin takes [message] down for everyone: blanked like
+  /// an unsend, marked as removed. The preview follows when it was the
+  /// newest, and the pin when it was pinned.
+  Future<void> remove({
+    required String roomId,
+    required ChatMessage message,
+    required bool isLatest,
+    bool wasPinned = false,
+  }) async {
+    final batch = _db.batch()
+      ..update(_messages(roomId).doc(message.id), {
+        'text': '',
+        'unsent': true,
+        'attachment': FieldValue.delete(),
+        'removed': true,
+      });
+    if (isLatest) {
+      batch.update(_room(roomId), {
+        'lastMessage': {
+          'id': message.id,
+          'senderUid': message.senderUid,
+          'senderName': message.senderName ?? '',
+          'text': '',
+          'unsent': true,
+        },
+      });
+    }
+    await batch.commit();
+    if (wasPinned) await unpin(roomId);
+  }
+
   /// My reaction to a message — one of [reactionEmojis] — or none.
   Future<void> react({
     required String roomId,
