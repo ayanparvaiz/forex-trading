@@ -87,6 +87,7 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
           roomId: widget.roomId,
           me: _me,
           profile: () => session.profile,
+          pinnedId: () => _inbox?.room(widget.roomId)?.pinned?.id,
         );
       }
       final community = Community.ofRoom(widget.roomId);
@@ -130,6 +131,33 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
         .markRead(widget.roomId, _me)
         .catchError((Object e) => debugPrint('room read mark failed: $e'))
         .whenComplete(() => _markingRead = false);
+  }
+
+  Future<void> _pin(ChatMessage m) async {
+    final rooms = _rooms;
+    if (rooms == null) return;
+    final s = context.s;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await rooms.pin(widget.roomId, m);
+      messenger.showSnackBar(SnackBar(content: Text(s.messagePinned)));
+    } catch (e) {
+      debugPrint('pin failed: $e');
+      messenger.showSnackBar(SnackBar(content: Text(s.couldNotSave)));
+    }
+  }
+
+  Future<void> _unpin() async {
+    final rooms = _rooms;
+    if (rooms == null) return;
+    final s = context.s;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await rooms.unpin(widget.roomId);
+    } catch (e) {
+      debugPrint('unpin failed: $e');
+      messenger.showSnackBar(SnackBar(content: Text(s.couldNotSave)));
+    }
   }
 
   Future<void> _join() async {
@@ -177,6 +205,9 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
     final community = _community;
     final lockedOut =
         community != null && community.locked && community.createdBy != _me;
+    // Its admin pins a message for everyone.
+    final isAdmin = community != null && community.createdBy == _me;
+    final pinned = room?.pinned;
     final prefs = inbox?.prefsFor(widget.roomId) ?? ChatPrefs.none;
     final muted = joined && prefs.mutedAt(now);
     final source = _source;
@@ -314,6 +345,13 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
                 return name.isNotEmpty ? name : '…';
               },
               emptyText: ofCommunity ? s.communityChatEmpty : s.globalEmpty,
+              top: pinned == null
+                  ? null
+                  : (jumpTo) => _PinnedBar(
+                      pinned: pinned,
+                      onTap: () => jumpTo(pinned.id),
+                      onUnpin: isAdmin ? _unpin : null,
+                    ),
               bottom: known && !joined && !ofCommunity
                   ? ComposerNote(
                       text: s.joinToWrite,
@@ -332,6 +370,14 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
               statusOf: (m) =>
                   m.pending ? MessageStatus.pending : MessageStatus.sent,
               extraActions: (m) => [
+                if (isAdmin && !m.unsent && !m.pending && m.text.isNotEmpty)
+                  MessageAction(
+                    icon: pinned?.id == m.id
+                        ? Icons.push_pin
+                        : Icons.push_pin_outlined,
+                    label: pinned?.id == m.id ? s.unpinMessage : s.pinMessage,
+                    onSelected: () => pinned?.id == m.id ? _unpin() : _pin(m),
+                  ),
                 if (m.senderUid != _me && inbox?.safety != null)
                   MessageAction(
                     icon: Icons.flag_outlined,
@@ -472,11 +518,15 @@ class _RoomSource implements MessageSource {
     required this.roomId,
     required this.me,
     required this.profile,
+    required this.pinnedId,
   });
 
   final RoomRepository rooms;
   final String roomId;
   final String me;
+
+  /// Which message is pinned now, so unsending it takes the pin down too.
+  final String? Function() pinnedId;
 
   /// Who I am right now — the name a message goes out under.
   final UserProfile? Function() profile;
@@ -515,6 +565,91 @@ class _RoomSource implements MessageSource {
   }
 
   @override
-  Future<void> unsend(ChatMessage m, {required bool isLatest}) =>
-      rooms.unsend(roomId: roomId, me: me, message: m, isLatest: isLatest);
+  Future<void> unsend(ChatMessage m, {required bool isLatest}) => rooms.unsend(
+    roomId: roomId,
+    me: me,
+    message: m,
+    isLatest: isLatest,
+    wasPinned: pinnedId() == m.id,
+  );
+}
+
+/// The pinned message, across the top of the room: tapped, the chat goes
+/// to it. The admin can take it down from here.
+class _PinnedBar extends StatelessWidget {
+  const _PinnedBar({required this.pinned, required this.onTap, this.onUnpin});
+
+  final PinnedMessage pinned;
+  final VoidCallback onTap;
+  final VoidCallback? onUnpin;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.s;
+    return Material(
+      color: AppColors.surface,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.xs, Gap.sm),
+          decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: AppColors.border)),
+          ),
+          child: Row(
+            children: [
+              Transform.rotate(
+                angle: 0.6,
+                child: const Icon(
+                  Icons.push_pin,
+                  size: 18,
+                  color: AppColors.brand,
+                ),
+              ),
+              Gap.w12,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${s.pinnedLabel} · ${pinned.senderName}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.brand,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      pinned.text,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        height: 1.3,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (onUnpin != null)
+                IconButton(
+                  onPressed: onUnpin,
+                  tooltip: s.unpinMessage,
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    size: 18,
+                    color: AppColors.textMuted,
+                  ),
+                )
+              else
+                Gap.w8,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
