@@ -171,6 +171,11 @@ class FirestoreCommunityRepository implements CommunityRepository {
         final String id when id.isNotEmpty => id,
         _ => null,
       },
+      achievements: [
+        if (data['achievements'] case final List<dynamic> ids)
+          for (final id in ids)
+            if (id is String) id,
+      ],
       // Derived on read rather than stored, so a cohort label follows the
       // language the reader picked instead of the one the account signed up in.
       cohort: created == null ? '' : UserProfile.cohortFor(created, language),

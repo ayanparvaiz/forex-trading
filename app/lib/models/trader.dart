@@ -15,6 +15,7 @@ class Trader {
     required this.cohort,
     this.isYou = false,
     this.communityId,
+    this.achievements = const [],
   });
 
   /// Username — unique, and the account they log in with.
@@ -49,6 +50,9 @@ class Trader {
   /// The community they are in, if any — what a community's points are
   /// counted from.
   final String? communityId;
+
+  /// The ids of what they have earned (see Achievement), kept once earned.
+  final List<String> achievements;
 }
 
 /// What a feed post is about.
