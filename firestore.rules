@@ -886,6 +886,19 @@ service cloud.firestore {
       return c.avatarId is int && c.avatarId >= 1 && c.avatarId <= 28;
     }
 
+    function memberPath(cid, uid) {
+      return /databases/$(database)/documents/communities/$(cid)/members/$(uid);
+    }
+
+    // A community changing hands: to someone already in it, with both
+    // memberships saying so in the same write.
+    function handOverOk(cid, from, to) {
+      return to != from
+        && exists(memberPath(cid, to))
+        && getAfter(memberPath(cid, to)).data.role == 'admin'
+        && getAfter(memberPath(cid, from)).data.role == 'member';
+    }
+
     match /communities/{cid} {
       allow read: if isSignedIn();
       allow create: if isSignedIn()
@@ -907,18 +920,22 @@ service cloud.firestore {
         && getAfter(/databases/$(database)/documents/communities/$(cid)/members/$(request.auth.uid)).data.role == 'admin'
         && existsAfter(/databases/$(database)/documents/rooms/$('c_' + cid));
       // Joining and leaving count; the admin may change the description and
-      // the picture, and lock it: no one joins a locked community, and only
-      // its admin writes in it. Deleting it, or removing someone, goes
-      // through the worker, which can clear the profiles of everyone in it.
+      // the picture, lock it — no one joins a locked community, and only its
+      // admin writes in it — and hand it to another member. Deleting it, or
+      // removing someone, goes through the worker, which can clear the
+      // profiles of everyone in it.
       allow update: if isSignedIn()
         && (communityCountOk(cid)
             || (resource.data.createdBy == request.auth.uid
                 && request.resource.data.diff(resource.data).affectedKeys()
-                     .hasOnly(['description', 'avatarId', 'locked'])
+                     .hasOnly(['description', 'avatarId', 'locked', 'createdBy'])
                 && request.resource.data.description is string
                 && request.resource.data.description.size() <= 200
                 && communityAvatarOk(request.resource.data)
-                && request.resource.data.get('locked', false) is bool));
+                && request.resource.data.get('locked', false) is bool
+                && (request.resource.data.createdBy == resource.data.createdBy
+                    || handOverOk(cid, resource.data.createdBy,
+                                  request.resource.data.createdBy))));
       allow delete: if false;
 
       // Who is in it. Public, like connections: a community's members are
@@ -942,7 +959,15 @@ service cloud.firestore {
               && get(communityPath(cid)).data.get('locked', false) != true
               && getAfter(communityPath(cid)).data.memberCount
                    == get(communityPath(cid)).data.memberCount + 1));
-        allow update: if false;
+        // A role changes only as the community changes hands, by its admin:
+        // admin for the one it is handed to, member for everyone else.
+        allow update: if isSignedIn()
+          && get(communityPath(cid)).data.createdBy == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role'])
+          && ((getAfter(communityPath(cid)).data.createdBy == uid
+               && request.resource.data.role == 'admin')
+              || (getAfter(communityPath(cid)).data.createdBy != uid
+               && request.resource.data.role == 'member'));
         // Leaving: counted out, and no longer your community. Not for its
         // admin, who deletes it instead — a community is never left without
         // one.
