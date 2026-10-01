@@ -7,6 +7,7 @@ import '../data/communities_repository.dart';
 import '../data/community_avatars.dart';
 import '../i18n/strings.dart';
 import '../models/community.dart';
+import '../theme/app_theme.dart';
 import 'chat_bits.dart';
 import 'conversation_view.dart';
 
@@ -134,6 +135,90 @@ class _LiveCommunityBadgeState extends State<LiveCommunityBadge> {
     avatarId: _avatarId,
     size: widget.size,
   );
+}
+
+/// Community [id] as a small chip — its picture and name — for a profile.
+/// Followed live, and nothing at all until it has loaded or if it is gone.
+class CommunityChip extends StatefulWidget {
+  const CommunityChip({super.key, required this.id, this.onTap});
+
+  final String id;
+  final VoidCallback? onTap;
+
+  @override
+  State<CommunityChip> createState() => _CommunityChipState();
+}
+
+class _CommunityChipState extends State<CommunityChip> {
+  StreamSubscription<Community?>? _following;
+  Community? _community;
+
+  @override
+  void initState() {
+    super.initState();
+    _follow();
+  }
+
+  @override
+  void didUpdateWidget(CommunityChip old) {
+    super.didUpdateWidget(old);
+    if (old.id != widget.id) _follow();
+  }
+
+  void _follow() {
+    _following?.cancel();
+    _community = null;
+    _following = buildCommunitiesRepository()?.watch(widget.id).listen((c) {
+      if (mounted) setState(() => _community = c);
+    }, onError: (_) {});
+  }
+
+  @override
+  void dispose() {
+    _following?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = _community;
+    if (c == null) return const SizedBox.shrink();
+    return Material(
+      color: AppColors.elevated,
+      shape: const StadiumBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: widget.onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(4, 4, 10, 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CommunityBadge(
+                id: c.id,
+                name: c.name,
+                avatarId: c.avatarId,
+                size: 20,
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  c.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// A room's picture: the globe for Global, the community's for its room.
