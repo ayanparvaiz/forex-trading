@@ -28,11 +28,12 @@ import '../widgets/medal_pill.dart';
 import '../widgets/paged_list.dart';
 import '../widgets/report_sheet.dart';
 import 'post_comments_sheet.dart';
+import 'communities_screen.dart';
 import 'post_composer_sheet.dart';
 import 'profile_screen.dart';
 import 'search_screen.dart';
 
-/// Leaderboard and shared journal feed.
+/// Leaderboard, shared journal feed, and the communities.
 ///
 /// The leaderboard ranks on discipline, and shows total R beside it without
 /// ranking on it. The top trader in the sample data is down on the year; the
@@ -48,7 +49,13 @@ class CommunityScreen extends StatefulWidget {
 
 class _CommunityScreenState extends State<CommunityScreen>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 2, vsync: this);
+  /// Communities need the server everyone shares; without it, two tabs.
+  final bool _withCommunities = buildCommunitiesRepository() != null;
+
+  late final TabController _tabs = TabController(
+    length: _withCommunities ? 3 : 2,
+    vsync: this,
+  );
 
   /// Bumped after posting, to rebuild the feed from the top so the new post is
   /// there rather than waiting for a pull-to-refresh nobody thinks to do.
@@ -233,6 +240,7 @@ class _CommunityScreenState extends State<CommunityScreen>
           tabs: [
             Tab(text: s.leaderboard),
             Tab(text: s.feed),
+            if (_withCommunities) Tab(text: s.communities),
           ],
         ),
       ),
@@ -251,6 +259,8 @@ class _CommunityScreenState extends State<CommunityScreen>
             version: _feedVersion,
             scope: _feed,
           ),
+          // Every community, ranked — the same list Settings opens.
+          if (_withCommunities) const CommunitiesView(),
         ],
       ),
     );
