@@ -13,6 +13,7 @@ import '../theme/app_theme.dart';
 import '../widgets/avatar_image.dart';
 import '../widgets/common.dart';
 import '../widgets/community_badge.dart';
+import '../widgets/community_events.dart';
 import '../widgets/community_picture_picker.dart';
 import 'profile_screen.dart';
 import 'room_screen.dart';
@@ -606,14 +607,17 @@ class _CommunityProfileScreenState extends State<CommunityProfileScreen> {
             ),
           ),
           Gap.h16,
-          if (mine)
-            // Joined with the community: its members' own room.
+          if (mine) ...[
+            // Joined with the community: its members' own room, and what
+            // it has planned.
             FilledButton.icon(
               onPressed: () => openRoom(context, c.roomId),
               icon: const Icon(Icons.chat_bubble_outline_rounded, size: 20),
               label: Text(s.openChat),
-            )
-          else if (c.locked) ...[
+            ),
+            Gap.h16,
+            CommunityEvents(community: c, isAdmin: isAdmin),
+          ] else if (c.locked) ...[
             OutlinedButton.icon(
               onPressed: null,
               icon: const Icon(Icons.lock_rounded, size: 18),

@@ -71,4 +71,18 @@ void main() {
     expect(Community.ofRoom('c_abc123'), 'abc123');
     expect(Community.ofRoom('global'), isNull);
   });
+
+  test('an event is "happening" from its start, for two hours', () {
+    final e = CommunityEvent(
+      id: 'e1',
+      title: 'Chart review',
+      description: '',
+      startsAt: DateTime(2026, 10, 2, 21),
+      createdBy: 'u',
+    );
+    expect(e.happeningAt(DateTime(2026, 10, 2, 20, 59)), isFalse);
+    expect(e.happeningAt(DateTime(2026, 10, 2, 21)), isTrue);
+    expect(e.happeningAt(DateTime(2026, 10, 2, 22, 59)), isTrue);
+    expect(e.happeningAt(DateTime(2026, 10, 2, 23)), isFalse);
+  });
 }
