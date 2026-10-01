@@ -539,6 +539,12 @@ class Strings {
     "Couldn't do that — check your connection and try again.",
   );
   String get openChat => _t('চ্যাট খুলুন', 'Open chat');
+  String get feedEveryone => _t('সবার', 'Everyone');
+  String get feedConnections => _t('আমার কানেকশন', 'My connections');
+  String get noConnectionPosts => _t(
+    'আপনার কানেকশনদের কোনো পোস্ট এখন নেই।',
+    'Nothing from your connections right now.',
+  );
 
   // The tour, the first time the app opens on a phone.
   String get tourSkip => _t('বাদ দিন', 'Skip');
