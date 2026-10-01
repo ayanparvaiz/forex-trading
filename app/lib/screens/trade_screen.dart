@@ -11,6 +11,7 @@ import '../models/trade_preset.dart';
 import '../theme/app_theme.dart';
 import '../widgets/candle_chart.dart';
 import '../widgets/common.dart';
+import 'risk_calculator_screen.dart';
 
 /// Order ticket.
 ///
@@ -96,6 +97,15 @@ class _TradeScreenState extends State<TradeScreen> {
       appBar: AppBar(
         title: Text(s.navTrade),
         actions: [
+          IconButton(
+            onPressed: () => openRiskCalculator(
+              context,
+              balance: store.balance,
+              instrument: _instrument,
+            ),
+            icon: const Icon(Icons.calculate_outlined),
+            tooltip: s.riskCalculator,
+          ),
           Padding(
             padding: const EdgeInsets.only(right: Gap.lg),
             child: Center(
