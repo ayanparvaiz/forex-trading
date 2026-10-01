@@ -539,6 +539,39 @@ class Strings {
     "Couldn't do that — check your connection and try again.",
   );
   String get openChat => _t('চ্যাট খুলুন', 'Open chat');
+
+  // The tour, the first time the app opens on a phone.
+  String get tourSkip => _t('বাদ দিন', 'Skip');
+  String get tourNext => _t('পরের', 'Next');
+  String get tourStart => _t('শুরু করি', "Let's start");
+  String get tourPracticeTitle =>
+      _t('আসল দামে প্র্যাকটিস', 'Practise at real prices');
+  String get tourPracticeBody => _t(
+    'প্রতিদিন ১০,০০০ পয়েন্ট। দাম আসল বাজারের লেভেলে — কিন্তু কোনো আসল টাকা নেই, তাই ভুল করেও শেখা যায়।',
+    "10,000 points every day. Prices sit at the real market's level — but "
+        "there's no real money, so mistakes only cost you a lesson.",
+  );
+  String get tourDisciplineTitle =>
+      _t('ভাগ্য না, ডিসিপ্লিন', 'Discipline, not luck');
+  String get tourDisciplineBody => _t(
+    'লিডারবোর্ড লাভ দিয়ে না, নিয়ম মানা দিয়ে র‍্যাংক করে। স্টপ সরালে, বেশি রিস্ক নিলে স্কোর কমে।',
+    'The leaderboard ranks how well you keep your rules, not how much you '
+        'made. Moving a stop or over-risking costs you.',
+  );
+  String get tourCommunityTitle =>
+      _t('কমিউনিটি আর চ্যাট', 'Communities and chat');
+  String get tourCommunityBody => _t(
+    'গ্লোবাল চ্যাটে সবার সাথে, বা নিজের কমিউনিটিতে — নিজস্ব ফিড, চ্যাট আর র‍্যাংকিং।',
+    'Talk with everyone in Global, or join a community — its own feed, chat '
+        'and ranking.',
+  );
+  String get tourJournalTitle =>
+      _t('প্রতিটা ট্রেড লিখুন', 'Journal every trade');
+  String get tourJournalBody => _t(
+    'কেন ঢুকলেন, কী শিখলেন — লিখে রাখলেই উন্নতি চোখে পড়ে। স্ট্রিক আর অর্জনও আসে এখান থেকে।',
+    'Why you went in, what you learned — written down, progress shows. '
+        'Streaks and achievements come from here too.',
+  );
   String get savedPosts => _t('সেভ করা পোস্ট', 'Saved posts');
   String get savePost => _t('সেভ করুন', 'Save');
   String get postSaved => _t('পরে পড়ার জন্য সেভ হয়েছে', 'Saved for later');
