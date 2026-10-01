@@ -274,6 +274,18 @@ export function restStore(projectId, token, { budget = 40 } = {}) {
             currentDocument: { exists: true },
           };
         }
+        if (w.pull) {
+          // Takes every [value] out of the list in [field].
+          return {
+            transform: {
+              document: full(w.pull),
+              fieldTransforms: [
+                { fieldPath: w.field, removeAllFromArray: { values: [encodeValue(w.value)] } },
+              ],
+            },
+            currentDocument: { exists: true },
+          };
+        }
         if (w.set) {
           return {
             update: { name: full(w.set), fields: { [w.field]: encodeValue(w.value) } },

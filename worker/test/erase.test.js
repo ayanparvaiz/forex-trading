@@ -33,10 +33,10 @@ function world() {
     'posts/p-me/claps/u-ana': { uid: 'u-ana' },
     'posts/p-me/views/u-ana': {},
 
-    // Ana's post, with my comment and like, and bo's comment.
+    // Ana's post, with my comment and like, and bo's comment — which I liked.
     'posts/p-ana': { authorUid: 'u-ana', commentCount: 2, claps: 1, reach: 2 },
     'posts/p-ana/comments/c2': { authorUid: ME },
-    'posts/p-ana/comments/c3': { authorUid: 'u-bo' },
+    'posts/p-ana/comments/c3': { authorUid: 'u-bo', likedBy: [ME, 'u-ana'] },
     'posts/p-ana/claps/u-me': { uid: ME },
     'posts/p-ana/views/u-me': {},
 
@@ -85,7 +85,8 @@ const AFTER = {
   'usernames/ana': { uid: 'u-ana' },
   'presence/u-ana': { lastActiveAt: 1 },
   'posts/p-ana': { authorUid: 'u-ana', commentCount: 1, claps: 0, reach: 2 },
-  'posts/p-ana/comments/c3': { authorUid: 'u-bo' },
+  // My like gone; Ana's stays.
+  'posts/p-ana/comments/c3': { authorUid: 'u-bo', likedBy: ['u-ana'] },
   // Views are not likes: reach counts who saw a post, and stays.
   'posts/p-ana/views/u-me': {},
   'posts/p-drift': { authorUid: 'u-ana', commentCount: 0 },

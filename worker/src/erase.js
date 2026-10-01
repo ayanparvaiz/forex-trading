@@ -181,6 +181,21 @@ export async function eraseAccount(store, uid) {
   });
   await eraseOnOthersPosts(store, writes, uid, { collection: 'claps', field: 'uid', counter: 'claps' });
 
+  // The likes they gave other people's comments.
+  for (;;) {
+    const rows = await store.find({
+      collection: 'comments',
+      group: true,
+      field: 'likedBy',
+      op: 'array-contains',
+      value: uid,
+      limit: PAGE,
+    });
+    for (const r of rows) await writes.add({ pull: r.path, field: 'likedBy', value: uid });
+    await writes.flush();
+    if (rows.length < PAGE) break;
+  }
+
   // Conversations go for both people, as the policy says. A conversation with
   // one side gone cannot be answered, and its id would be waiting for
   // whoever might one day hold the same name.
