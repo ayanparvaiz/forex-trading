@@ -479,6 +479,16 @@ class Strings {
     'আপনি $name-এর অ্যাডমিন। অন্য কোথাও যেতে হলে আগে এটা ডিলিট করুন।',
     "You're the admin of $name. To be in another community, delete it first.",
   );
+  String get makeAdmin => _t('অ্যাডমিন বানান', 'Make admin');
+  String makeAdminTitle(String name) =>
+      _t('$name-কে অ্যাডমিন বানাবেন?', 'Make $name the admin?');
+  String makeAdminBody(String community) => _t(
+    '$community এখন থেকে উনি চালাবেন — লক, বাদ দেওয়া, ডিলিট সব। আপনি সাধারণ সদস্য হবেন, চাইলে ছেড়েও যেতে পারবেন।',
+    "They'll run $community from now on — locking, removing, deleting. You'll "
+        'be a member like anyone else, free to leave.',
+  );
+  String madeAdmin(String name) =>
+      _t('$name এখন অ্যাডমিন', '$name is the admin now');
   String get removeFromCommunity =>
       _t('কমিউনিটি থেকে বাদ দিন', 'Remove from community');
   String removeMemberTitle(String name) =>
