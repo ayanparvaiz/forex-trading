@@ -553,6 +553,35 @@ class Strings {
     "Couldn't do that — check your connection and try again.",
   );
   String get openChat => _t('চ্যাট খুলুন', 'Open chat');
+
+  // The monthly report card.
+  String get monthlyReport => _t('মাসের রিপোর্ট', 'Monthly report');
+  String monthYear(DateTime m) =>
+      '${isBangla ? _monthsBn[m.month - 1] : _monthsEn[m.month - 1]} ${m.year}';
+  String noTradesInMonth(String month) =>
+      _t('$month-এ কোনো ট্রেড ক্লোজ হয়নি।', 'No trades closed in $month.');
+  String get journaledLabel => _t('জার্নাল লেখা', 'Journaled');
+  String get daysTradedLabel => _t('ট্রেডের দিন', 'Days traded');
+  String get bestTradeLabel => _t('সেরা ট্রেড', 'Best trade');
+  String get fixNextMonth => _t('আগামী মাসে ঠিক করুন', 'To fix next month');
+  String brokenTimes(String rule, int n) => _t('$rule — $n বার', '$rule — $n×');
+  String get cleanMonth => _t(
+    'একটা নিয়মও ভাঙেননি — এভাবেই চালিয়ে যান! 💪',
+    'Not one rule broken — keep it going! 💪',
+  );
+  String get shareInChat => _t('চ্যাটে শেয়ার করুন', 'Share in chat');
+  String reportSummary(
+    String month,
+    int trades,
+    String winRate,
+    String totalR,
+    String discipline,
+    String fix,
+  ) => _t(
+    '📊 $month-এর রিপোর্ট: $trades ট্রেড · উইন রেট $winRate · $totalR · ডিসিপ্লিন $discipline।\n$fix',
+    '📊 My $month: $trades trades · win rate $winRate · $totalR · discipline '
+        '$discipline.\n$fix',
+  );
   String get feedEveryone => _t('সবার', 'Everyone');
   String get feedConnections => _t('আমার কানেকশন', 'My connections');
   String get noConnectionPosts => _t(
