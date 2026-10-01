@@ -34,6 +34,9 @@ class PushNotifier {
 
   void post(String postId) => _send({'type': 'post', 'postId': postId});
 
+  void event(String communityId, String eventId) =>
+      _send({'type': 'event', 'communityId': communityId, 'eventId': eventId});
+
   Future<void> _send(Map<String, String> event) async {
     try {
       final token = await FirebaseAuth.instance.currentUser?.getIdToken();

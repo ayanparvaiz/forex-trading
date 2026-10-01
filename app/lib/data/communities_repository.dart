@@ -182,6 +182,79 @@ class CommunitiesRepository {
     return batch.commit();
   }
 
+  // --- Events -----------------------------------------------------------------
+
+  CollectionReference<Map<String, dynamic>> _events(String id) =>
+      _community(id).collection('events');
+
+  /// What is coming up in [id], soonest first — and what started in the last
+  /// two hours, which may still be going on.
+  Stream<List<CommunityEvent>> watchEvents(String id, {int limit = 10}) =>
+      _events(id)
+          .where(
+            'startsAt',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(
+              DateTime.now().subtract(const Duration(hours: 2)),
+            ),
+          )
+          .orderBy('startsAt')
+          .limit(limit)
+          .snapshots()
+          .map(
+            (s) => [
+              for (final d in s.docs)
+                CommunityEvent(
+                  id: d.id,
+                  title: d.data()['title'] as String? ?? '',
+                  description: d.data()['description'] as String? ?? '',
+                  startsAt:
+                      (d.data()['startsAt'] as Timestamp?)?.toDate() ??
+                      DateTime.now(),
+                  createdBy: d.data()['createdBy'] as String? ?? '',
+                  going: {
+                    for (final u
+                        in d.data()['going'] as List<dynamic>? ?? const [])
+                      if (u is String) u,
+                  },
+                ),
+            ],
+          );
+
+  /// The admin plans an event. Returns its id.
+  Future<String> createEvent({
+    required String id,
+    required String me,
+    required String title,
+    required String description,
+    required DateTime startsAt,
+  }) async {
+    final ref = _events(id).doc();
+    await ref.set({
+      'title': title.trim(),
+      'description': description.trim(),
+      'startsAt': Timestamp.fromDate(startsAt),
+      'createdBy': me,
+      'createdAt': FieldValue.serverTimestamp(),
+      'going': <String>[],
+    });
+    return ref.id;
+  }
+
+  /// [uid] is going, or not.
+  Future<void> setGoing({
+    required String id,
+    required String eventId,
+    required String uid,
+    required bool going,
+  }) => _events(id).doc(eventId).update({
+    'going': going
+        ? FieldValue.arrayUnion([uid])
+        : FieldValue.arrayRemove([uid]),
+  });
+
+  Future<void> deleteEvent(String id, String eventId) =>
+      _events(id).doc(eventId).delete();
+
   /// The admin slowing its room down, or not.
   Future<void> setSlowMode(String id, int seconds) =>
       _community(id).update({'slowSeconds': seconds});

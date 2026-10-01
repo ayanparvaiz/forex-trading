@@ -65,6 +65,35 @@ class Community {
       name.trim().replaceAll(RegExp(r'\s+'), ' ');
 }
 
+/// Something a community's admin has planned — a chart review, a Q&A —
+/// and who is going.
+class CommunityEvent {
+  const CommunityEvent({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.startsAt,
+    required this.createdBy,
+    this.going = const {},
+  });
+
+  static const titleMin = 3;
+  static const titleMax = 80;
+  static const descriptionMax = 300;
+
+  final String id;
+  final String title;
+  final String description;
+  final DateTime startsAt;
+  final String createdBy;
+  final Set<String> going;
+
+  /// Started, but within the last two hours: still worth showing.
+  bool happeningAt(DateTime now) =>
+      !startsAt.isAfter(now) &&
+      now.difference(startsAt) < const Duration(hours: 2);
+}
+
 /// Someone in a community.
 class CommunityMember {
   const CommunityMember({
