@@ -515,6 +515,20 @@ class Strings {
   String get removeAction => _t('বাদ দিন', 'Remove');
   String memberRemoved(String name) =>
       _t('$name-কে বাদ দেওয়া হয়েছে', '$name was removed');
+  String get slowMode => _t('স্লো মোড', 'Slow mode');
+  String get slowModeHint => _t(
+    'প্রত্যেক সদস্য এই সময় পরপর একটা মেসেজ দিতে পারবেন। আপনার জন্য কোনো সীমা নেই।',
+    'Each member can send one message this often. You are never slowed.',
+  );
+  String slowModeEvery(int seconds) => switch (seconds) {
+    0 => _t('বন্ধ', 'Off'),
+    < 60 => _t('$seconds সে.', '${seconds}s'),
+    _ => _t('${seconds ~/ 60} মি.', '${seconds ~/ 60}m'),
+  };
+  String slowModeWait(int seconds) => _t(
+    'স্লো মোড — $seconds সেকেন্ড পর আবার লিখতে পারবেন',
+    'Slow mode — you can write again in ${seconds}s',
+  );
   String get lockCommunity => _t('কমিউনিটি লক করুন', 'Lock community');
   String get lockHint => _t(
     'লক থাকলে নতুন কেউ জয়েন করতে পারবে না, আর চ্যাট ও ফিডে শুধু আপনি লিখতে পারবেন।',
