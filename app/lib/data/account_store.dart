@@ -59,6 +59,10 @@ class AccountStore extends ChangeNotifier {
   TradeRepository _repository;
   ScoreSync _scores = const NoScoreSync();
 
+  /// Something besides a trade moved what the worker writes — a lesson
+  /// passed, which can earn an achievement. Throttled by the sync itself.
+  void requestScoreUpdate() => _scores.request();
+
   /// True until the stored journal has been read.
   ///
   /// Screens use it to tell "no trades yet" apart from "not loaded yet" — the
