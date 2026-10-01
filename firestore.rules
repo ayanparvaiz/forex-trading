@@ -213,6 +213,18 @@ service cloud.firestore {
         allow update: if false;
       }
 
+      // --- Saved posts ------------------------------------------------------
+      //
+      // Posts kept for later. Nobody else's business — not even whose they
+      // are; the post itself is read under its own rules when it is opened.
+      match /saved/{postId} {
+        allow read, delete: if isOwner(uid);
+        allow create: if isOwner(uid)
+          && request.resource.data.keys().hasOnly(['savedAt'])
+          && request.resource.data.savedAt == request.time;
+        allow update: if false;
+      }
+
       // --- Chat preferences -------------------------------------------------
       //
       // What you have deleted "for me": one document per conversation, with
