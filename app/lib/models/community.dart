@@ -14,6 +14,7 @@ class Community {
     required this.createdAt,
     this.avatarId,
     this.locked = false,
+    this.slowSeconds = 0,
   });
 
   static const nameMin = 3;
@@ -31,6 +32,13 @@ class Community {
   /// Locked by its admin: nobody new joins, and only the admin writes in its
   /// chat and its feed.
   final bool locked;
+
+  /// Slow mode: each member writes in its room at most once this often, in
+  /// seconds. 0 for off. The admin is never slowed.
+  final int slowSeconds;
+
+  /// The intervals the admin can choose from — the rules hold the same.
+  static const slowModes = [0, 10, 30, 60, 300];
 
   /// The admin's uid: whoever started it, until they hand it to someone
   /// else.

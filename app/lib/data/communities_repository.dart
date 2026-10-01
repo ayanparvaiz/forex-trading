@@ -182,6 +182,10 @@ class CommunitiesRepository {
     return batch.commit();
   }
 
+  /// The admin slowing its room down, or not.
+  Future<void> setSlowMode(String id, int seconds) =>
+      _community(id).update({'slowSeconds': seconds});
+
   /// The admin locking it, or opening it again.
   Future<void> setLocked(String id, bool locked) =>
       _community(id).update({'locked': locked});
@@ -202,6 +206,7 @@ class CommunitiesRepository {
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       avatarId: (data['avatarId'] as num?)?.toInt(),
       locked: data['locked'] == true,
+      slowSeconds: (data['slowSeconds'] as num?)?.toInt() ?? 0,
     );
   }
 }

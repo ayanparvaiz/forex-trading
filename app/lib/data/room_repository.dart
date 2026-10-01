@@ -119,7 +119,11 @@ class RoomRepository {
         },
         'updatedAt': FieldValue.serverTimestamp(),
       })
-      ..update(_member(roomId, me), {'readAt': FieldValue.serverTimestamp()});
+      // Writing is reading too; and the sent mark is what slow mode times.
+      ..update(_member(roomId, me), {
+        'readAt': FieldValue.serverTimestamp(),
+        'lastSentAt': FieldValue.serverTimestamp(),
+      });
     await batch.commit();
     // The id, for telling the recipient once the server has it.
     return message.id;
