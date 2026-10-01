@@ -68,3 +68,13 @@ test('once earned, kept — and in order, with ids from newer versions kept', ()
   assert.deepEqual(keepAchievements(undefined, ['ranked', 'first_trade']), ['first_trade', 'ranked']);
   assert.deepEqual(keepAchievements(['someday_new'], ['first_trade']), ['first_trade', 'someday_new']);
 });
+
+test('every lesson passed: a scholar', () => {
+  const stats = leaderboardStats([]);
+  assert.deepEqual(earnedAchievements([], stats, ['risk', 'stop', 'reward', 'revenge']), []);
+  assert.deepEqual(
+    earnedAchievements([], stats, ['journal', 'risk', 'stop', 'reward', 'revenge']),
+    ['scholar'],
+  );
+});
+

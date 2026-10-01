@@ -18,7 +18,11 @@ export const ACHIEVEMENTS = [
   'streak_7',
   'streak_30',
   'iron_discipline',
+  'scholar',
 ];
+
+/** The lessons in the app (app/lib/models/lesson.dart); all passed is 'scholar'. */
+export const LESSONS = ['risk', 'stop', 'reward', 'revenge', 'journal'];
 
 const broke = (t) => (t.violations ?? []).some((v) => v in VIOLATION_WEIGHTS);
 
@@ -34,10 +38,11 @@ function longestCleanRun(closed) {
 }
 
 /**
- * What [trades] earn now, given the [stats] worked out from them. Closed
- * trades only, in the order they closed.
+ * What [trades] earn now, given the [stats] worked out from them, and the
+ * [lessonsDone] on the profile. Closed trades only, in the order they
+ * closed.
  */
-export function earnedAchievements(trades, stats) {
+export function earnedAchievements(trades, stats, lessonsDone = []) {
   const closed = trades
     .filter((t) => t.closedAt != null)
     .sort((a, b) => Date.parse(a.closedAt) - Date.parse(b.closedAt));
@@ -52,6 +57,7 @@ export function earnedAchievements(trades, stats) {
   if (stats.journalStreak >= 7) earned.add('streak_7');
   if (stats.journalStreak >= 30) earned.add('streak_30');
   if (n >= 20 && stats.disciplineScore >= 90) earned.add('iron_discipline');
+  if (LESSONS.every((l) => lessonsDone.includes(l))) earned.add('scholar');
   return ACHIEVEMENTS.filter((a) => earned.has(a));
 }
 

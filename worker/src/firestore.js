@@ -63,6 +63,7 @@ export async function scoreState(projectId, uid, token) {
   const url = new URL(`${base(projectId)}/users/${encodeURIComponent(uid)}`);
   url.searchParams.append('mask.fieldPaths', 'statsUpdatedAt');
   url.searchParams.append('mask.fieldPaths', 'achievements');
+  url.searchParams.append('mask.fieldPaths', 'lessonsDone');
 
   const res = await fetch(url, { headers: { authorization: `Bearer ${token}` } });
   if (res.status === 404) throw new Error('no such user');
@@ -73,6 +74,9 @@ export async function scoreState(projectId, uid, token) {
   return {
     updatedAt: ts ? Date.parse(ts) : null,
     achievements: (fields.achievements?.arrayValue?.values ?? [])
+      .map((v) => v.stringValue)
+      .filter((v) => typeof v === 'string'),
+    lessonsDone: (fields.lessonsDone?.arrayValue?.values ?? [])
       .map((v) => v.stringValue)
       .filter((v) => typeof v === 'string'),
   };

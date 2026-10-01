@@ -257,7 +257,7 @@ async function recompute(uid, env) {
 
     // Second line, in Firestore itself, for calls that land on a different
     // Cloudflare location than the last one. Costs one read.
-    const { updatedAt: last, achievements: before } = await scoreState(
+    const { updatedAt: last, achievements: before, lessonsDone } = await scoreState(
       env.FIREBASE_PROJECT_ID,
       uid,
       token,
@@ -279,7 +279,10 @@ async function recompute(uid, env) {
     // "ranked == true" with an equality filter and one index.
     const ranked = stats.tradeCount >= MIN_RANKED_TRADES;
     // Earned now, added to what was earned before: nothing is taken away.
-    const achievements = keepAchievements(before, earnedAchievements(trades, stats));
+    const achievements = keepAchievements(
+      before,
+      earnedAchievements(trades, stats, lessonsDone),
+    );
     // This week's board, from this week's trades alone.
     const week = weeklyStats(trades);
     await writeStats(
