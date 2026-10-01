@@ -84,6 +84,7 @@ service cloud.firestore {
     // ranked decides whether an account appears on the board at all, and
     // statsUpdatedAt is what the worker's throttle reads — a client able to
     // set it into the future could stop its own score ever being corrected.
+    // achievements are earned from trades, and only ever added to.
     function serverOwnedUnchanged() {
       return unchanged('disciplineScore')
         && unchanged('totalR')
@@ -93,7 +94,8 @@ service cloud.firestore {
         && unchanged('badgePoints')
         && unchanged('balance')
         && unchanged('ranked')
-        && unchanged('statsUpdatedAt');
+        && unchanged('statsUpdatedAt')
+        && unchanged('achievements');
     }
 
     // --- Username claims ----------------------------------------------------
@@ -162,7 +164,9 @@ service cloud.firestore {
         // Nobody is born onto the leaderboard; the worker ranks an account
         // once it has closed enough trades to be judged on.
         && !('ranked' in request.resource.data)
-        && !('statsUpdatedAt' in request.resource.data);
+        && !('statsUpdatedAt' in request.resource.data)
+        // Nor with achievements: those are earned, from trades.
+        && !('achievements' in request.resource.data);
 
       // Settings are the trader's own; stats are not. The username is fixed at
       // creation — the claim document points at this uid and nothing updates it.
