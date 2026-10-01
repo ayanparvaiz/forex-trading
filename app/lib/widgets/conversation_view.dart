@@ -40,6 +40,9 @@ abstract class MessageSource {
   /// Blanks [m] for everyone. [isLatest] when it is the newest message, so
   /// the preview has to follow.
   Future<void> unsend(ChatMessage m, {required bool isLatest});
+
+  /// My reaction to [m] — one of [reactionEmojis] — or none.
+  Future<void> react(ChatMessage m, String? emoji);
 }
 
 /// One more thing a long-press on a message can do — reporting, which each
@@ -502,6 +505,10 @@ class _ConversationViewState extends State<ConversationView> {
       onTap: onTap,
     );
 
+    // Reacting is a kind of writing: where you can write, you can react.
+    final canReact = widget.canSend && !m.unsent && !m.pending;
+    final current = m.reactions[_me];
+
     final action = await showModalBottomSheet<Object>(
       context: context,
       backgroundColor: AppColors.surface,
@@ -515,6 +522,26 @@ class _ConversationViewState extends State<ConversationView> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: Gap.sm),
+              if (canReact)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    Gap.lg,
+                    Gap.xs,
+                    Gap.lg,
+                    Gap.sm,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      for (final e in reactionEmojis)
+                        _ReactionChoice(
+                          emoji: e,
+                          chosen: current == e,
+                          onTap: () => pick(_React(e)),
+                        ),
+                    ],
+                  ),
+                ),
               if (widget.canSend && !m.unsent)
                 tile(Icons.reply_rounded, s.reply, () => pick('reply')),
               if (!m.unsent && m.text.isNotEmpty)
@@ -544,6 +571,9 @@ class _ConversationViewState extends State<ConversationView> {
     if (!mounted || action == null) return;
 
     switch (action) {
+      case _React(:final emoji):
+        // The one you have already given, again: taken away.
+        await _react(m, emoji == current ? null : emoji);
       case MessageAction a:
         a.onSelected();
       case 'reply':
@@ -560,6 +590,29 @@ class _ConversationViewState extends State<ConversationView> {
         _hide(m);
       case 'unsend':
         await _confirmUnsend(m);
+    }
+  }
+
+  /// Shows [emoji] on [m] at once, then writes it; puts it back if the
+  /// write is refused. A message on the live page is confirmed by its own
+  /// listener; an older one has only this.
+  Future<void> _react(ChatMessage m, String? emoji) async {
+    final before = m.reactions[_me];
+    void show(String? e) => setState(
+      () => _messages = [
+        for (final x in _messages) x.id == m.id ? x.withReaction(_me, e) : x,
+      ],
+    );
+    show(emoji);
+    try {
+      await _source.react(m, emoji);
+    } catch (e) {
+      debugPrint('react failed: $e');
+      if (!mounted) return;
+      show(before);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.s.couldNotSave)));
     }
   }
 
@@ -777,6 +830,8 @@ class _ConversationViewState extends State<ConversationView> {
               forwardedLabel: m.forwarded && !m.unsent ? s.forwarded : null,
               highlight: _flashId == m.id,
               onLongPress: () => _showActions(m),
+              reactions: m.unsent ? const [] : m.reactionCounts,
+              mineReacted: !m.unsent && m.reactions.containsKey(_me),
             ),
           ),
         );
@@ -908,10 +963,16 @@ class _Bubble extends StatelessWidget {
     this.attachment,
     this.forwardedLabel,
     this.highlight = false,
+    this.reactions = const [],
+    this.mineReacted = false,
   });
 
   final ChatMessage message;
   final bool mine;
+
+  /// Reactions under the bubble, counted; and whether one of them is mine.
+  final List<(String, int)> reactions;
+  final bool mineReacted;
   final bool tail;
   final String time;
   final String unsentLabel;
@@ -1077,33 +1138,152 @@ class _Bubble extends StatelessWidget {
       padding: EdgeInsets.only(top: tail ? 6 : 2),
       child: Align(
         alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-        child: GestureDetector(
-          onLongPress: onLongPress,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxWidth),
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(10, 7, 9, 7),
-              decoration: BoxDecoration(
-                color: mine ? AppColors.bubbleMine : AppColors.bubbleTheirs,
-                borderRadius: BorderRadius.only(
-                  topLeft: r,
-                  topRight: r,
-                  bottomLeft: !mine && tail ? flat : r,
-                  bottomRight: mine && tail ? flat : r,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: mine
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
+          children: [
+            _bubble(content, meta, maxWidth, r, flat),
+            if (reactions.isNotEmpty)
+              // Tucked under the bubble's edge, as messaging apps do; a tap
+              // opens the same choices as a long-press.
+              Transform.translate(
+                offset: const Offset(0, -4),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: GestureDetector(
+                    onTap: onLongPress,
+                    child: _ReactionPill(
+                      reactions: reactions,
+                      mine: mineReacted,
+                    ),
+                  ),
                 ),
               ),
-              child: Stack(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 2),
-                    child: content,
-                  ),
-                  Positioned(right: 0, bottom: 0, child: meta),
-                ],
-              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _bubble(
+    Widget content,
+    Widget meta,
+    double maxWidth,
+    Radius r,
+    Radius flat,
+  ) {
+    return GestureDetector(
+      onLongPress: onLongPress,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(10, 7, 9, 7),
+          decoration: BoxDecoration(
+            color: mine ? AppColors.bubbleMine : AppColors.bubbleTheirs,
+            borderRadius: BorderRadius.only(
+              topLeft: r,
+              topRight: r,
+              bottomLeft: !mine && tail ? flat : r,
+              bottomRight: mine && tail ? flat : r,
             ),
           ),
+          child: Stack(
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: content,
+              ),
+              Positioned(right: 0, bottom: 0, child: meta),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+/// A reaction picked from the long-press sheet.
+class _React {
+  const _React(this.emoji);
+  final String emoji;
+}
+
+/// One of the six, in the long-press sheet; the one you gave is ringed.
+class _ReactionChoice extends StatelessWidget {
+  const _ReactionChoice({
+    required this.emoji,
+    required this.chosen,
+    required this.onTap,
+  });
+
+  final String emoji;
+  final bool chosen;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkResponse(
+      onTap: onTap,
+      radius: 26,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        width: 46,
+        height: 46,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: chosen ? AppColors.brandDim : AppColors.elevated,
+          border: Border.all(
+            color: chosen ? AppColors.brand : Colors.transparent,
+            width: 2,
+          ),
+        ),
+        child: Text(emoji, style: const TextStyle(fontSize: 22)),
+      ),
+    );
+  }
+}
+
+/// The reactions on a message: each emoji, and how many when more than one.
+class _ReactionPill extends StatelessWidget {
+  const _ReactionPill({required this.reactions, required this.mine});
+
+  final List<(String, int)> reactions;
+  final bool mine;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = reactions.fold<int>(0, (sum, r) => sum + r.$2);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.elevated,
+        borderRadius: Radii.pill,
+        border: Border.all(
+          color: mine ? AppColors.brand : AppColors.bg,
+          width: 1.5,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // At most three faces, as WhatsApp shows them; the count is all.
+          for (final (e, _) in reactions.take(3))
+            Text(e, style: const TextStyle(fontSize: 13)),
+          if (total > 1) ...[
+            const SizedBox(width: 3),
+            Text(
+              '$total',
+              style: const TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

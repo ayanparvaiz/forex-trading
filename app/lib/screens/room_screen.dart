@@ -572,6 +572,10 @@ class _RoomSource implements MessageSource {
     isLatest: isLatest,
     wasPinned: pinnedId() == m.id,
   );
+
+  @override
+  Future<void> react(ChatMessage m, String? emoji) =>
+      rooms.react(roomId: roomId, messageId: m.id, me: me, emoji: emoji);
 }
 
 /// The pinned message, across the top of the room: tapped, the chat goes

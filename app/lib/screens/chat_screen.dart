@@ -597,4 +597,8 @@ class _DirectSource implements MessageSource {
   @override
   Future<void> unsend(ChatMessage m, {required bool isLatest}) =>
       repo.unsend(chatId: chatId, me: me, messageId: m.id, isLatest: isLatest);
+
+  @override
+  Future<void> react(ChatMessage m, String? emoji) =>
+      repo.react(chatId: chatId, messageId: m.id, me: me, emoji: emoji);
 }

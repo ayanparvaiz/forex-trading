@@ -260,6 +260,27 @@ class ChatMessage {
   /// Who reacted, and with what: one each, by uid.
   final Map<String, String> reactions;
 
+  /// The same message with [uid]'s reaction set to [emoji], or taken away.
+  ChatMessage withReaction(String uid, String? emoji) => ChatMessage(
+    id: id,
+    senderUid: senderUid,
+    text: text,
+    sentAt: sentAt,
+    unsent: unsent,
+    pending: pending,
+    replyTo: replyTo,
+    forwarded: forwarded,
+    senderName: senderName,
+    senderUsername: senderUsername,
+    attachment: attachment,
+    cursor: cursor,
+    reactions: {
+      for (final e in reactions.entries)
+        if (e.key != uid) e.key: e.value,
+      uid: ?emoji,
+    },
+  );
+
   /// Each reaction with how many gave it — most first, then in the order
   /// they are offered.
   List<(String, int)> get reactionCounts {

@@ -16,6 +16,7 @@ class FakeSource implements MessageSource {
   final Map<String, ChatMessage> elsewhere = {};
   final sent = <(String, ReplyRef?)>[];
   final unsent = <(String, bool)>[];
+  final reacted = <(String, String?)>[];
 
   @override
   String get prefsId => 'fake';
@@ -39,6 +40,10 @@ class FakeSource implements MessageSource {
   @override
   Future<void> unsend(ChatMessage m, {required bool isLatest}) async =>
       unsent.add((m.id, isLatest));
+
+  @override
+  Future<void> react(ChatMessage m, String? emoji) async =>
+      reacted.add((m.id, emoji));
 }
 
 void main() {
@@ -283,5 +288,40 @@ void main() {
     await tester.drag(find.text('#2 on the board'), const Offset(120, 0));
     await tester.pumpAndSettle();
     expect(find.text('🏅 Leaderboard rank'), findsOneWidget);
+  });
+
+  testWidgets(
+    'a reaction shows at once, and the same one again takes it back',
+    (tester) async {
+      final source = await pump(tester);
+      source.latest.add([msg('m1', 0, from: 'ana', text: 'held my stop')]);
+      await tester.pumpAndSettle();
+
+      await tester.longPress(find.textContaining('held my stop'));
+      await tester.pumpAndSettle();
+      expect(find.text('🔥'), findsOneWidget, reason: 'the six to choose from');
+      await tester.tap(find.text('🔥'));
+      await tester.pumpAndSettle();
+
+      expect(source.reacted, [('m1', '🔥')]);
+      // Under the bubble, before the server has said anything.
+      expect(find.text('🔥'), findsOneWidget);
+
+      await tester.tap(find.text('🔥'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('🔥').last);
+      await tester.pumpAndSettle();
+      expect(source.reacted.last, ('m1', null));
+      expect(find.text('🔥'), findsNothing);
+    },
+  );
+
+  testWidgets('no reacting where you cannot write', (tester) async {
+    final source = await pump(tester, canSend: false);
+    source.latest.add([msg('m1', 0, from: 'ana', text: 'held my stop')]);
+    await tester.pumpAndSettle();
+    await tester.longPress(find.textContaining('held my stop'));
+    await tester.pumpAndSettle();
+    expect(find.text('🔥'), findsNothing);
   });
 }
