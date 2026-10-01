@@ -472,8 +472,9 @@ class Strings {
   String communityDeleted(String name) =>
       _t('$name ডিলিট হয়েছে', '$name is deleted');
   String get adminCantLeave => _t(
-    'অ্যাডমিন হিসেবে আপনি কমিউনিটি ছাড়তে পারবেন না — চাইলে ডিলিট করতে পারেন।',
-    "As its admin you can't leave it — you can delete it.",
+    'অ্যাডমিন হিসেবে আপনি ছাড়তে পারবেন না — অন্য কাউকে অ্যাডমিন বানান (সদস্যের পাশের ⋮), অথবা ডিলিট করুন।',
+    "As its admin you can't leave — make someone else the admin (⋮ beside "
+        'them), or delete it.',
   );
   String adminOfCommunity(String name) => _t(
     'আপনি $name-এর অ্যাডমিন। অন্য কোথাও যেতে হলে আগে এটা ডিলিট করুন।',
