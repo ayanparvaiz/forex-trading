@@ -190,6 +190,18 @@ abstract class CommunityRepository {
   /// Deletes your own post, and every comment, like and view on it — they
   /// mean nothing without it.
   Future<void> deletePost(String postId);
+
+  // --- Saved for later -----------------------------------------------------
+
+  /// Whether [uid] has saved [postId].
+  Future<bool> isSaved(String postId, String uid);
+
+  /// Saves [postId] for [uid], or forgets it.
+  Future<void> setSaved(String postId, String uid, {required bool saved});
+
+  /// What [uid] has saved, the latest first — less anything since deleted,
+  /// or no longer theirs to read.
+  Future<List<FeedPost>> savedPosts(String uid, {int limit = 50});
 }
 
 /// On-device implementation over the seeded accounts.
@@ -383,6 +395,27 @@ class LocalCommunityRepository implements CommunityRepository {
   /// Nothing to delete: this device never publishes to the feed.
   @override
   Future<void> deletePost(String postId) async {}
+
+  /// Kept for as long as the app is open: the seeded feed is the same for
+  /// everyone on this phone, so there is nowhere better to keep it.
+  final Set<String> _saved = {};
+
+  @override
+  Future<bool> isSaved(String postId, String uid) async =>
+      _saved.contains(postId);
+
+  @override
+  Future<void> setSaved(
+    String postId,
+    String uid, {
+    required bool saved,
+  }) async => saved ? _saved.add(postId) : _saved.remove(postId);
+
+  @override
+  Future<List<FeedPost>> savedPosts(String uid, {int limit = 50}) async => [
+    for (final p in MockCommunity.liveFeed(language))
+      if (_saved.contains(p.id)) p,
+  ];
 
   /// Nobody: the seeded accounts have no uids, and communities need a server.
   @override

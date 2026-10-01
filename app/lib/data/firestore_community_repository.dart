@@ -653,6 +653,34 @@ class FirestoreCommunityRepository implements CommunityRepository {
     return authors.isEmpty ? null : _postFrom(doc, authors.first);
   }
 
+  CollectionReference<Map<String, dynamic>> _saved(String uid) =>
+      _users.doc(uid).collection('saved');
+
+  @override
+  Future<bool> isSaved(String postId, String uid) async =>
+      (await _saved(uid).doc(postId).get()).exists;
+
+  @override
+  Future<void> setSaved(String postId, String uid, {required bool saved}) =>
+      saved
+      ? _saved(uid).doc(postId).set({'savedAt': FieldValue.serverTimestamp()})
+      : _saved(uid).doc(postId).delete();
+
+  /// One read per post: the posts rules decide each on its own — a
+  /// community's post is for its members — so they cannot be asked for in
+  /// one query.
+  @override
+  Future<List<FeedPost>> savedPosts(String uid, {int limit = 50}) async {
+    final page = await _saved(
+      uid,
+    ).orderBy('savedAt', descending: true).limit(limit).get();
+    final posts = await Future.wait([
+      for (final d in page.docs)
+        post(d.id).then<FeedPost?>((p) => p).catchError((Object _) => null),
+    ]);
+    return [for (final p in posts) ?p];
+  }
+
   /// Two prefix queries, one on the username and one on the lowercase name,
   /// merged. Firestore matches only the start of a field; matching anywhere
   /// in a name is done on the device, over the people search already knows.
