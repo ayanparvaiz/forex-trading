@@ -40,8 +40,12 @@ import { weeklyStats } from './weekly.js';
 import { deleteCommunity, isCommunityId, removeMember } from './community.js';
 import { eraseAccount } from './erase.js';
 import { sendPush } from './fcm.js';
-import { dailyReminder, forgetOldAnnouncements, notify } from './notify.js';
+import { dailyReminder, eventReminders, forgetOldAnnouncements, notify } from './notify.js';
 import { referenceRates } from './rates.js';
+
+// The quarter-hourly trigger in wrangler.toml, for event reminders. The
+// other, daily, is the morning one.
+const EVENT_CRON = '*/15 * * * *';
 
 // How often one account may trigger a recompute.
 //
@@ -136,13 +140,19 @@ export default {
 
   // Every morning (wrangler.toml): the day's points are in; and what was
   // announced days ago no longer needs remembering.
-  async scheduled(_event, env, ctx) {
+  async scheduled(event, env, ctx) {
     ctx.waitUntil(
       (async () => {
         const token = await serviceAccountToken(env);
-        await dailyReminder((m) => sendPush(env.FIREBASE_PROJECT_ID, token, m));
+        const push = (m) => sendPush(env.FIREBASE_PROJECT_ID, token, m);
+        // Every quarter hour: events about to start remind those going.
+        if (event.cron === EVENT_CRON) {
+          await eventReminders(restStore(env.FIREBASE_PROJECT_ID, token, { budget: 15 }), push);
+          return;
+        }
+        await dailyReminder(push);
         await forgetOldAnnouncements(restStore(env.FIREBASE_PROJECT_ID, token, { budget: 5 }));
-      })().catch((e) => console.error('morning job failed:', e)),
+      })().catch((e) => console.error(`scheduled job ${event.cron} failed:`, e)),
     );
   },
 };

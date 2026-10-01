@@ -15,4 +15,4 @@ FIREBASE_PROJECT_ID = "forex-9f21b"
 # 03:00 UTC is 09:00 in Dhaka: the morning reminder that today's points are
 # in (the allowance itself resets at midnight on each phone).
 [triggers]
-crons = ["0 3 * * *"]
+crons = ["0 3 * * *", "*/15 * * * *"]

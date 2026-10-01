@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { MAX_PUSHES, dailyReminder, forgetOldAnnouncements, mentionsIn, notify } from '../src/notify.js';
+import { MAX_PUSHES, dailyReminder, eventReminders, eventTime, forgetOldAnnouncements, mentionsIn, notify } from '../src/notify.js';
 import { memoryStore } from './memory-store.js';
 
 const NOW = Date.parse('2026-09-26T10:00:00Z');
@@ -258,4 +258,58 @@ test("in a community's room, only its members — naming an outsider tells no on
   docs.set('rooms/c_bulls1/messages/b1', { senderUid: 'u-me', senderName: 'Me', text: '@cyrus come join', sentAt: ago(1), unsent: false });
   const { sent } = await run(docs, 'u-me', { type: 'room', roomId: 'c_bulls1', messageId: 'b1' });
   assert.deepEqual(sent.map((m) => m.token), ['tok-bo']);
+});
+
+/** Bulls: me (admin), Ana and Bo; an event I just planned. */
+function withEvent(startsInMinutes = 120, createdAgo = 1) {
+  const docs = world();
+  docs.set('communities/bulls1', { name: 'Bulls', createdBy: 'u-me', memberCount: 3 });
+  docs.set('rooms/c_bulls1', { name: 'Bulls', memberCount: 3 });
+  for (const u of ['u-me', 'u-ana', 'u-bo']) docs.set(`rooms/c_bulls1/members/${u}`, {});
+  docs.set('communities/bulls1/events/e1', {
+    title: 'Chart review',
+    createdBy: 'u-me',
+    createdAt: ago(createdAgo),
+    startsAt: new Date(NOW + startsInMinutes * 60_000).toISOString(),
+    going: ['u-bo'],
+  });
+  return docs;
+}
+
+test('a new event tells the members, by the community', async () => {
+  const { sent } = await run(withEvent(), 'u-me', { type: 'event', communityId: 'bulls1', eventId: 'e1' });
+  const tokens = sent.map((m) => m.token).sort();
+  assert.deepEqual(tokens, ['tok-ana', 'tok-ana-old', 'tok-bo']);
+  const ana = sent.find((m) => m.token === 'tok-ana');
+  assert.equal(ana.notification.title, 'Bulls: new event');
+  assert.ok(ana.notification.body.startsWith('Chart review · '));
+  assert.deepEqual(ana.data, { type: 'room', roomId: 'c_bulls1' });
+});
+
+test("only the admin's own, fresh event is news", async () => {
+  assert.equal((await run(withEvent(), 'u-ana', { type: 'event', communityId: 'bulls1', eventId: 'e1' })).sent.length, 0);
+  assert.equal((await run(withEvent(120, 30), 'u-me', { type: 'event', communityId: 'bulls1', eventId: 'e1' })).sent.length, 0);
+});
+
+test('starting in 15 to 30 minutes: those going are reminded, once', async () => {
+  const docs = withEvent(20);
+  const { sent, push } = fcm();
+  const store = memoryStore(docs);
+  await eventReminders(store, push, NOW);
+  assert.deepEqual(sent.map((m) => m.token), ['tok-bo']);
+  assert.equal(sent[0].notification.title, 'শীঘ্রই শুরু: Chart review');
+  await eventReminders(memoryStore(docs), push, NOW);
+  assert.equal(sent.length, 1, 'not twice');
+});
+
+test('not yet, or already too close: nobody is reminded this round', async () => {
+  for (const minutes of [45, 10]) {
+    const { sent, push } = fcm();
+    await eventReminders(memoryStore(withEvent(minutes)), push, NOW);
+    assert.equal(sent.length, 0, `${minutes} minutes out`);
+  }
+});
+
+test('event times read in Dhaka', () => {
+  assert.equal(eventTime('2026-10-02T15:00:00Z', 'en'), 'Fri 2 Oct, 9:00 pm');
 });

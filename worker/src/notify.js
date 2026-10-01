@@ -27,6 +27,8 @@ const isRoom = (id) => id === 'global' || (typeof id === 'string' && /^c_[A-Za-z
 
 const TEXT = {
   bn: {
+    newEvent: (community) => `${community}: নতুন ইভেন্ট`,
+    startingSoon: (title) => `শীঘ্রই শুরু: ${title}`,
     global: 'গ্লোবাল',
     mentioned: (who) => `${who} আপনাকে উল্লেখ করেছেন`,
     post: '📊 পোস্ট',
@@ -38,6 +40,8 @@ const TEXT = {
     dailyBody: 'নতুন দিন, নতুন সুযোগ — প্ল্যান মেনে প্র্যাকটিস শুরু করুন।',
   },
   en: {
+    newEvent: (community) => `${community}: new event`,
+    startingSoon: (title) => `Starting soon: ${title}`,
     global: 'Global',
     mentioned: (who) => `${who} mentioned you`,
     post: '📊 Post',
@@ -310,6 +314,89 @@ async function aPost(store, push, caller, { postId }, now) {
     }));
 }
 
+/** When an event starts, in Dhaka: "Fri 3 Oct, 9:00 PM". */
+export function eventTime(iso, language) {
+  return new Intl.DateTimeFormat(language === 'bn' ? 'bn-BD' : 'en-GB', {
+    timeZone: 'Asia/Dhaka',
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(new Date(iso));
+}
+
+/** The phones of everyone in community [cid] but [caller]. */
+async function membersOf(store, cid, caller) {
+  return (await store.find({ parent: `rooms/c_${cid}`, collection: 'members', limit: 300 }))
+    .map((r) => r.path.split('/').pop())
+    .filter((uid) => uid !== caller);
+}
+
+async function anEvent(store, push, caller, { communityId, eventId }, now) {
+  if (!isId(communityId) || !isId(eventId)) return skip('bad request');
+  const path = `communities/${communityId}/events/${eventId}`;
+  const docs = await store.getAll(
+    [`communities/${communityId}`, path],
+    ['name', 'createdBy', 'title', 'startsAt', 'createdAt'],
+  );
+  const community = docs.get(`communities/${communityId}`);
+  const ev = docs.get(path);
+  if (!community || !ev || community.createdBy !== caller || ev.createdBy !== caller
+      || !fresh(ev.createdAt, now)) {
+    return skip('not news');
+  }
+  if (!(await firstTime(store, `event_${communityId}_${eventId}`, now))) return skip('already told');
+  const told = await membersOf(store, communityId, caller);
+  if (!told.length) return { sent: 0 };
+  return deliver(store, push, await devicesOf(store, told), (d) => {
+    const t = textFor(d.language);
+    return pushMessage({
+      token: d.token,
+      title: t.newEvent(community.name ?? ''),
+      body: `${ev.title ?? ''} · ${eventTime(ev.startsAt, d.language)}`,
+      data: { type: 'room', roomId: `c_${communityId}` },
+      group: `event_${eventId}`,
+    });
+  });
+}
+
+/**
+ * Every 15 minutes: events starting 15 to 30 minutes from now remind those
+ * going — each event once, since its window is only ever this one.
+ */
+export async function eventReminders(store, push, now = Date.now()) {
+  const soon = await store.find({
+    collection: 'events',
+    group: true,
+    field: 'startsAt',
+    op: '>=',
+    value: new Date(now + 15 * 60_000),
+    limit: 50,
+    fields: ['startsAt', 'going', 'title'],
+  });
+  let sent = 0;
+  for (const r of soon) {
+    const startsAt = Date.parse(r.data.startsAt);
+    if (!(startsAt < now + 30 * 60_000)) continue;
+    const going = (r.data.going ?? []).filter((u) => typeof u === 'string');
+    if (!going.length) continue;
+    if (!(await firstTime(store, `remind_${r.path.replaceAll('/', '_')}`, now))) continue;
+    const cid = r.path.split('/')[1];
+    const result = await deliver(store, push, await devicesOf(store, going), (d) =>
+      pushMessage({
+        token: d.token,
+        title: textFor(d.language).startingSoon(r.data.title ?? ''),
+        body: eventTime(r.data.startsAt, d.language),
+        data: { type: 'room', roomId: `c_${cid}` },
+        group: `event_${r.path.split('/').pop()}`,
+      }));
+    sent += result.sent ?? 0;
+  }
+  return sent;
+}
+
 /**
  * Announces [event], something [caller] says they just did. [push] sends
  * one message and says 'sent' or 'gone'. Returns what happened.
@@ -326,6 +413,8 @@ export function notify(store, push, caller, event, now = Date.now()) {
       return aConnection(store, push, caller, event, now, true);
     case 'post':
       return aPost(store, push, caller, event, now);
+    case 'event':
+      return anEvent(store, push, caller, event, now);
     default:
       return Promise.resolve(skip('unknown event'));
   }
