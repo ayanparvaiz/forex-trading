@@ -137,7 +137,13 @@ function encodeValue(v) {
   };
 }
 
-const OPS = { '==': 'EQUAL', 'array-contains': 'ARRAY_CONTAINS', in: 'IN', '<': 'LESS_THAN' };
+const OPS = {
+  '==': 'EQUAL',
+  'array-contains': 'ARRAY_CONTAINS',
+  in: 'IN',
+  '<': 'LESS_THAN',
+  '>=': 'GREATER_THAN_OR_EQUAL',
+};
 
 /**
  * The few Firestore calls erasing needs, over REST, each one counted.

@@ -181,6 +181,21 @@ export async function eraseAccount(store, uid) {
   });
   await eraseOnOthersPosts(store, writes, uid, { collection: 'claps', field: 'uid', counter: 'claps' });
 
+  // The events they said they were going to.
+  for (;;) {
+    const rows = await store.find({
+      collection: 'events',
+      group: true,
+      field: 'going',
+      op: 'array-contains',
+      value: uid,
+      limit: PAGE,
+    });
+    for (const r of rows) await writes.add({ pull: r.path, field: 'going', value: uid });
+    await writes.flush();
+    if (rows.length < PAGE) break;
+  }
+
   // The likes they gave other people's comments.
   for (;;) {
     const rows = await store.find({

@@ -74,6 +74,9 @@ export async function deleteCommunity(store, cid) {
     if (rows.length < MEMBERS_PAGE) break;
   }
 
+  // Whatever else is under it — its events.
+  await eraseBelow(store, writes, community);
+
   const room = `rooms/c_${cid}`;
   await eraseBelow(store, writes, room);
   await writes.add({ delete: room });

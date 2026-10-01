@@ -255,3 +255,10 @@ test('the admin going takes their community with them, and everyone in it leaves
   assert.equal(docs.get('users/u-ana').communityId, '', 'Ana is in no community now');
   assert.equal(docs.has('users/u-me'), false);
 });
+
+test("out of the events they were going to, and nobody else's", async () => {
+  const docs = world();
+  docs.set('communities/bulls1/events/e1', { title: 'Chart review', going: [ME, 'u-ana'] });
+  await eraseAccount(memoryStore(docs), ME);
+  assert.deepEqual(docs.get('communities/bulls1/events/e1').going, ['u-ana']);
+});

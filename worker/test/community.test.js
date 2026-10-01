@@ -30,6 +30,7 @@ function world() {
     'posts/p1': { authorUid: 'u-bo', community: 'bulls1', commentCount: 1 },
     'posts/p1/comments/c1': { authorUid: 'u-cy' },
     'posts/p1/claps/u-ana': { uid: 'u-ana' },
+    'communities/bulls1/events/e1': { title: 'Chart review', going: ['u-bo'] },
 
     'communities/bears1': { name: 'Bears', nameLower: 'bears', createdBy: 'u-di', memberCount: 1 },
     'communities/bears1/members/u-di': { role: 'admin' },

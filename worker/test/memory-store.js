@@ -24,6 +24,8 @@ export function memoryStore(docs, { budget = Infinity } = {}) {
         return value.includes(v);
       case '<':
         return asNumber(v) < asNumber(value);
+      case '>=':
+        return asNumber(v) >= asNumber(value);
       default:
         return v === value;
     }
