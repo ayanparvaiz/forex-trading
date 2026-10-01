@@ -54,10 +54,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.runAsync(() async {
       for (final a in CommunityAvatars.all) {
-        (await vg.loadPicture(
-          SvgAssetLoader(a.asset),
-          null,
-        )).picture.dispose();
+        (await vg.loadPicture(SvgAssetLoader(a.asset), null)).picture.dispose();
       }
     });
     final key = GlobalKey();
