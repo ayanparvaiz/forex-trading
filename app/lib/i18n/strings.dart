@@ -263,6 +263,19 @@ class Strings {
   String get calculation => _t('হিসাব', 'The maths');
   String get sizeFromRisk => _t('রিস্ক থেকে সাইজ', 'Size from risk');
   String get positionSize => _t('পজিশন সাইজ', 'Position size');
+  String get riskCalculator => _t('রিস্ক ক্যালকুলেটর', 'Risk calculator');
+  String get riskCalculatorIntro => _t(
+    'ট্রেড নেওয়ার আগে হিসাব: কত হারাতে রাজি, স্টপ কত দূরে — সাইজ নিজে থেকেই বের হয়।',
+    'Before the trade: how much you will lose if wrong, and how far the '
+        'stop is — the size follows from those.',
+  );
+  String get riskPerTrade => _t('প্রতি ট্রেডে রিস্ক', 'Risk per trade');
+  String get stopDistancePips => _t('স্টপ কত পিপ দূরে', 'Stop distance (pips)');
+  String get rewardToRisk => _t('রিওয়ার্ড : রিস্ক', 'Reward : risk');
+  String pipValueLine(String perLot, String perSize) => _t(
+    '১ লটে ১ পিপ = $perLot · এই সাইজে = $perSize',
+    '1 pip on 1 lot = $perLot · at this size = $perSize',
+  );
   String get units => _t('ইউনিট', 'units');
   String get ifYouLose => _t('হারলে', 'If wrong');
   String get ifYouWin => _t('জিতলে', 'If right');
