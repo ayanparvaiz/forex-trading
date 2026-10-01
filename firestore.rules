@@ -788,6 +788,39 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/rooms/$(roomId)/messages/$(r.id)).data.senderUid == r.senderUid;
     }
 
+    function roomMessagePath(roomId, id) {
+      return /databases/$(database)/documents/rooms/$(roomId)/messages/$(id);
+    }
+
+    // A community's admin pins one message for everyone, or takes the pin
+    // down. And whoever unsends the pinned message takes the pin down with
+    // it, so a pin never shows words that are gone.
+    function roomPinOk(roomId) {
+      let o = resource.data;
+      let n = request.resource.data;
+      return n.diff(o).affectedKeys().hasOnly(['pinned'])
+        && ((roomId != 'global'
+             && get(communityPath(roomId.split('_')[1])).data.createdBy == request.auth.uid
+             && (n.pinned == null || pinOk(roomId, n.pinned)))
+            || (n.pinned == null
+                && o.get('pinned', null) != null
+                && getAfter(roomMessagePath(roomId, o.pinned.id)).data.unsent == true));
+    }
+
+    // The pin says exactly what the message says.
+    function pinOk(roomId, p) {
+      let msg = get(roomMessagePath(roomId, p.id)).data;
+      return p is map
+        && p.keys().hasOnly(['id', 'senderUid', 'senderName', 'text'])
+        && p.keys().hasAll(['id', 'senderUid', 'senderName', 'text'])
+        && msg.unsent == false
+        && p.text is string
+        && p.text.size() > 0
+        && p.text == msg.text
+        && p.senderUid == msg.senderUid
+        && p.senderName == msg.senderName;
+    }
+
     match /rooms/{roomId} {
       allow read: if isSignedIn() && canUseRoom(roomId);
       allow delete: if false;
@@ -805,7 +838,8 @@ service cloud.firestore {
         && request.resource.data.lastMessage == null
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time;
-      allow update: if isSignedIn() && (roomPreviewOk(roomId) || roomCountOk(roomId));
+      allow update: if isSignedIn()
+        && (roomPreviewOk(roomId) || roomCountOk(roomId) || roomPinOk(roomId));
 
       // Your membership, and how far you have read. Nobody else's business.
       match /members/{uid} {
