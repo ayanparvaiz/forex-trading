@@ -815,8 +815,21 @@ class FirestoreCommunityRepository implements CommunityRepository {
     Object? cursor,
     int limit = 8,
     String community = 'global',
+    bool connectionsOnly = false,
   }) async {
     final state = cursor is _FeedCursor ? cursor : const _FeedCursor();
+
+    if (connectionsOnly) {
+      final page = await _connectionPosts(state, limit, community);
+      if (page == null) return const ResultPage.empty();
+      // Only the first pass: done when it would hand over to everyone's.
+      final next = page.cursor as _FeedCursor;
+      return ResultPage(
+        items: page.items,
+        cursor: next,
+        hasMore: next.phase == _FeedPhase.connections,
+      );
+    }
 
     if (state.phase == _FeedPhase.connections) {
       final page = await _connectionPosts(state, limit, community);

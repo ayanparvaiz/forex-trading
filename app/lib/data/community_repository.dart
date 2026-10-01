@@ -39,10 +39,13 @@ abstract class CommunityRepository {
     String community = 'global',
   });
 
+  /// [connectionsOnly]: just the posts of people the reader is connected
+  /// to, newest first — none of everyone else's after them.
   Future<ResultPage<FeedPost>> feed({
     Object? cursor,
     int limit = 8,
     String community = 'global',
+    bool connectionsOnly = false,
   });
 
   Future<Trader?> trader(String username);
@@ -313,7 +316,11 @@ class LocalCommunityRepository implements CommunityRepository {
     Object? cursor,
     int limit = 8,
     String community = 'global',
+    bool connectionsOnly = false,
   }) async {
+    // Nobody here is connected to anybody in a feed: the seeded posts are
+    // everyone's.
+    if (connectionsOnly) return const ResultPage.empty();
     return _slice(MockCommunity.liveFeed(language), cursor, limit);
   }
 
