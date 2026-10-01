@@ -40,6 +40,20 @@ service cloud.firestore {
       return c.get('locked', false) != true || c.createdBy == request.auth.uid;
     }
 
+    /// A reaction to a message: one each, only your own, from the six the
+    /// app offers (app/lib/models/chat.dart, reactionEmojis) — and none on a
+    /// message that has been unsent.
+    function reactionOk() {
+      let before = resource.data.get('reactions', {});
+      let after = request.resource.data.get('reactions', {});
+      return resource.data.unsent == false
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
+        && after is map
+        && after.diff(before).affectedKeys().hasOnly([request.auth.uid])
+        && (!(request.auth.uid in after)
+            || after[request.auth.uid] in ['👍', '❤️', '😂', '😮', '😢', '🔥']);
+    }
+
     /// Whether either of two people has blocked the other.
     function blockedEitherWay(a, b) {
       return exists(/databases/$(database)/documents/users/$(a)/blocks/$(b))
@@ -708,14 +722,20 @@ service cloud.firestore {
 
         // Unsending blanks the text and flags it; the message keeps its place
         // so the conversation still makes sense around it. Only the sender.
+        // Either of them may react, while neither has blocked the other.
         allow update: if isSignedIn()
-          && resource.data.senderUid == request.auth.uid
-          && request.resource.data.diff(resource.data).affectedKeys()
-               .hasOnly(['text', 'unsent', 'attachment'])
-          // What was shared goes with the words.
-          && !('attachment' in request.resource.data)
-          && request.resource.data.unsent == true
-          && request.resource.data.text == '';
+          && ((resource.data.senderUid == request.auth.uid
+               && request.resource.data.diff(resource.data).affectedKeys()
+                    .hasOnly(['text', 'unsent', 'attachment'])
+               // What was shared goes with the words.
+               && !('attachment' in request.resource.data)
+               && request.resource.data.unsent == true
+               && request.resource.data.text == '')
+              || (request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.uids
+                  && reactionOk()
+                  && !blockedEitherWay(
+                       get(/databases/$(database)/documents/chats/$(chatId)).data.uids[0],
+                       get(/databases/$(database)/documents/chats/$(chatId)).data.uids[1])));
 
         allow delete: if false;
       }
@@ -885,15 +905,20 @@ service cloud.firestore {
           && (!('forwarded' in request.resource.data)
               || request.resource.data.forwarded == true);
 
-        // Unsending: the sender blanks their own, as in a chat.
+        // Unsending: the sender blanks their own, as in a chat. Reacting:
+        // any member, where they could write.
         allow update: if isSignedIn()
-          && resource.data.senderUid == request.auth.uid
-          && request.resource.data.diff(resource.data).affectedKeys()
-               .hasOnly(['text', 'unsent', 'attachment'])
-          // What was shared goes with the words.
-          && !('attachment' in request.resource.data)
-          && request.resource.data.unsent == true
-          && request.resource.data.text == '';
+          && ((resource.data.senderUid == request.auth.uid
+               && request.resource.data.diff(resource.data).affectedKeys()
+                    .hasOnly(['text', 'unsent', 'attachment'])
+               // What was shared goes with the words.
+               && !('attachment' in request.resource.data)
+               && request.resource.data.unsent == true
+               && request.resource.data.text == '')
+              || (isMember(roomId)
+                  && canUseRoom(roomId)
+                  && (roomId == 'global' || communityOpenTo(roomId.split('_')[1]))
+                  && reactionOk()));
         allow delete: if false;
       }
     }
