@@ -1106,6 +1106,40 @@ service cloud.firestore {
                                   request.resource.data.createdBy))));
       allow delete: if false;
 
+      // Its events: the admin plans them, members say they are going. For
+      // its members to see, like its feed and its chat.
+      match /events/{eventId} {
+        allow read: if isSignedIn() && myCommunity() == cid;
+        allow create: if isSignedIn()
+          && get(communityPath(cid)).data.createdBy == request.auth.uid
+          && request.resource.data.keys()
+               .hasOnly(['title', 'description', 'startsAt', 'createdBy', 'createdAt', 'going'])
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.title is string
+          && request.resource.data.title.size() >= 3
+          && request.resource.data.title.size() <= 80
+          && request.resource.data.description is string
+          && request.resource.data.description.size() <= 300
+          && request.resource.data.startsAt is timestamp
+          && request.resource.data.startsAt > request.time
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.going == [];
+        // Going, or not: your own uid in the list, or out of it.
+        allow update: if isSignedIn()
+          && myCommunity() == cid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['going'])
+          && request.resource.data.going is list
+          && request.resource.data.going.size() == request.resource.data.going.toSet().size()
+          && ((!(request.auth.uid in resource.data.going)
+               && request.resource.data.going.toSet()
+                    == resource.data.going.toSet().union([request.auth.uid].toSet()))
+              || (request.auth.uid in resource.data.going
+               && request.resource.data.going.toSet()
+                    == resource.data.going.toSet().difference([request.auth.uid].toSet())));
+        allow delete: if isSignedIn()
+          && get(communityPath(cid)).data.createdBy == request.auth.uid;
+      }
+
       // Who is in it. Public, like connections: a community's members are
       // what a community is.
       match /members/{uid} {

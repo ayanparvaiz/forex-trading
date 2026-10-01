@@ -196,6 +196,28 @@
   ],
   "fieldOverrides": [
     {
+      "comment": "Deleting an account: the events it said it was going to.",
+      "collectionGroup": "events",
+      "fieldPath": "going",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "order": "DESCENDING", "queryScope": "COLLECTION" },
+        { "arrayConfig": "CONTAINS", "queryScope": "COLLECTION" },
+        { "arrayConfig": "CONTAINS", "queryScope": "COLLECTION_GROUP" }
+      ]
+    },
+    {
+      "comment": "Reminders: every community's events starting soon.",
+      "collectionGroup": "events",
+      "fieldPath": "startsAt",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "order": "DESCENDING", "queryScope": "COLLECTION" },
+        { "arrayConfig": "CONTAINS", "queryScope": "COLLECTION" },
+        { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }
+      ]
+    },
+    {
       "comment": "Deleting an account: the likes it gave other people's comments.",
       "collectionGroup": "comments",
       "fieldPath": "likedBy",
