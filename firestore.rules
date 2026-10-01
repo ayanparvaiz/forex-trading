@@ -417,6 +417,28 @@ service cloud.firestore {
           == request.auth.uid;
       }
 
+      // A like on a comment: your own uid into its list, or out of it, and
+      // nothing else.
+      function commentLikeOk() {
+        let before = resource.data.get('likedBy', []);
+        let after = request.resource.data.get('likedBy', []);
+        let me = [request.auth.uid].toSet();
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likedBy'])
+          && after is list
+          && after.size() == after.toSet().size()
+          && ((!(request.auth.uid in before) && after.toSet() == before.toSet().union(me))
+              || (request.auth.uid in before && after.toSet() == before.toSet().difference(me)));
+      }
+
+      // A reply names the comment it answers, on this same post, and whose.
+      function commentReplyOk(r) {
+        return r is map
+          && r.keys().hasOnly(['id', 'authorUid', 'name'])
+          && r.keys().hasAll(['id', 'authorUid', 'name'])
+          && get(/databases/$(database)/documents/posts/$(postId)/comments/$(r.id)).data.authorUid
+               == r.authorUid;
+      }
+
       match /comments/{commentId} {
         allow read: if isSignedIn() && canSee(thePost());
         allow create: if isSignedIn()
@@ -424,9 +446,18 @@ service cloud.firestore {
           && request.resource.data.authorUid == request.auth.uid
           && request.resource.data.body is string
           && request.resource.data.body.size() > 0
-          && request.resource.data.body.size() <= 1000;
+          && request.resource.data.body.size() <= 1000
+          // Born with no likes, and a reply only to a real comment.
+          && !('likedBy' in request.resource.data)
+          && (!('replyTo' in request.resource.data)
+              || commentReplyOk(request.resource.data.replyTo));
+        // Its author edits their own words — never its likes or what it
+        // replies to. Anyone who can see the post likes it, or stops.
         allow update: if isSignedIn()
-          && resource.data.authorUid == request.auth.uid;
+          && ((resource.data.authorUid == request.auth.uid
+               && !request.resource.data.diff(resource.data).affectedKeys()
+                     .hasAny(['likedBy', 'replyTo', 'authorUid']))
+              || (canSee(thePost()) && commentLikeOk()));
         allow delete: if isSignedIn()
           && (resource.data.authorUid == request.auth.uid || isPostAuthor());
       }
