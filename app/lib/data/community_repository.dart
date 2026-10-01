@@ -26,6 +26,10 @@ abstract class CommunityRepository {
   /// looking at it, not on the next pull-to-refresh.
   Stream<List<Trader>> watchLeaderboard({int limit = leaderboardLimit});
 
+  /// This week's board, live: traders with three or more trades closed this
+  /// week, ranked on those alone. Each row's numbers are the week's.
+  Stream<List<Trader>> watchWeeklyLeaderboard({int limit = leaderboardLimit});
+
   /// How many posts have appeared since [since], live, up to [cap].
   ///
   /// A count rather than the posts themselves. Dropping new posts into a feed
@@ -302,6 +306,13 @@ class LocalCommunityRepository implements CommunityRepository {
   }) => Stream.value(0);
 
   /// One snapshot and done: nothing on this device changes anyone else's row.
+  /// Nobody on this phone trades in weeks: the seeded accounts have totals
+  /// and no dates.
+  @override
+  Stream<List<Trader>> watchWeeklyLeaderboard({
+    int limit = CommunityRepository.leaderboardLimit,
+  }) => Stream.value(const []);
+
   @override
   Stream<List<Trader>> watchLeaderboard({
     int limit = CommunityRepository.leaderboardLimit,

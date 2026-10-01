@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
+import '../core/week.dart';
 import '../i18n/strings.dart';
 import '../models/connection.dart';
 import '../models/post_comment.dart';
@@ -232,6 +233,32 @@ class FirestoreCommunityRepository implements CommunityRepository {
         .limit(limit)
         .snapshots()
         .map((s) => [for (final d in s.docs) _traderFrom(d.data())]);
+  }
+
+  @override
+  Stream<List<Trader>> watchWeeklyLeaderboard({
+    int limit = CommunityRepository.leaderboardLimit,
+  }) {
+    // Only this week's id: last week's rows are still written, under last
+    // week's name, and are simply never asked for.
+    return _users
+        .where('weekBoard', isEqualTo: weekId(DateTime.now()))
+        .orderBy('weekScore', descending: true)
+        .orderBy('weekTrades', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map(
+          (s) => [
+            for (final d in s.docs)
+              _traderFrom({
+                ...d.data(),
+                // The row shows the week's numbers in place of the totals.
+                'disciplineScore': d.data()['weekScore'],
+                'tradeCount': d.data()['weekTrades'],
+                'totalR': d.data()['weekR'],
+              }),
+          ],
+        );
   }
 
   @override
