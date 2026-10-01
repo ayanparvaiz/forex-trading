@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { MAX_PUSHES, dailyReminder, forgetOldAnnouncements, notify } from '../src/notify.js';
+import { MAX_PUSHES, dailyReminder, forgetOldAnnouncements, mentionsIn, notify } from '../src/notify.js';
 import { memoryStore } from './memory-store.js';
 
 const NOW = Date.parse('2026-09-26T10:00:00Z');
@@ -207,4 +207,55 @@ test('old announcements are forgotten, recent ones kept', async () => {
   await forgetOldAnnouncements(memoryStore(docs), NOW);
   assert.equal(docs.has('pushLog/old'), false);
   assert.equal(docs.has('pushLog/new'), true);
+});
+
+test('@names: up to five, and never inside a word', () => {
+  assert.deepEqual(mentionsIn('@ana look at this, @Bobby'), ['ana', 'bobby']);
+  assert.deepEqual(mentionsIn('mail me at me@ana.com'), []);
+  assert.deepEqual(mentionsIn('@ab is too short'), []);
+  assert.deepEqual(mentionsIn('@aaa @bbb @ccc @ddd @eee @fff'), ['aaa', 'bbb', 'ccc', 'ddd', 'eee']);
+});
+
+/** A Global message from me naming [text]; Cy is not in the room. */
+function mentioning(text) {
+  const docs = world();
+  docs.set('usernames/ana', { uid: 'u-ana' });
+  docs.set('usernames/cyrus', { uid: 'u-cy' });
+  docs.set('users/u-cy', { displayName: 'Cy', username: 'cyrus' });
+  docs.set('users/u-cy/devices/tok-cy', { uid: 'u-cy', language: 'en' });
+  docs.set('rooms/global/messages/g9', { senderUid: 'u-me', senderName: 'Me', text, sentAt: ago(1), unsent: false });
+  return docs;
+}
+
+test('someone named is told so — even with the room muted', async () => {
+  const docs = mentioning('@ana your stop is in the wrong place');
+  docs.set('users/u-ana/chatPrefs/global', { mutedUntil: '9999-12-31T00:00:00Z' });
+  const { sent } = await run(docs, 'u-me', { type: 'room', roomId: 'global', messageId: 'g9' });
+  const byToken = Object.fromEntries(sent.map((m) => [m.token, m]));
+  assert.equal(byToken['tok-ana'].notification.title, 'Me mentioned you');
+  assert.equal(byToken['tok-ana'].notification.body, 'Global: @ana your stop is in the wrong place');
+  // Everyone else hears it the usual way.
+  assert.equal(byToken['tok-bo'].notification.title, 'গ্লোবাল');
+});
+
+test('in Global, someone named who never joined is told too', async () => {
+  const { sent } = await run(mentioning('welcome @cyrus'), 'u-me', { type: 'room', roomId: 'global', messageId: 'g9' });
+  assert.ok(sent.some((m) => m.token === 'tok-cy' && m.notification.title === 'Me mentioned you'));
+});
+
+test('not someone who blocked the sender, named or not', async () => {
+  const docs = mentioning('@ana look');
+  docs.set('users/u-ana/blocks/u-me', { username: 'me' });
+  const { sent } = await run(docs, 'u-me', { type: 'room', roomId: 'global', messageId: 'g9' });
+  assert.ok(!sent.some((m) => m.token.startsWith('tok-ana')));
+});
+
+test("in a community's room, only its members — naming an outsider tells no one extra", async () => {
+  const docs = mentioning('');
+  docs.set('rooms/c_bulls1', { name: 'Bulls', memberCount: 2 });
+  docs.set('rooms/c_bulls1/members/u-me', {});
+  docs.set('rooms/c_bulls1/members/u-bo', {});
+  docs.set('rooms/c_bulls1/messages/b1', { senderUid: 'u-me', senderName: 'Me', text: '@cyrus come join', sentAt: ago(1), unsent: false });
+  const { sent } = await run(docs, 'u-me', { type: 'room', roomId: 'c_bulls1', messageId: 'b1' });
+  assert.deepEqual(sent.map((m) => m.token), ['tok-bo']);
 });

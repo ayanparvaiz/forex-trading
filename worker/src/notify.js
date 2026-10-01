@@ -28,6 +28,7 @@ const isRoom = (id) => id === 'global' || (typeof id === 'string' && /^c_[A-Za-z
 const TEXT = {
   bn: {
     global: 'গ্লোবাল',
+    mentioned: (who) => `${who} আপনাকে উল্লেখ করেছেন`,
     post: '📊 পোস্ট',
     rank: '🏅 লিডারবোর্ড র‍্যাংক',
     request: 'আপনাকে কানেকশন রিকোয়েস্ট পাঠিয়েছেন',
@@ -38,6 +39,7 @@ const TEXT = {
   },
   en: {
     global: 'Global',
+    mentioned: (who) => `${who} mentioned you`,
     post: '📊 Post',
     rank: '🏅 Leaderboard rank',
     request: 'sent you a connection request',
@@ -162,6 +164,19 @@ async function aMessage(store, push, caller, { chatId, messageId }, now) {
     }));
 }
 
+/**
+ * Usernames named with @ in [text] — at most five, so one message cannot
+ * page a crowd. An @ inside a word (an email address) names nobody.
+ */
+export function mentionsIn(text) {
+  const names = new Set();
+  for (const m of (text ?? '').matchAll(/(?:^|[^A-Za-z0-9_@])@([A-Za-z0-9_]{3,20})(?![A-Za-z0-9_])/g)) {
+    names.add(m[1].toLowerCase());
+    if (names.size === 5) break;
+  }
+  return [...names];
+}
+
 async function aRoomMessage(store, push, caller, { roomId, messageId }, now) {
   if (!isRoom(roomId) || !isId(messageId)) return skip('bad request');
   const docs = await store.getAll(
@@ -175,30 +190,49 @@ async function aRoomMessage(store, push, caller, { roomId, messageId }, now) {
   }
   if (!(await firstTime(store, `room_${roomId}_${messageId}`, now))) return skip('already told');
 
-  // Members only: joining is what asks for these.
+  // Members: joining is what asks for these.
   const members = (await store.find({ parent: `rooms/${roomId}`, collection: 'members', limit: 300 }))
     .map((r) => r.path.split('/').pop())
     .filter((uid) => uid !== caller);
-  if (!members.length) return { sent: 0 };
+
+  // Anyone named with @ is told even if they muted the room. Global anyone
+  // can read, so whoever is named; a community's room, only its members.
+  const named = mentionsIn(msg.text);
+  let mentioned = new Set();
+  if (named.length) {
+    const claims = await store.getAll(named.map((n) => `usernames/${n}`), ['uid']);
+    for (const n of named) {
+      const uid = claims.get(`usernames/${n}`)?.uid;
+      if (uid && uid !== caller) mentioned.add(uid);
+    }
+    if (roomId !== 'global') mentioned = new Set([...mentioned].filter((u) => members.includes(u)));
+  }
+
+  const audience = [...new Set([...members, ...mentioned])];
+  if (!audience.length) return { sent: 0 };
   const found = await store.getAll(
     [
-      ...members.map((m) => `users/${m}/blocks/${caller}`),
-      ...members.map((m) => `users/${m}/chatPrefs/${roomId}`),
+      ...audience.map((m) => `users/${m}/blocks/${caller}`),
+      ...audience.map((m) => `users/${m}/chatPrefs/${roomId}`),
     ],
     ['mutedUntil'],
   );
-  const told = members.filter(
+  const told = audience.filter(
     (m) => !found.get(`users/${m}/blocks/${caller}`)
-      && !muted(found.get(`users/${m}/chatPrefs/${roomId}`), now),
+      && (mentioned.has(m) || !muted(found.get(`users/${m}/chatPrefs/${roomId}`), now)),
   );
 
   return deliver(store, push, await devicesOf(store, told), (d) => {
     const t = textFor(d.language);
+    // Global in their language; a community's room by its name.
+    const where = roomId === 'global' ? t.global : room.name ?? '';
+    const words = preview(t, msg.text ?? '', msg.attachment);
+    const sender = msg.senderName ?? '';
+    const forThem = mentioned.has(d.path.split('/')[1]);
     return pushMessage({
       token: d.token,
-      // Global in their language; a community's room by its name.
-      title: roomId === 'global' ? t.global : room.name ?? '',
-      body: `${msg.senderName ?? ''}: ${preview(t, msg.text ?? '', msg.attachment)}`,
+      title: forThem ? t.mentioned(sender) : where,
+      body: forThem ? `${where}: ${words}` : `${sender}: ${words}`,
       data: { type: 'room', roomId },
       group: roomId,
     });
