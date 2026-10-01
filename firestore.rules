@@ -185,8 +185,12 @@ service cloud.firestore {
         && unchanged('username')
         && unchanged('createdAt')
         && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['displayName', 'nameLower', 'gender', 'language', 'avatarId', 'communityId'])
+             .hasOnly(['displayName', 'nameLower', 'gender', 'language', 'avatarId', 'communityId',
+                       'lessonsDone'])
         && communityIdOk()
+        // The lessons passed: only the ones there are (app/lib/models/lesson.dart).
+        && request.resource.data.get('lessonsDone', []).toSet()
+             .hasOnly(['risk', 'stop', 'reward', 'revenge', 'journal'])
         && request.resource.data.displayName is string
         && request.resource.data.displayName.size() > 0
         && request.resource.data.displayName.size() <= 40
