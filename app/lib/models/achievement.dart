@@ -98,6 +98,14 @@ class Achievement {
       '২০টা ট্রেডের পরও ডিসিপ্লিন ৯০+',
       'A discipline score of 90+ across twenty trades',
     ),
+    Achievement(
+      'scholar',
+      '📚',
+      'শিক্ষার্থী',
+      'Scholar',
+      'সবগুলো লেসনের কুইজ পাস করুন',
+      "Pass every lesson's quiz",
+    ),
   ];
 
   /// The ones in [ids] this version knows, in order. An id from a newer
