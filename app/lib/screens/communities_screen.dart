@@ -15,19 +15,30 @@ Future<void> openCommunities(BuildContext context) => Navigator.of(
   context,
 ).push(MaterialPageRoute<void>(builder: (_) => const CommunitiesScreen()));
 
+/// Every community, on a screen of its own — from Settings.
+class CommunitiesScreen extends StatelessWidget {
+  const CommunitiesScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: Text(context.s.communities)),
+    body: const CommunitiesView(),
+  );
+}
+
 /// Every community, best first, with yours on top.
 ///
 /// Best means points: members high on the leaderboard count for more than
 /// members in number, so a small community of careful traders can outrank a
 /// big one. Anyone can join any of them, no approval — one at a time.
-class CommunitiesScreen extends StatefulWidget {
-  const CommunitiesScreen({super.key});
+class CommunitiesView extends StatefulWidget {
+  const CommunitiesView({super.key});
 
   @override
-  State<CommunitiesScreen> createState() => _CommunitiesScreenState();
+  State<CommunitiesView> createState() => _CommunitiesViewState();
 }
 
-class _CommunitiesScreenState extends State<CommunitiesScreen> {
+class _CommunitiesViewState extends State<CommunitiesView> {
   CommunitiesRepository? _repo;
   Stream<List<(Community, int)>>? _ranked;
 
@@ -76,89 +87,86 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
     final s = context.s;
     final mine = context.session.profile?.communityId;
 
-    return Scaffold(
-      appBar: AppBar(title: Text(s.communities)),
-      body: StreamBuilder<List<(Community, int)>>(
-        stream: _ranked,
-        builder: (context, snap) {
-          if (snap.hasError) {
-            return _Retry(onRetry: () => setState(_watch));
-          }
-          final ranked = snap.data;
-          final myIndex = ranked?.indexWhere((r) => r.$1.id == mine) ?? -1;
+    return StreamBuilder<List<(Community, int)>>(
+      stream: _ranked,
+      builder: (context, snap) {
+        if (snap.hasError) {
+          return _Retry(onRetry: () => setState(_watch));
+        }
+        final ranked = snap.data;
+        final myIndex = ranked?.indexWhere((r) => r.$1.id == mine) ?? -1;
 
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.xxl),
-            children: [
-              _Heading(s.yourCommunity),
-              if (mine == null)
-                Text(
-                  s.noCommunityYet,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    height: 1.45,
-                    color: AppColors.textSecondary,
-                  ),
-                )
-              else if (myIndex >= 0)
-                _YourCommunity(
-                  community: ranked![myIndex].$1,
-                  points: ranked[myIndex].$2,
-                  rank: myIndex + 1,
-                )
-              else if (ranked != null)
-                // Past the end of the list: still yours, without a rank.
-                StreamBuilder<Community?>(
-                  stream: _watchMine(mine),
-                  builder: (context, one) => one.data == null
-                      ? const SizedBox(height: 72)
-                      : _YourCommunity(community: one.data!),
-                ),
-              Gap.h12,
-              OutlinedButton.icon(
-                onPressed: () => openStartCommunity(context),
-                icon: const Icon(Icons.add_rounded, size: 20),
-                label: Text(s.startCommunity),
-              ),
-              Gap.h24,
-              _Heading(s.allCommunities),
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.xxl),
+          children: [
+            _Heading(s.yourCommunity),
+            if (mine == null)
               Text(
-                s.pointsExplain,
+                s.noCommunityYet,
                 style: const TextStyle(
-                  fontSize: 12,
-                  height: 1.4,
-                  color: AppColors.textMuted,
+                  fontSize: 14,
+                  height: 1.45,
+                  color: AppColors.textSecondary,
                 ),
+              )
+            else if (myIndex >= 0)
+              _YourCommunity(
+                community: ranked![myIndex].$1,
+                points: ranked[myIndex].$2,
+                rank: myIndex + 1,
+              )
+            else if (ranked != null)
+              // Past the end of the list: still yours, without a rank.
+              StreamBuilder<Community?>(
+                stream: _watchMine(mine),
+                builder: (context, one) => one.data == null
+                    ? const SizedBox(height: 72)
+                    : _YourCommunity(community: one.data!),
               ),
-              Gap.h8,
-              if (ranked == null)
-                const Padding(
-                  padding: EdgeInsets.all(Gap.xl),
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              else if (ranked.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: Gap.xl),
-                  child: Text(
-                    s.noCommunities,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: AppColors.textMuted),
-                  ),
-                )
-              else
-                for (final (i, (c, points)) in ranked.indexed)
-                  _CommunityRow(
-                    community: c,
-                    points: points,
-                    rank: i + 1,
-                    isMine: c.id == mine,
-                    joining: _joining == c.id,
-                    onJoin: _joining == null ? () => _join(c) : null,
-                  ),
-            ],
-          );
-        },
-      ),
+            Gap.h12,
+            OutlinedButton.icon(
+              onPressed: () => openStartCommunity(context),
+              icon: const Icon(Icons.add_rounded, size: 20),
+              label: Text(s.startCommunity),
+            ),
+            Gap.h24,
+            _Heading(s.allCommunities),
+            Text(
+              s.pointsExplain,
+              style: const TextStyle(
+                fontSize: 12,
+                height: 1.4,
+                color: AppColors.textMuted,
+              ),
+            ),
+            Gap.h8,
+            if (ranked == null)
+              const Padding(
+                padding: EdgeInsets.all(Gap.xl),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (ranked.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: Gap.xl),
+                child: Text(
+                  s.noCommunities,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppColors.textMuted),
+                ),
+              )
+            else
+              for (final (i, (c, points)) in ranked.indexed)
+                _CommunityRow(
+                  community: c,
+                  points: points,
+                  rank: i + 1,
+                  isMine: c.id == mine,
+                  joining: _joining == c.id,
+                  onJoin: _joining == null ? () => _join(c) : null,
+                ),
+          ],
+        );
+      },
     );
   }
 }
