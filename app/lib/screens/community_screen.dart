@@ -22,6 +22,7 @@ import '../models/trader.dart';
 import '../theme/app_theme.dart';
 import '../widgets/avatar_image.dart';
 import '../widgets/common.dart';
+import '../widgets/community_badge.dart';
 import '../widgets/feed_picker.dart';
 import '../widgets/forward_sheet.dart';
 import '../widgets/medal_pill.dart';
@@ -142,6 +143,7 @@ class _CommunityScreenState extends State<CommunityScreen>
       journalStreak: stats.journalStreak,
       cohort: profile.cohort,
       isYou: true,
+      communityId: profile.communityId,
     );
   }
 
@@ -287,6 +289,25 @@ class _Leaderboard extends StatefulWidget {
 class _LeaderboardState extends State<_Leaderboard> {
   late Stream<List<Trader>> _board = widget.repository.watchLeaderboard();
 
+  /// Every community by id, for the badge beside each trader's name.
+  Map<String, Community> _communities = const {};
+  StreamSubscription<List<Community>>? _following;
+
+  @override
+  void initState() {
+    super.initState();
+    _following = buildCommunitiesRepository()?.watchAll().listen(
+      (all) => setState(() => _communities = {for (final c in all) c.id: c}),
+      onError: (Object e) => debugPrint('communities failed: $e'),
+    );
+  }
+
+  @override
+  void dispose() {
+    _following?.cancel();
+    super.dispose();
+  }
+
   @override
   void didUpdateWidget(_Leaderboard old) {
     super.didUpdateWidget(old);
@@ -375,9 +396,11 @@ class _LeaderboardState extends State<_Leaderboard> {
             child: Center(child: status),
           );
         }
+        final trader = rows[i - 1];
         return _LeaderboardRow(
           rank: i,
-          trader: rows[i - 1],
+          trader: trader,
+          community: _communities[trader.communityId],
           s: s,
           repository: widget.repository,
         );
@@ -773,10 +796,14 @@ class _LeaderboardRow extends StatelessWidget {
     required this.trader,
     required this.s,
     required this.repository,
+    this.community,
   });
 
   final int rank;
   final Trader trader;
+
+  /// The community they are in, shown by its picture beside the name.
+  final Community? community;
   final Strings s;
   final CommunityRepository repository;
 
@@ -843,6 +870,18 @@ class _LeaderboardRow extends StatelessWidget {
                         '${trader.badge.tier.isTop ? trader.badge.level : ''}',
                         style: const TextStyle(fontSize: 12),
                       ),
+                      if (community case final c?) ...[
+                        Gap.w4,
+                        Tooltip(
+                          message: c.name,
+                          child: CommunityBadge(
+                            id: c.id,
+                            name: c.name,
+                            avatarId: c.avatarId,
+                            size: 16,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                   Gap.h4,
