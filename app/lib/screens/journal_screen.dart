@@ -10,6 +10,7 @@ import '../data/firestore_community_repository.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import 'post_composer_sheet.dart';
+import 'learn_screen.dart';
 import 'monthly_report_screen.dart';
 
 /// Trade history and the numbers derived from it.
@@ -31,6 +32,11 @@ class JournalScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(s.navJournal),
         actions: [
+          IconButton(
+            onPressed: () => openLearn(context),
+            icon: const Icon(Icons.school_outlined),
+            tooltip: s.learn,
+          ),
           IconButton(
             onPressed: () => openMonthlyReport(context),
             icon: const Icon(Icons.insights_rounded),
