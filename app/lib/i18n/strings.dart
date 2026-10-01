@@ -526,6 +526,10 @@ class Strings {
     "Couldn't do that — check your connection and try again.",
   );
   String get openChat => _t('চ্যাট খুলুন', 'Open chat');
+  String get pinMessage => _t('পিন করুন', 'Pin');
+  String get unpinMessage => _t('পিন সরান', 'Unpin');
+  String get pinnedLabel => _t('পিন করা', 'Pinned');
+  String get messagePinned => _t('মেসেজ পিন করা হয়েছে', 'Message pinned');
   String get viewCommunity => _t('কমিউনিটি দেখুন', 'View community');
   String get communityChatEmpty => _t(
     'এখানে শুধু সদস্যরা কথা বলে। প্রথম কথাটা আপনিই বলুন!',
