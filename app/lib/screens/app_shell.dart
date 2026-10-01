@@ -5,6 +5,7 @@ import '../data/session_controller.dart';
 import '../screens/community_screen.dart';
 import '../screens/journal_screen.dart';
 import '../screens/messages_screen.dart';
+import '../screens/onboarding_screen.dart';
 import '../screens/portfolio_screen.dart';
 import '../screens/trade_screen.dart';
 import '../theme/app_theme.dart';
@@ -22,6 +23,16 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Once the first frame is up, so the tour opens over the app rather
+    // than in place of it.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) maybeShowTour(context);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
