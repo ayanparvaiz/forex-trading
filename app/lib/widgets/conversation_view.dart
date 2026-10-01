@@ -914,7 +914,11 @@ class _ConversationViewState extends State<ConversationView> {
               mine: mine,
               tail: item.groupEnd,
               time: s.clock(m.sentAt),
-              unsentLabel: mine ? s.youUnsent : s.theyUnsent,
+              unsentLabel: m.removed
+                  ? s.removedByAdmin
+                  : mine
+                  ? s.youUnsent
+                  : s.theyUnsent,
               status: mine ? widget.statusOf?.call(m) : null,
               senderName: widget.showSenderNames && !mine && item.groupStart
                   ? _nameOf(m.senderUid, m)

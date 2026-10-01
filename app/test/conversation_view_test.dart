@@ -366,4 +366,24 @@ void main() {
     );
     expect(find.byType(ActionChip), findsNothing);
   });
+
+  testWidgets('a message the admin removed says so, not that it was unsent', (
+    tester,
+  ) async {
+    final source = await pump(tester, showSenderNames: true);
+    source.latest.add([
+      ChatMessage(
+        id: 'm1',
+        senderUid: 'u-x',
+        text: '',
+        sentAt: t0,
+        unsent: true,
+        pending: false,
+        removed: true,
+        senderName: 'Someone',
+      ),
+    ]);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Removed by the admin'), findsOneWidget);
+  });
 }

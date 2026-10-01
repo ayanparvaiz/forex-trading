@@ -147,6 +147,33 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _remove(ChatMessage m) async {
+    final rooms = _rooms;
+    if (rooms == null) return;
+    final s = context.s;
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await _confirm(
+      context,
+      title: s.removeMessageTitle,
+      body: s.removeMessageBody,
+      action: s.removeMessage,
+    );
+    if (!ok) return;
+    final room = _inbox?.room(widget.roomId);
+    try {
+      await rooms.remove(
+        roomId: widget.roomId,
+        message: m,
+        isLatest: room?.lastMessage?.id == m.id,
+        wasPinned: room?.pinned?.id == m.id,
+      );
+      messenger.showSnackBar(SnackBar(content: Text(s.messageRemoved)));
+    } catch (e) {
+      debugPrint('remove failed: $e');
+      messenger.showSnackBar(SnackBar(content: Text(s.couldNotSave)));
+    }
+  }
+
   Future<void> _unpin() async {
     final rooms = _rooms;
     if (rooms == null) return;
@@ -377,6 +404,14 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
                         : Icons.push_pin_outlined,
                     label: pinned?.id == m.id ? s.unpinMessage : s.pinMessage,
                     onSelected: () => pinned?.id == m.id ? _unpin() : _pin(m),
+                  ),
+                // The admin takes anyone else's message down.
+                if (isAdmin && m.senderUid != _me && !m.unsent && !m.pending)
+                  MessageAction(
+                    icon: Icons.remove_circle_outline_rounded,
+                    label: s.removeMessage,
+                    danger: true,
+                    onSelected: () => _remove(m),
                   ),
                 if (m.senderUid != _me && inbox?.safety != null)
                   MessageAction(
