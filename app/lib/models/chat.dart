@@ -65,6 +65,22 @@ class ChatPreview {
   final DateTime sentAt;
 }
 
+/// The message a community's admin has pinned at the top of its room —
+/// exactly as it was said.
+class PinnedMessage {
+  const PinnedMessage({
+    required this.id,
+    required this.senderUid,
+    required this.senderName,
+    required this.text,
+  });
+
+  final String id;
+  final String senderUid;
+  final String senderName;
+  final String text;
+}
+
 /// A room — a conversation for everyone — as the inbox lists it.
 class RoomInfo {
   const RoomInfo({
@@ -73,6 +89,7 @@ class RoomInfo {
     required this.memberCount,
     required this.updatedAt,
     required this.lastMessage,
+    this.pinned,
   });
 
   final String id;
@@ -82,6 +99,9 @@ class RoomInfo {
   /// When someone last wrote in it.
   final DateTime updatedAt;
   final ChatPreview? lastMessage;
+
+  /// Pinned by a community's admin, for everyone to see first.
+  final PinnedMessage? pinned;
 }
 
 /// You, in a room: how far you have read. Absent when you have not joined.

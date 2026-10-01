@@ -125,12 +125,27 @@ class RoomRepository {
     return message.id;
   }
 
+  /// Pins [message] at the top of the room, for everyone — its admin only.
+  Future<void> pin(String roomId, ChatMessage message) => _room(roomId).update({
+    'pinned': {
+      'id': message.id,
+      'senderUid': message.senderUid,
+      'senderName': message.senderName ?? '',
+      'text': message.text,
+    },
+  });
+
+  Future<void> unpin(String roomId) => _room(roomId).update({'pinned': null});
+
+  /// Unsends [message]. If it was the pinned one, the pin comes down after
+  /// it — the rules let anyone do that once the message is gone.
   Future<void> unsend({
     required String roomId,
     required String me,
     required ChatMessage message,
     required bool isLatest,
-  }) {
+    bool wasPinned = false,
+  }) async {
     final batch = _db.batch()
       ..update(_messages(roomId).doc(message.id), {
         'text': '',
@@ -149,7 +164,8 @@ class RoomRepository {
         },
       });
     }
-    return batch.commit();
+    await batch.commit();
+    if (wasPinned) await unpin(roomId);
   }
 
   /// I have the room open: everything before now is read.
@@ -171,6 +187,7 @@ class RoomRepository {
     final updated = data['updatedAt'];
     final updatedAt = updated is Timestamp ? updated.toDate() : DateTime.now();
     final last = data['lastMessage'];
+    final pinned = data['pinned'];
     return RoomInfo(
       id: doc.id,
       name: data['name'] as String? ?? 'Global',
@@ -185,6 +202,14 @@ class RoomRepository {
               unsent: last['unsent'] as bool? ?? false,
               sentAt: updatedAt,
               attachmentType: last['attachmentType'] as String?,
+            )
+          : null,
+      pinned: pinned is Map && pinned['id'] is String
+          ? PinnedMessage(
+              id: pinned['id'] as String,
+              senderUid: pinned['senderUid'] as String? ?? '',
+              senderName: pinned['senderName'] as String? ?? '',
+              text: pinned['text'] as String? ?? '',
             )
           : null,
     );
