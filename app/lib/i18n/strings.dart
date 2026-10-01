@@ -578,6 +578,26 @@ class Strings {
     "Couldn't do that — check your connection and try again.",
   );
   String get openChat => _t('চ্যাট খুলুন', 'Open chat');
+
+  // Lessons.
+  String get learn => _t('শিখুন', 'Learn');
+  String lessonsPassed(int n, int of) =>
+      _t('$of-এর মধ্যে $n টা পাস', '$n of $of passed');
+  String get scholarHint => _t(
+    'পাঁচটাই পাস করলে 📚 শিক্ষার্থী অর্জন পাবেন।',
+    'Pass all five to earn 📚 Scholar.',
+  );
+  String get lessonPassed => _t('পাস', 'Passed');
+  String questionsCount(int n) => _t('$n টা প্রশ্ন', '$n questions');
+  String get takeQuiz => _t('কুইজ দিন', 'Take the quiz');
+  String get checkAnswers => _t('উত্তর মিলিয়ে দেখুন', 'Check answers');
+  String get quizPassed =>
+      _t('সব ঠিক — লেসন পাস! ✅', 'All right — lesson passed! ✅');
+  String get quizTryAgain => _t(
+    'পুরোপুরি হয়নি — কারণগুলো পড়ে আবার চেষ্টা করুন।',
+    'Not quite — read the why, and try again.',
+  );
+  String get tryAgain => _t('আবার চেষ্টা', 'Try again');
   String get allTime => _t('সব সময়', 'All time');
   String get thisWeek => _t('এই সপ্তাহ', 'This week');
   String get weeklyEmpty => _t(
