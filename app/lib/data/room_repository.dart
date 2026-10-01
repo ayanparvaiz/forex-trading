@@ -125,6 +125,16 @@ class RoomRepository {
     return message.id;
   }
 
+  /// My reaction to a message — one of [reactionEmojis] — or none.
+  Future<void> react({
+    required String roomId,
+    required String messageId,
+    required String me,
+    required String? emoji,
+  }) => _messages(roomId).doc(messageId).update({
+    FieldPath(['reactions', me]): emoji ?? FieldValue.delete(),
+  });
+
   /// Pins [message] at the top of the room, for everyone — its admin only.
   Future<void> pin(String roomId, ChatMessage message) => _room(roomId).update({
     'pinned': {

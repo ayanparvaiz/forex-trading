@@ -260,6 +260,16 @@ class ChatRepository {
         FieldPath(['typing', me]): FieldValue.delete(),
       });
 
+  /// My reaction to a message — one of [reactionEmojis] — or none.
+  Future<void> react({
+    required String chatId,
+    required String messageId,
+    required String me,
+    required String? emoji,
+  }) => _messages(chatId).doc(messageId).update({
+    FieldPath(['reactions', me]): emoji ?? FieldValue.delete(),
+  });
+
   /// Blanks a message for both people. The preview follows when it was the
   /// newest one, because the rules require the preview to match its message.
   Future<void> unsend({
@@ -485,6 +495,7 @@ ChatMessage messageFromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
   final data = doc.data() ?? const <String, dynamic>{};
   final sentAt = data['sentAt'];
   final reply = data['replyTo'];
+  final reactions = data['reactions'];
   return ChatMessage(
     id: doc.id,
     senderUid: data['senderUid'] as String? ?? '',
@@ -503,6 +514,15 @@ ChatMessage messageFromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     senderUsername: data['senderUsername'] as String?,
     attachment: MessageAttachment.fromJson(data['attachment']),
     cursor: doc,
+    reactions: {
+      if (reactions is Map)
+        for (final MapEntry(:key, :value) in reactions.entries)
+          // Only the six there are; anything else was not written by us.
+          if (key is String &&
+              value is String &&
+              reactionEmojis.contains(value))
+            key: value,
+    },
   );
 }
 

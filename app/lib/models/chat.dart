@@ -208,6 +208,10 @@ class ReplyRef {
   final String senderUid;
 }
 
+/// The reactions a message can have, in the order they are offered. The
+/// rules hold the same six (firestore.rules, reactionOk).
+const reactionEmojis = ['👍', '❤️', '😂', '😮', '😢', '🔥'];
+
 class ChatMessage {
   const ChatMessage({
     required this.id,
@@ -222,6 +226,7 @@ class ChatMessage {
     this.senderUsername,
     this.attachment,
     this.cursor,
+    this.reactions = const {},
   });
 
   final String id;
@@ -251,6 +256,25 @@ class ChatMessage {
   /// Where to continue from when loading older messages. Opaque to
   /// everything but the repository that made it.
   final Object? cursor;
+
+  /// Who reacted, and with what: one each, by uid.
+  final Map<String, String> reactions;
+
+  /// Each reaction with how many gave it — most first, then in the order
+  /// they are offered.
+  List<(String, int)> get reactionCounts {
+    final counts = <String, int>{};
+    for (final e in reactions.values) {
+      counts[e] = (counts[e] ?? 0) + 1;
+    }
+    return counts.entries.map((e) => (e.key, e.value)).toList()..sort((a, b) {
+      final byCount = b.$2.compareTo(a.$2);
+      if (byCount != 0) return byCount;
+      return reactionEmojis
+          .indexOf(a.$1)
+          .compareTo(reactionEmojis.indexOf(b.$1));
+    });
+  }
 }
 
 /// What one person has deleted from a conversation for themselves only.
