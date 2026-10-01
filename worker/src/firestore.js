@@ -59,16 +59,23 @@ export async function listTrades(projectId, uid, token, cap = 500) {
 }
 
 /** When this account's scores were last written, or null if never. */
-export async function statsUpdatedAt(projectId, uid, token) {
+export async function scoreState(projectId, uid, token) {
   const url = new URL(`${base(projectId)}/users/${encodeURIComponent(uid)}`);
   url.searchParams.append('mask.fieldPaths', 'statsUpdatedAt');
+  url.searchParams.append('mask.fieldPaths', 'achievements');
 
   const res = await fetch(url, { headers: { authorization: `Bearer ${token}` } });
   if (res.status === 404) throw new Error('no such user');
   if (!res.ok) throw new Error(`read user ${res.status}: ${await res.text()}`);
 
-  const ts = (await res.json()).fields?.statsUpdatedAt?.timestampValue;
-  return ts ? Date.parse(ts) : null;
+  const fields = (await res.json()).fields ?? {};
+  const ts = fields.statsUpdatedAt?.timestampValue;
+  return {
+    updatedAt: ts ? Date.parse(ts) : null,
+    achievements: (fields.achievements?.arrayValue?.values ?? [])
+      .map((v) => v.stringValue)
+      .filter((v) => typeof v === 'string'),
+  };
 }
 
 // Counts are written as integers and everything else as doubles, so the
@@ -86,7 +93,8 @@ const INTEGER_FIELDS = new Set(['badgePoints', 'tradeCount', 'journalStreak']);
 export async function writeStats(projectId, uid, stats, token, now = new Date()) {
   const fields = {};
   for (const [k, v] of Object.entries(stats)) {
-    if (typeof v === 'boolean') fields[k] = { booleanValue: v };
+    if (Array.isArray(v)) fields[k] = { arrayValue: { values: v.map((x) => ({ stringValue: x })) } };
+    else if (typeof v === 'boolean') fields[k] = { booleanValue: v };
     else if (INTEGER_FIELDS.has(k)) fields[k] = { integerValue: String(Math.trunc(v)) };
     else fields[k] = { doubleValue: v };
   }

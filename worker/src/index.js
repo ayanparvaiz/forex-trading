@@ -34,7 +34,8 @@
 
 import { MIN_RANKED_TRADES, leaderboardStats } from './stats.js';
 import { serviceAccountToken, signedInRecently, verifyIdTokenClaims } from './google.js';
-import { TryAgain, listTrades, restStore, statsUpdatedAt, writeStats } from './firestore.js';
+import { TryAgain, listTrades, restStore, scoreState, writeStats } from './firestore.js';
+import { earnedAchievements, keepAchievements } from './achievements.js';
 import { deleteCommunity, isCommunityId, removeMember } from './community.js';
 import { eraseAccount } from './erase.js';
 import { sendPush } from './fcm.js';
@@ -245,7 +246,11 @@ async function recompute(uid, env) {
 
     // Second line, in Firestore itself, for calls that land on a different
     // Cloudflare location than the last one. Costs one read.
-    const last = await statsUpdatedAt(env.FIREBASE_PROJECT_ID, uid, token);
+    const { updatedAt: last, achievements: before } = await scoreState(
+      env.FIREBASE_PROJECT_ID,
+      uid,
+      token,
+    );
     if (last != null && Date.now() - last < MIN_INTERVAL_MS) {
       return json({ error: 'too soon', retryAfterMs: MIN_INTERVAL_MS }, 429);
     }
@@ -262,9 +267,11 @@ async function recompute(uid, env) {
     // Written here rather than left to the query, so the leaderboard can ask
     // "ranked == true" with an equality filter and one index.
     const ranked = stats.tradeCount >= MIN_RANKED_TRADES;
-    await writeStats(env.FIREBASE_PROJECT_ID, uid, { ...stats, ranked }, token);
+    // Earned now, added to what was earned before: nothing is taken away.
+    const achievements = keepAchievements(before, earnedAchievements(trades, stats));
+    await writeStats(env.FIREBASE_PROJECT_ID, uid, { ...stats, ranked, achievements }, token);
 
-    return json({ ...stats, ranked });
+    return json({ ...stats, ranked, achievements });
   } catch (error) {
     if (error.message === 'no such user') return json({ error: 'no profile' }, 404);
     console.error('recompute failed for', uid, error);
