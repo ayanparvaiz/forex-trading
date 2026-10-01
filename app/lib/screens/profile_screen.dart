@@ -16,10 +16,12 @@ import '../models/trader.dart';
 import '../theme/app_theme.dart';
 import '../widgets/avatar_image.dart';
 import '../widgets/common.dart';
+import '../widgets/community_badge.dart';
 import '../widgets/paged_list.dart';
 import '../widgets/report_sheet.dart';
 import '../widgets/safety_actions.dart';
 import 'chat_screen.dart';
+import 'community_profile_screen.dart';
 import 'settings_screen.dart';
 
 /// Opens [username]'s profile.
@@ -538,13 +540,22 @@ class _Header extends StatelessWidget {
                       color: AppColors.warning,
                       dense: true,
                     ),
-                    Pill(
-                      text: trader.cohort,
-                      color: AppColors.brand,
-                      dense: true,
-                    ),
+                    if (trader.cohort.isNotEmpty)
+                      Pill(
+                        text: trader.cohort,
+                        color: AppColors.brand,
+                        dense: true,
+                      ),
                   ],
                 ),
+                // The community they are in, a tap from its page.
+                if (trader.communityId case final id?) ...[
+                  Gap.h8,
+                  CommunityChip(
+                    id: id,
+                    onTap: () => openCommunity(context, id),
+                  ),
+                ],
               ],
             ),
           ),
