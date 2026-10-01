@@ -36,6 +36,7 @@ import { MIN_RANKED_TRADES, leaderboardStats } from './stats.js';
 import { serviceAccountToken, signedInRecently, verifyIdTokenClaims } from './google.js';
 import { TryAgain, listTrades, restStore, scoreState, writeStats } from './firestore.js';
 import { earnedAchievements, keepAchievements } from './achievements.js';
+import { weeklyStats } from './weekly.js';
 import { deleteCommunity, isCommunityId, removeMember } from './community.js';
 import { eraseAccount } from './erase.js';
 import { sendPush } from './fcm.js';
@@ -269,9 +270,16 @@ async function recompute(uid, env) {
     const ranked = stats.tradeCount >= MIN_RANKED_TRADES;
     // Earned now, added to what was earned before: nothing is taken away.
     const achievements = keepAchievements(before, earnedAchievements(trades, stats));
-    await writeStats(env.FIREBASE_PROJECT_ID, uid, { ...stats, ranked, achievements }, token);
+    // This week's board, from this week's trades alone.
+    const week = weeklyStats(trades);
+    await writeStats(
+      env.FIREBASE_PROJECT_ID,
+      uid,
+      { ...stats, ranked, achievements, ...week },
+      token,
+    );
 
-    return json({ ...stats, ranked, achievements });
+    return json({ ...stats, ranked, achievements, ...week });
   } catch (error) {
     if (error.message === 'no such user') return json({ error: 'no profile' }, 404);
     console.error('recompute failed for', uid, error);

@@ -81,7 +81,7 @@ export async function scoreState(projectId, uid, token) {
 // Counts are written as integers and everything else as doubles, so the
 // document reads the same whether a number happens to be whole or not — a
 // discipline score of exactly 100 is still a double.
-const INTEGER_FIELDS = new Set(['badgePoints', 'tradeCount', 'journalStreak']);
+const INTEGER_FIELDS = new Set(['badgePoints', 'tradeCount', 'journalStreak', 'weekTrades']);
 
 /**
  * Writes the score fields, and only those.
@@ -94,6 +94,7 @@ export async function writeStats(projectId, uid, stats, token, now = new Date())
   const fields = {};
   for (const [k, v] of Object.entries(stats)) {
     if (Array.isArray(v)) fields[k] = { arrayValue: { values: v.map((x) => ({ stringValue: x })) } };
+    else if (typeof v === 'string') fields[k] = { stringValue: v };
     else if (typeof v === 'boolean') fields[k] = { booleanValue: v };
     else if (INTEGER_FIELDS.has(k)) fields[k] = { integerValue: String(Math.trunc(v)) };
     else fields[k] = { doubleValue: v };
