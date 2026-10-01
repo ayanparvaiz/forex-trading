@@ -10,6 +10,7 @@ import '../data/safety_repository.dart';
 import '../data/session_controller.dart';
 import '../firebase/firebase_bootstrap.dart';
 import '../i18n/strings.dart';
+import '../models/achievement.dart';
 import '../models/app_notification.dart';
 import '../models/connection.dart';
 import '../models/trader.dart';
@@ -455,6 +456,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 Gap.h12,
                 _BadgeCard(trader: trader, s: s),
+                Gap.h12,
+                _AchievementsCard(trader: trader, s: s),
                 if (_isSelf) ...[
                   Gap.h12,
                   _PendingRequests(
@@ -845,6 +848,98 @@ class _StatsCard extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// What they have earned, out of everything there is to earn — the rest
+/// shown faded, with what each one takes, so there is always a next one.
+class _AchievementsCard extends StatelessWidget {
+  const _AchievementsCard({required this.trader, required this.s});
+
+  final Trader trader;
+  final Strings s;
+
+  @override
+  Widget build(BuildContext context) {
+    final earned = {for (final a in Achievement.of(trader.achievements)) a.id};
+    return SectionCard(
+      title:
+          '${s.achievementsHeading} · ${earned.length}/${Achievement.all.length}',
+      child: GridView.count(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisCount: 3,
+        mainAxisSpacing: Gap.sm,
+        crossAxisSpacing: Gap.sm,
+        childAspectRatio: 0.95,
+        children: [
+          for (final a in Achievement.all)
+            _AchievementTile(
+              achievement: a,
+              earned: earned.contains(a.id),
+              s: s,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AchievementTile extends StatelessWidget {
+  const _AchievementTile({
+    required this.achievement,
+    required this.earned,
+    required this.s,
+  });
+
+  final Achievement achievement;
+  final bool earned;
+  final Strings s;
+
+  @override
+  Widget build(BuildContext context) {
+    final a = achievement;
+    return Tooltip(
+      triggerMode: TooltipTriggerMode.tap,
+      message: earned
+          ? a.how(s.isBangla)
+          : '${a.how(s.isBangla)} · ${s.notEarnedYet}',
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: earned ? AppColors.brandDim : AppColors.elevated,
+              border: Border.all(
+                color: earned ? AppColors.brand : AppColors.border,
+                width: 2,
+              ),
+            ),
+            child: Opacity(
+              opacity: earned ? 1 : 0.3,
+              child: Text(a.emoji, style: const TextStyle(fontSize: 24)),
+            ),
+          ),
+          Gap.h4,
+          Text(
+            a.title(s.isBangla),
+            maxLines: 2,
+            textAlign: TextAlign.center,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 11.5,
+              height: 1.2,
+              fontWeight: earned ? FontWeight.w700 : FontWeight.w500,
+              color: earned ? AppColors.textPrimary : AppColors.textMuted,
+            ),
           ),
         ],
       ),
