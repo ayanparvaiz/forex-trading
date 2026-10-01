@@ -539,6 +539,14 @@ class Strings {
     "Couldn't do that — check your connection and try again.",
   );
   String get openChat => _t('চ্যাট খুলুন', 'Open chat');
+  String get savedPosts => _t('সেভ করা পোস্ট', 'Saved posts');
+  String get savePost => _t('সেভ করুন', 'Save');
+  String get postSaved => _t('পরে পড়ার জন্য সেভ হয়েছে', 'Saved for later');
+  String get postUnsaved => _t('সেভ থেকে সরানো হয়েছে', 'Removed from saved');
+  String get noSavedPosts => _t(
+    'এখনো কিছু সেভ করেননি — পোস্টের নিচে 🔖 চাপলে এখানে থাকবে।',
+    'Nothing saved yet — tap 🔖 under a post to keep it here.',
+  );
   String get achievementsHeading => _t('অর্জন', 'Achievements');
   String get notEarnedYet => _t('এখনো পাওয়া হয়নি', 'Not earned yet');
   String get pinMessage => _t('পিন করুন', 'Pin');
