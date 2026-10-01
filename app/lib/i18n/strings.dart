@@ -515,6 +515,31 @@ class Strings {
   String get removeAction => _t('বাদ দিন', 'Remove');
   String memberRemoved(String name) =>
       _t('$name-কে বাদ দেওয়া হয়েছে', '$name was removed');
+  String get eventsHeading => _t('ইভেন্ট', 'Events');
+  String get newEvent => _t('নতুন ইভেন্ট', 'New event');
+  String get noEvents => _t('সামনে কোনো ইভেন্ট নেই।', 'Nothing planned yet.');
+  String get noEventsAdmin => _t(
+    'চার্ট রিভিউ, প্রশ্নোত্তর — কিছু প্ল্যান করুন, সদস্যরা নোটিফিকেশন পাবেন।',
+    'Plan a chart review or a Q&A — members are notified.',
+  );
+  String get eventTitle => _t('কী হবে', "What's happening");
+  String get eventDescriptionHint =>
+      _t('বিস্তারিত (ঐচ্ছিক)', 'Details (optional)');
+  String get eventWhen => _t('কখন', 'When');
+  String get pickDate => _t('তারিখ', 'Date');
+  String get pickTime => _t('সময়', 'Time');
+  String get eventInPast =>
+      _t('সময়টা ভবিষ্যতে হতে হবে', 'It has to be in the future');
+  String get planAction => _t('প্ল্যান করুন', 'Plan it');
+  String get going => _t('যাচ্ছি', 'Going');
+  String goingCount(int n) =>
+      _t('$n জন যাচ্ছেন', n == 1 ? '1 going' : '$n going');
+  String get happeningNow => _t('এখন চলছে', 'Happening now');
+  String get deleteEvent => _t('ইভেন্ট ডিলিট করুন', 'Delete event');
+  String get eventPlanned => _t(
+    'ইভেন্ট প্ল্যান হয়েছে — সদস্যরা জানবেন',
+    'Planned — members will hear',
+  );
   String get slowMode => _t('স্লো মোড', 'Slow mode');
   String get slowModeHint => _t(
     'প্রত্যেক সদস্য এই সময় পরপর একটা মেসেজ দিতে পারবেন। আপনার জন্য কোনো সীমা নেই।',
