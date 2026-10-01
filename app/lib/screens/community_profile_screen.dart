@@ -147,6 +147,37 @@ Future<bool> confirmDeleteCommunity(
   return true;
 }
 
+/// Hands [community] to [member], once its admin is sure. True once done.
+Future<bool> confirmMakeAdmin(
+  BuildContext context,
+  Community community,
+  CommunityMember member,
+  String name,
+) async {
+  final s = context.s;
+  final uid = context.session.uid;
+  final repo = buildCommunitiesRepository();
+  if (uid == null || repo == null) return false;
+  final messenger = ScaffoldMessenger.of(context);
+  final ok = await _confirm(
+    context,
+    title: s.makeAdminTitle(name),
+    body: s.makeAdminBody(community.name),
+    action: s.makeAdmin,
+    danger: false,
+  );
+  if (!ok) return false;
+  try {
+    await repo.handOver(id: community.id, from: uid, to: member.uid);
+  } catch (e) {
+    debugPrint('hand over failed: $e');
+    messenger.showSnackBar(SnackBar(content: Text(s.couldNotSave)));
+    return false;
+  }
+  messenger.showSnackBar(SnackBar(content: Text(s.madeAdmin(name))));
+  return true;
+}
+
 /// Takes [member] out of [community], once its admin is sure.
 Future<bool> confirmRemoveMember(
   BuildContext context,
@@ -652,10 +683,24 @@ class _CommunityProfileScreenState extends State<CommunityProfileScreen> {
             profiles: _profiles,
             board: _board,
             repository: _social!,
-            // The admin can take anyone else out.
-            onRemove: isAdmin && !_busy
-                ? (m, name) =>
-                      _run(() => confirmRemoveMember(context, c, m, name))
+            // The admin can take anyone else out, or hand it to them.
+            onAction: isAdmin && !_busy
+                ? (m, name, action) => _run(
+                    () => switch (action) {
+                      _MemberAction.makeAdmin => confirmMakeAdmin(
+                        context,
+                        c,
+                        m,
+                        name,
+                      ),
+                      _MemberAction.remove => confirmRemoveMember(
+                        context,
+                        c,
+                        m,
+                        name,
+                      ),
+                    },
+                  )
                 : null,
           ),
           if (isAdmin) ...[
@@ -700,6 +745,12 @@ class _CommunityProfileScreenState extends State<CommunityProfileScreen> {
   }
 }
 
+/// What the admin can do to someone in it.
+enum _MemberAction { makeAdmin, remove }
+
+typedef _OnMemberAction =
+    void Function(CommunityMember member, String name, _MemberAction action);
+
 /// Who is in it: the admin first, then by where each stands on the
 /// leaderboard, then by who came first.
 class _Members extends StatelessWidget {
@@ -709,7 +760,7 @@ class _Members extends StatelessWidget {
     required this.profiles,
     required this.board,
     required this.repository,
-    this.onRemove,
+    this.onAction,
   });
 
   final Community community;
@@ -718,8 +769,8 @@ class _Members extends StatelessWidget {
   final List<Trader> board;
   final CommunityRepository repository;
 
-  /// Set for the admin: takes someone out, by name.
-  final void Function(CommunityMember member, String name)? onRemove;
+  /// Set for the admin: what to do with someone, by name.
+  final _OnMemberAction? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -755,7 +806,7 @@ class _Members extends StatelessWidget {
                     isAdmin: m.uid == community.createdBy,
                     boardRank: place[m.username],
                     repository: repository,
-                    onRemove: m.uid == community.createdBy ? null : onRemove,
+                    onAction: m.uid == community.createdBy ? null : onAction,
                   ),
               ],
             ),
@@ -770,7 +821,7 @@ class _MemberRow extends StatelessWidget {
     required this.isAdmin,
     required this.boardRank,
     required this.repository,
-    this.onRemove,
+    this.onAction,
   });
 
   final CommunityMember member;
@@ -778,7 +829,7 @@ class _MemberRow extends StatelessWidget {
   final bool isAdmin;
   final int? boardRank;
   final CommunityRepository repository;
-  final void Function(CommunityMember member, String name)? onRemove;
+  final _OnMemberAction? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -826,19 +877,34 @@ class _MemberRow extends StatelessWidget {
                 color: AppColors.brand,
                 dense: true,
               )
-            else if (onRemove != null)
+            else if (onAction != null)
               // Behind a menu, so nobody is removed by a stray tap.
-              PopupMenuButton<void>(
+              PopupMenuButton<_MemberAction>(
                 icon: const Icon(
                   Icons.more_vert,
                   size: 20,
                   color: AppColors.textMuted,
                 ),
                 color: AppColors.elevated,
+                onSelected: (action) =>
+                    onAction!(member, t?.name ?? '@${member.username}', action),
                 itemBuilder: (_) => [
                   PopupMenuItem(
-                    onTap: () =>
-                        onRemove!(member, t?.name ?? '@${member.username}'),
+                    value: _MemberAction.makeAdmin,
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.shield_outlined,
+                          size: 19,
+                          color: AppColors.brand,
+                        ),
+                        Gap.w12,
+                        Text(s.makeAdmin),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: _MemberAction.remove,
                     child: Row(
                       children: [
                         const Icon(
