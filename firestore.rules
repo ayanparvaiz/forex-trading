@@ -880,6 +880,24 @@ service cloud.firestore {
         && getAfter(roomMessagePath(roomId, n.lastMessage.id)).data.get('removed', false) == true;
     }
 
+    // Slow mode, in a community's room: each member writes at most once per
+    // the admin's interval — their own mark moves with every message they
+    // send. The admin is never slowed.
+    function slowModeOk(roomId) {
+      return roomId == 'global' || communitySlowModeOk(roomId);
+    }
+
+    function communitySlowModeOk(roomId) {
+      let c = get(communityPath(roomId.split('_')[1])).data;
+      let slow = c.get('slowSeconds', 0);
+      let mine = /databases/$(database)/documents/rooms/$(roomId)/members/$(request.auth.uid);
+      return slow == 0
+        || c.createdBy == request.auth.uid
+        || (getAfter(mine).data.get('lastSentAt', null) == request.time
+            && request.time > get(mine).data.get('lastSentAt', timestamp.value(0))
+                 + duration.value(slow, 's'));
+    }
+
     match /rooms/{roomId} {
       allow read: if isSignedIn() && canUseRoom(roomId);
       allow delete: if false;
@@ -915,9 +933,12 @@ service cloud.firestore {
               || (exists(roomPath(roomId))
                   && getAfter(roomPath(roomId)).data.memberCount
                        == get(roomPath(roomId)).data.memberCount + 1));
+        // Reading moves the read mark; writing moves the sent mark too.
         allow update: if isOwner(uid)
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readAt'])
-          && request.resource.data.readAt == request.time;
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['readAt', 'lastSentAt'])
+          && request.resource.data.readAt == request.time
+          && (unchanged('lastSentAt') || request.resource.data.lastSentAt == request.time);
         allow delete: if isOwner(uid)
           && getAfter(roomPath(roomId)).data.memberCount == get(roomPath(roomId)).data.memberCount - 1;
       }
@@ -929,6 +950,7 @@ service cloud.firestore {
           && canUseRoom(roomId)
           // A locked community's room: only its admin writes.
           && (roomId == 'global' || communityOpenTo(roomId.split('_')[1]))
+          && slowModeOk(roomId)
           && request.resource.data.keys().hasOnly([
                'senderUid', 'senderName', 'senderUsername', 'text', 'sentAt', 'unsent',
                'replyTo', 'forwarded', 'attachment'])
@@ -1036,7 +1058,8 @@ service cloud.firestore {
         && (communityCountOk(cid)
             || (resource.data.createdBy == request.auth.uid
                 && request.resource.data.diff(resource.data).affectedKeys()
-                     .hasOnly(['description', 'avatarId', 'locked', 'createdBy'])
+                     .hasOnly(['description', 'avatarId', 'locked', 'createdBy', 'slowSeconds'])
+                && request.resource.data.get('slowSeconds', 0) in [0, 10, 30, 60, 300]
                 && request.resource.data.description is string
                 && request.resource.data.description.size() <= 200
                 && communityAvatarOk(request.resource.data)
