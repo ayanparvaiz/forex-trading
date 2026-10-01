@@ -1025,6 +1025,9 @@ class _Feed extends StatefulWidget {
 }
 
 class _FeedState extends State<_Feed> {
+  /// Just the people I am connected to, or everyone.
+  bool _connectionsOnly = false;
+
   /// When the list on screen was loaded. Posts after this are "new".
   DateTime _loadedAt = DateTime.now();
   late Stream<int> _newPosts = _watchNew();
@@ -1073,10 +1076,44 @@ class _FeedState extends State<_Feed> {
       children: [
         PagedListView<FeedPost>(
           key: ValueKey(
-            '${s.lang}-${widget.scope}-${widget.version}-$_refreshes',
+            '${s.lang}-${widget.scope}-${widget.version}-$_refreshes-'
+            '$_connectionsOnly',
           ),
           padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.xxl),
           pageSize: 6,
+          header: Padding(
+            padding: const EdgeInsets.only(bottom: Gap.sm),
+            child: Row(
+              children: [
+                for (final (only, label) in [
+                  (false, s.feedEveryone),
+                  (true, s.feedConnections),
+                ])
+                  Padding(
+                    padding: const EdgeInsets.only(right: Gap.sm),
+                    child: ChoiceChip(
+                      label: Text(label),
+                      selected: _connectionsOnly == only,
+                      showCheckmark: false,
+                      onSelected: (_) =>
+                          setState(() => _connectionsOnly = only),
+                      backgroundColor: AppColors.elevated,
+                      selectedColor: AppColors.brandDim,
+                      side: BorderSide(
+                        color: _connectionsOnly == only
+                            ? AppColors.brand
+                            : AppColors.border,
+                      ),
+                      labelStyle: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          emptyLabel: _connectionsOnly ? s.noConnectionPosts : null,
           // Posts by anyone you have blocked are left out. Filtered here
           // rather than in the query: Firestore cannot exclude a list of
           // authors, and a block list is short.
@@ -1088,6 +1125,7 @@ class _FeedState extends State<_Feed> {
               cursor: cursor,
               limit: limit,
               community: widget.scope,
+              connectionsOnly: _connectionsOnly,
             );
             if (blocked == null || blocked.isEmpty) return page;
             return ResultPage(
@@ -1118,7 +1156,8 @@ class _FeedState extends State<_Feed> {
           child: StreamBuilder<int>(
             stream: _newPosts,
             builder: (context, snapshot) {
-              final count = snapshot.data ?? 0;
+              // Counts everyone's: no promise to make about one's own circle.
+              final count = _connectionsOnly ? 0 : snapshot.data ?? 0;
               return AnimatedSwitcher(
                 duration: const Duration(milliseconds: 200),
                 child: count == 0
