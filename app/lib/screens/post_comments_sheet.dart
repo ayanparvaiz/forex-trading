@@ -41,12 +41,22 @@ class _CommentsSheet extends StatefulWidget {
 
 class _CommentsSheetState extends State<_CommentsSheet> {
   final _controller = TextEditingController();
+  final _focus = FocusNode();
   bool _sending = false;
+
+  /// The comment being answered, shown over the box until sent or dropped.
+  PostComment? _replyingTo;
 
   @override
   void dispose() {
     _controller.dispose();
+    _focus.dispose();
     super.dispose();
+  }
+
+  void _replyTo(PostComment c) {
+    setState(() => _replyingTo = c);
+    _focus.requestFocus();
   }
 
   Future<void> _send() async {
@@ -56,7 +66,11 @@ class _CommentsSheetState extends State<_CommentsSheet> {
     final uid = session.uid;
     if (body.isEmpty || me == null || uid == null) return;
 
-    setState(() => _sending = true);
+    final answering = _replyingTo;
+    setState(() {
+      _sending = true;
+      _replyingTo = null;
+    });
     // Cleared before the write lands, so the thread feels immediate. The live
     // stream puts the comment on screen a moment later.
     _controller.clear();
@@ -68,6 +82,13 @@ class _CommentsSheetState extends State<_CommentsSheet> {
       name: me.displayName,
       avatarId: me.avatarId,
       body: body,
+      replyTo: answering == null
+          ? null
+          : CommentReply(
+              id: answering.id,
+              authorUid: answering.authorUid,
+              name: answering.authorName,
+            ),
     );
 
     // Telling the author is a courtesy, and it must not hold up the comment.
@@ -174,19 +195,53 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                     );
                   }
 
+                  // Replies under the comment they answer.
+                  final thread = threadComments(comments);
                   return ListView.builder(
                     controller: scrollController,
                     padding: const EdgeInsets.all(Gap.lg),
-                    itemCount: comments.length,
+                    itemCount: thread.length,
                     itemBuilder: (context, i) => _CommentRow(
-                      comment: comments[i],
+                      comment: thread[i].$1,
+                      isReply: thread[i].$2,
                       postId: widget.postId,
                       repository: widget.repository,
+                      onReply: () => _replyTo(thread[i].$1),
                     ),
                   );
                 },
               ),
             ),
+            if (_replyingTo case final r?)
+              Container(
+                color: AppColors.elevated,
+                padding: const EdgeInsets.fromLTRB(Gap.lg, 6, Gap.xs, 6),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.reply_rounded,
+                      size: 16,
+                      color: AppColors.brand,
+                    ),
+                    Gap.w8,
+                    Expanded(
+                      child: Text(
+                        s.replyingTo(r.authorName),
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => setState(() => _replyingTo = null),
+                      icon: const Icon(Icons.close_rounded, size: 18),
+                      color: AppColors.textMuted,
+                    ),
+                  ],
+                ),
+              ),
             SafeArea(
               top: false,
               child: Padding(
@@ -200,6 +255,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                   children: [
                     Expanded(
                       child: TextField(
+                        focusNode: _focus,
                         controller: _controller,
                         maxLength: PostComment.maxLength,
                         minLines: 1,
@@ -247,11 +303,32 @@ class _CommentRow extends StatelessWidget {
     required this.comment,
     required this.postId,
     required this.repository,
+    required this.onReply,
+    this.isReply = false,
   });
 
   final PostComment comment;
   final String postId;
   final CommunityRepository repository;
+  final VoidCallback onReply;
+
+  /// Drawn indented, under the comment it answers.
+  final bool isReply;
+
+  Future<void> _like(BuildContext context, bool like) async {
+    final uid = context.session.uid;
+    if (uid == null) return;
+    try {
+      await repository.likeComment(
+        postId: postId,
+        commentId: comment.id,
+        uid: uid,
+        like: like,
+      );
+    } catch (e) {
+      debugPrint('comment like failed: $e');
+    }
+  }
 
   /// Long-pressing someone else's comment offers to report it, quoted exactly.
   bool _reportable(BuildContext context) =>
@@ -292,17 +369,24 @@ class _CommentRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = context.s;
 
+    final uid = context.session.uid;
+    final liked = uid != null && comment.likedBy.contains(uid);
+    final likes = comment.likedBy.length;
+
     return GestureDetector(
       onLongPress: _reportable(context) ? () => _actions(context) : null,
       child: Padding(
-        padding: const EdgeInsets.only(bottom: Gap.lg),
+        padding: EdgeInsets.only(bottom: Gap.md, left: isReply ? 44 : 0),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             GestureDetector(
               onTap: () =>
                   openProfile(context, comment.authorUsername, repository),
-              child: AvatarImage(comment.authorAvatarId, size: 34),
+              child: AvatarImage(
+                comment.authorAvatarId,
+                size: isReply ? 26 : 34,
+              ),
             ),
             Gap.w12,
             Expanded(
@@ -332,9 +416,77 @@ class _CommentRow extends StatelessWidget {
                     ],
                   ),
                   Gap.h4,
-                  Text(
-                    comment.body,
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        // A reply to a reply says whom it answers.
+                        if (isReply && comment.replyTo != null)
+                          TextSpan(
+                            text: '@${comment.replyTo!.name} ',
+                            style: const TextStyle(
+                              color: AppColors.brand,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        TextSpan(text: comment.body),
+                      ],
+                    ),
                     style: const TextStyle(fontSize: 13.5, height: 1.45),
+                  ),
+                  Row(
+                    children: [
+                      TextButton(
+                        onPressed: onReply,
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(0, 30),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          foregroundColor: AppColors.textMuted,
+                          textStyle: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        child: Text(s.reply),
+                      ),
+                      Gap.w12,
+                      InkWell(
+                        onTap: uid == null
+                            ? null
+                            : () => _like(context, !liked),
+                        borderRadius: Radii.pill,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 4,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                liked ? Icons.favorite : Icons.favorite_border,
+                                size: 14,
+                                color: liked
+                                    ? AppColors.loss
+                                    : AppColors.textMuted,
+                              ),
+                              if (likes > 0) ...[
+                                Gap.w4,
+                                Text(
+                                  '$likes',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: liked
+                                        ? AppColors.loss
+                                        : AppColors.textMuted,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
