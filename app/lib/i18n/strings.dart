@@ -300,6 +300,18 @@ class Strings {
   String get lookFurtherBack => _t('আরো পেছনে খুঁজুন', 'Look further back');
   String get nothingFound => _t('কিছু পাওয়া যায়নি', 'Nothing found');
 
+  // --- Champions ---------------------------------------------------------
+
+  String championOf(String month) =>
+      _t('$month-এর চ্যাম্পিয়ন', '$month champion');
+  String championBanner(String month, String name) =>
+      _t('🏆 $month-এর চ্যাম্পিয়ন: $name', '🏆 $month champion: $name');
+  String get championHint => _t(
+    'মাস শেষে র‍্যাংকিংয়ে যে কমিউনিটি এক নম্বরে, সে পায় 🏆।',
+    'The community on top when the month ends wins the 🏆.',
+  );
+  String titlesCount(int n) => n == 1 ? '🏆' : '🏆×$n';
+
   // --- Community rules ---------------------------------------------------
 
   String get communityRules => _t('কমিউনিটির নিয়ম', 'Community rules');
