@@ -722,9 +722,10 @@ service cloud.firestore {
     }
 
     /// A trade card says what the trade says: the same pair, side and
-    /// prices, closed, and a result in R no better than its prices made —
-    /// the spread and swap only ever take away. So a loss is never sent as a
-    /// win, by its owner or by anyone forwarding it.
+    /// prices, closed, and a result in R close to what its prices made — the
+    /// spread takes a little away, and a swap paid in can add a little back,
+    /// never a whole R. So a loss is never sent as a win, nor a small win as
+    /// a big one, by its owner or by anyone forwarding it.
     function tradeCardOk(a) {
       let t = get(/databases/$(database)/documents/users/$(a.ownerUid)/trades/$(a.tradeId)).data;
       let sign = t.direction == 'buy' ? 1 : -1;
@@ -740,8 +741,8 @@ service cloud.firestore {
         && t.exitPrice == a.exitPrice
         && t.exitReason == a.exitReason
         && a.r is number
-        && a.r <= gross + 0.001
-        && a.r >= gross - 3;
+        && a.r < gross + 1
+        && a.r > gross - 3;
     }
 
     function pollOptionOk(o) {
