@@ -23,13 +23,9 @@ void main() {
       c('b1', replyTo: 'b'),
       c('orphan', replyTo: 'gone'),
     ]);
-    expect([for (final (x, reply) in thread) '${x.id}${reply ? '↳' : ''}'], [
-      'a',
-      'a1↳',
-      'a1x↳',
-      'b',
-      'b1↳',
-      'orphan',
-    ]);
+    expect(
+      [for (final (x, reply) in thread) '${x.id}${reply ? '↳' : ''}'],
+      ['a', 'a1↳', 'a1x↳', 'b', 'b1↳', 'orphan'],
+    );
   });
 }
