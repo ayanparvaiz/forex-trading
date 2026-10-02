@@ -1157,6 +1157,23 @@ service cloud.firestore {
       return /databases/$(database)/documents/communities/$(cid)/members/$(uid);
     }
 
+    // A community's rules, as its admin writes them: up to five, each a
+    // line of up to 120 letters.
+    function ruleLineOk(r) {
+      return r is string && r.size() > 0 && r.size() <= 120;
+    }
+
+    function communityRulesOk(c) {
+      let rules = c.get('rules', []);
+      return rules is list
+        && rules.size() <= 5
+        && (rules.size() < 1 || ruleLineOk(rules[0]))
+        && (rules.size() < 2 || ruleLineOk(rules[1]))
+        && (rules.size() < 3 || ruleLineOk(rules[2]))
+        && (rules.size() < 4 || ruleLineOk(rules[3]))
+        && (rules.size() < 5 || ruleLineOk(rules[4]));
+    }
+
     // A community changing hands: to someone already in it, with both
     // memberships saying so in the same write.
     function handOverOk(cid, from, to) {
@@ -1186,8 +1203,8 @@ service cloud.firestore {
         && getAfter(/databases/$(database)/documents/communityNames/$(request.resource.data.nameLower)).data.communityId == cid
         && getAfter(/databases/$(database)/documents/communities/$(cid)/members/$(request.auth.uid)).data.role == 'admin'
         && existsAfter(/databases/$(database)/documents/rooms/$('c_' + cid));
-      // Joining and leaving count; the admin may change the description and
-      // the picture, lock it — no one joins a locked community, and only its
+      // Joining and leaving count; the admin may change the description, the
+      // picture and the rules, lock it — no one joins a locked community, and only its
       // admin writes in it — and hand it to another member. Deleting it, or
       // removing someone, goes through the worker, which can clear the
       // profiles of everyone in it.
@@ -1195,8 +1212,9 @@ service cloud.firestore {
         && (communityCountOk(cid)
             || (resource.data.createdBy == request.auth.uid
                 && request.resource.data.diff(resource.data).affectedKeys()
-                     .hasOnly(['description', 'avatarId', 'locked', 'createdBy', 'slowSeconds'])
+                     .hasOnly(['description', 'avatarId', 'locked', 'createdBy', 'slowSeconds', 'rules'])
                 && request.resource.data.get('slowSeconds', 0) in [0, 10, 30, 60, 300]
+                && communityRulesOk(request.resource.data)
                 && request.resource.data.description is string
                 && request.resource.data.description.size() <= 200
                 && communityAvatarOk(request.resource.data)
