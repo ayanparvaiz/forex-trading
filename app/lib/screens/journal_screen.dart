@@ -3,12 +3,15 @@ import 'package:flutter/material.dart';
 import '../core/calculations.dart';
 import '../data/account_scope.dart';
 import '../data/account_store.dart';
+import '../data/chat_inbox.dart';
 import '../data/session_controller.dart';
 import '../i18n/strings.dart';
+import '../models/chat.dart';
 import '../models/trade.dart';
 import '../data/firestore_community_repository.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
+import '../widgets/forward_sheet.dart';
 import 'post_composer_sheet.dart';
 import 'learn_screen.dart';
 import 'monthly_report_screen.dart';
@@ -437,6 +440,24 @@ class _TradeCard extends StatelessWidget {
                           ),
                         ),
                 ),
+              // Straight into a conversation, as a card.
+              if (_card(context) case final card?) ...[
+                Gap.w8,
+                IconButton.outlined(
+                  onPressed: () =>
+                      shareIntoChats(context, text: '', attachment: card),
+                  tooltip: context.s.sendInChat,
+                  icon: const Icon(Icons.send_rounded, size: 18),
+                  style: IconButton.styleFrom(
+                    foregroundColor: AppColors.brand,
+                    side: const BorderSide(color: AppColors.border),
+                    minimumSize: const Size(40, 40),
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: Radii.tile,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ],
@@ -498,6 +519,14 @@ class _TradeCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// This trade as a card for a conversation — where there are
+  /// conversations, and it has a result in R to show.
+  SharedTrade? _card(BuildContext context) {
+    final uid = context.session.uid;
+    if (uid == null || InboxScope.of(context) == null) return null;
+    return SharedTrade.of(trade, uid);
   }
 
   /// Publishes this trade to the feed.
