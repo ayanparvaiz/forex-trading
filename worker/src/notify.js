@@ -27,6 +27,7 @@ const isRoom = (id) => id === 'global' || (typeof id === 'string' && /^c_[A-Za-z
 
 const TEXT = {
   bn: {
+    community: '👥 কমিউনিটি',
     newEvent: (community) => `${community}: নতুন ইভেন্ট`,
     startingSoon: (title) => `শীঘ্রই শুরু: ${title}`,
     global: 'গ্লোবাল',
@@ -40,6 +41,7 @@ const TEXT = {
     dailyBody: 'নতুন দিন, নতুন সুযোগ — প্ল্যান মেনে প্র্যাকটিস শুরু করুন।',
   },
   en: {
+    community: '👥 Community',
     newEvent: (community) => `${community}: new event`,
     startingSoon: (title) => `Starting soon: ${title}`,
     global: 'Global',
@@ -58,7 +60,7 @@ const textFor = (language) => TEXT[language] ?? TEXT.bn;
 
 /** A message as one line, as the inbox shows it. */
 function preview(t, text, attachment) {
-  const label = attachment?.type === 'post' ? t.post : attachment?.type === 'rank' ? t.rank : null;
+  const label = { post: t.post, rank: t.rank, community: t.community }[attachment?.type] ?? null;
   if (!label) return text;
   return text ? `${label} · ${text}` : label;
 }
