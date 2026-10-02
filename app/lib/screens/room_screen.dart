@@ -16,6 +16,7 @@ import '../theme/app_theme.dart';
 import '../widgets/community_badge.dart';
 import '../widgets/conversation_view.dart';
 import '../widgets/mute_sheet.dart';
+import '../widgets/poll_sheet.dart';
 import '../widgets/report_sheet.dart';
 import 'community_profile_screen.dart';
 import 'post_screen.dart';
@@ -228,6 +229,22 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
     }
   }
 
+  /// Asks the room something: a poll, written in a sheet.
+  Future<void> _newPoll() async {
+    final source = _source;
+    if (source == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final s = context.s;
+    final poll = await showPollSheet(context);
+    if (poll == null) return;
+    try {
+      await source.sendPoll(poll);
+    } catch (e) {
+      debugPrint('poll failed: $e');
+      messenger.showSnackBar(SnackBar(content: Text(s.couldNotSave)));
+    }
+  }
+
   /// A community's room leads to the community, where it is joined and left.
   void _openCommunity() {
     final id = Community.ofRoom(widget.roomId);
@@ -262,6 +279,7 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
     final prefs = inbox?.prefsFor(widget.roomId) ?? ChatPrefs.none;
     final muted = joined && prefs.mutedAt(now);
     final source = _source;
+    final canSend = joined && !lockedOut && waitLeft <= 0;
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -326,6 +344,13 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
           ),
         ),
         actions: [
+          // Polls are for a community, where there is something to decide.
+          if (ofCommunity && canSend && source != null)
+            IconButton(
+              onPressed: _newPoll,
+              tooltip: s.newPoll,
+              icon: const Icon(Icons.poll_outlined),
+            ),
           if (known)
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert),
@@ -389,7 +414,7 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
           : ConversationView(
               source: source,
               me: _me,
-              canSend: joined && !lockedOut && waitLeft <= 0,
+              canSend: canSend,
               nameOf: (uid, m) {
                 if (uid == _me) return s.you;
                 final name = m?.senderName ?? '';
@@ -621,6 +646,22 @@ class _RoomSource implements MessageSource {
           username: p.username,
           text: text,
           replyTo: replyTo,
+        )
+        .then((id) => pushNotifier?.room(roomId, id));
+  }
+
+  /// Asks the room [poll]. It goes out with no words of its own.
+  Future<void> sendPoll(Poll poll) {
+    final p = profile();
+    if (p == null) return Future.error(StateError('signed out'));
+    return rooms
+        .send(
+          roomId: roomId,
+          me: me,
+          name: p.displayName,
+          username: p.username,
+          text: '',
+          attachment: poll,
         )
         .then((id) => pushNotifier?.room(roomId, id));
   }
