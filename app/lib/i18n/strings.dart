@@ -409,6 +409,24 @@ class Strings {
   );
   String get last24h => _t('২৪ ঘণ্টায়', '24h');
 
+  // --- Mood --------------------------------------------------------------
+
+  String get howDoYouFeel =>
+      _t('এই মুহূর্তে কেমন লাগছে?', 'How do you feel right now?');
+  String get moodHint => _t(
+    'সৎভাবে বলুন — জার্নালে দেখাবে কোন মুডে ট্রেড ভালো হয়।',
+    'Be honest — the journal will show which moods trade well.',
+  );
+  String get moodAndResults => _t('মুড আর ফলাফল', 'Mood and results');
+  String moodLine(int trades, int winPct, String avgR) => _t(
+    '$trades ট্রেড · $winPct% জয় · গড় $avgR',
+    '$trades trades · $winPct% won · avg $avgR',
+  );
+  String get moodResultsHint => _t(
+    'ট্রেড নেওয়ার সময় যে মুড বলেছিলেন, সেই অনুযায়ী।',
+    'By the mood you named when placing each trade.',
+  );
+
   // --- Daily loss limit --------------------------------------------------
 
   String get dailyLossLimit => _t('দৈনিক লস লিমিট', 'Daily loss limit');
