@@ -59,6 +59,9 @@ class _CommunitiesViewState extends State<CommunitiesView> {
     }
   });
 
+  /// Last month's champion, asked for once.
+  Future<Champion?>? _champion;
+
   /// Which community is joining, so only its button spins.
   String? _joining;
 
@@ -88,6 +91,12 @@ class _CommunitiesViewState extends State<CommunitiesView> {
       viewerUid: session.uid,
     );
     _ranked = _repo?.watchRanked(social.watchLeaderboard());
+    _champion = _repo?.champion(lastMonthId(DateTime.now())).catchError((
+      Object e,
+    ) {
+      debugPrint('champion failed: $e');
+      return null;
+    });
   }
 
   Future<void> _join(Community c) async {
@@ -116,6 +125,16 @@ class _CommunitiesViewState extends State<CommunitiesView> {
         return ListView(
           padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.xxl),
           children: [
+            FutureBuilder<Champion?>(
+              future: _champion,
+              builder: (context, c) => switch (c.data) {
+                final champ? when champ.communityId.isNotEmpty => Padding(
+                  padding: const EdgeInsets.only(bottom: Gap.lg),
+                  child: ChampionBanner(champion: champ),
+                ),
+                _ => const SizedBox.shrink(),
+              },
+            ),
             _Heading(s.yourCommunity),
             if (mine == null)
               Text(
@@ -396,7 +415,11 @@ class _CommunityRow extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${s.members(c.memberCount)} · ${s.communityPoints(points)}',
+                    [
+                      if (c.titles.isNotEmpty) s.titlesCount(c.titles.length),
+                      s.members(c.memberCount),
+                      s.communityPoints(points),
+                    ].join(' · '),
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 12.5,
@@ -434,6 +457,62 @@ class _CommunityRow extends StatelessWidget {
                 ),
                 child: Text(s.join),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Last month's champion, across the top: who, and their points. Tapped,
+/// their page.
+class ChampionBanner extends StatelessWidget {
+  const ChampionBanner({super.key, required this.champion});
+
+  final Champion champion;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.s;
+    final month = monthOf(champion.month);
+    return InkWell(
+      onTap: () => openCommunity(context, champion.communityId),
+      borderRadius: Radii.card,
+      child: Container(
+        padding: const EdgeInsets.all(Gap.md),
+        decoration: BoxDecoration(
+          borderRadius: Radii.card,
+          gradient: LinearGradient(
+            colors: [
+              AppColors.warning.withValues(alpha: 0.28),
+              AppColors.warningDim,
+            ],
+          ),
+          border: Border.all(color: AppColors.warning.withValues(alpha: 0.5)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              s.championBanner(
+                month == null ? champion.month : s.monthYear(month),
+                champion.name,
+              ),
+              style: const TextStyle(
+                fontSize: 14.5,
+                fontWeight: FontWeight.w800,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              '${s.communityPoints(champion.points)} · ${s.championHint}',
+              style: const TextStyle(
+                fontSize: 12,
+                height: 1.4,
+                color: AppColors.textSecondary,
+              ),
+            ),
           ],
         ),
       ),
