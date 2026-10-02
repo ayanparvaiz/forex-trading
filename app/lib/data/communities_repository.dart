@@ -273,6 +273,15 @@ class CommunitiesRepository {
   Future<void> setLocked(String id, bool locked) =>
       _community(id).update({'locked': locked});
 
+  /// The admin's rules: blank lines left out, each trimmed.
+  Future<void> setRules(String id, List<String> rules) =>
+      _community(id).update({
+        'rules': [
+          for (final r in rules)
+            if (r.trim().isNotEmpty) r.trim(),
+        ],
+      });
+
   /// The admin's choice of picture.
   Future<void> setAvatar(String id, int avatarId) =>
       _community(id).update({'avatarId': avatarId});
@@ -290,6 +299,10 @@ class CommunitiesRepository {
       avatarId: (data['avatarId'] as num?)?.toInt(),
       locked: data['locked'] == true,
       slowSeconds: (data['slowSeconds'] as num?)?.toInt() ?? 0,
+      rules: [
+        for (final r in data['rules'] as List<dynamic>? ?? const [])
+          if (r is String && r.isNotEmpty) r,
+      ],
     );
   }
 }

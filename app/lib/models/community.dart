@@ -15,9 +15,15 @@ class Community {
     this.avatarId,
     this.locked = false,
     this.slowSeconds = 0,
+    this.rules = const [],
   });
 
   static const nameMin = 3;
+
+  /// What its admin asks of everyone in it: up to [rulesMax] lines of up to
+  /// [ruleMax] letters each — the rules hold the same.
+  static const rulesMax = 5;
+  static const ruleMax = 120;
   static const nameMax = 60;
   static const descriptionMax = 200;
 
@@ -39,6 +45,9 @@ class Community {
 
   /// The intervals the admin can choose from — the rules hold the same.
   static const slowModes = [0, 10, 30, 60, 300];
+
+  /// Its rules, shown before joining. Empty when it has none.
+  final List<String> rules;
 
   /// The admin's uid: whoever started it, until they hand it to someone
   /// else.
