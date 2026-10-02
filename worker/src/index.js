@@ -38,6 +38,7 @@ import { TryAgain, listTrades, restStore, scoreState, writeStats } from './fires
 import { earnedAchievements, keepAchievements } from './achievements.js';
 import { weeklyStats } from './weekly.js';
 import { lastJournalDay, streakReminders } from './streak.js';
+import { crownChampion } from './champion.js';
 import { deleteCommunity, isCommunityId, removeMember } from './community.js';
 import { eraseAccount } from './erase.js';
 import { sendPush } from './fcm.js';
@@ -160,6 +161,8 @@ export default {
         }
         await dailyReminder(push);
         await forgetOldAnnouncements(restStore(env.FIREBASE_PROJECT_ID, token, { budget: 5 }));
+        // On the first mornings of a month: last month's champion.
+        await crownChampion(restStore(env.FIREBASE_PROJECT_ID, token, { budget: 6 }));
       })().catch((e) => console.error(`scheduled job ${event.cron} failed:`, e)),
     );
   },
