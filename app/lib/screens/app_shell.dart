@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/chat_inbox.dart';
 import '../data/session_controller.dart';
+import '../data/trade_focus.dart';
 import '../screens/community_screen.dart';
 import '../screens/journal_screen.dart';
 import '../screens/messages_screen.dart';
@@ -24,9 +25,21 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _index = 0;
 
+  /// A pair asked for — from the watchlist — is traded on the trade tab.
+  void _toTrade() {
+    if (mounted) setState(() => _index = 1);
+  }
+
+  @override
+  void dispose() {
+    tradeFocus.removeListener(_toTrade);
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
+    tradeFocus.addListener(_toTrade);
     // Once the first frame is up, so the tour opens over the app rather
     // than in place of it.
     WidgetsBinding.instance.addPostFrameCallback((_) {
