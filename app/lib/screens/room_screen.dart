@@ -62,6 +62,11 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
   StreamSubscription<Community?>? _following;
   Community? _community;
 
+  /// My role in that community, followed: a moderator pins, and takes
+  /// messages down, as its admin does.
+  StreamSubscription<String?>? _followingRole;
+  String? _role;
+
   /// Ticks once a second while slow mode has me waiting, for the countdown.
   Timer? _slowTicker;
 
@@ -107,9 +112,13 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
       }
       final community = Community.ofRoom(widget.roomId);
       if (community != null) {
-        _following = buildCommunitiesRepository()
+        final communities = buildCommunitiesRepository();
+        _following = communities
             ?.watch(community)
             .listen((c) => setState(() => _community = c), onError: (_) {});
+        _followingRole = communities
+            ?.watchRole(community, _me)
+            .listen((r) => setState(() => _role = r), onError: (_) {});
       }
     }
     // Also runs when a screen pushed over this one is popped.
@@ -120,6 +129,7 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
   void dispose() {
     _slowTicker?.cancel();
     _following?.cancel();
+    _followingRole?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _inbox?.removeListener(_maybeMarkRead);
     if (_inbox?.openChatId == widget.roomId) _inbox?.openChatId = null;
@@ -266,6 +276,10 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
         community != null && community.locked && community.createdBy != _me;
     // Its admin pins a message for everyone.
     final isAdmin = community != null && community.createdBy == _me;
+    // Its moderators pin too, and take down anyone's message but the
+    // admin's.
+    final isModerator = community != null && !isAdmin && _role == 'moderator';
+    final canPin = isAdmin || isModerator;
     // Slow mode: how long until I may write again. Never for the admin.
     final slow = community?.slowSeconds ?? 0;
     final lastSent = inbox?.membershipOf(widget.roomId)?.lastSentAt;
@@ -426,7 +440,7 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
                   : (jumpTo) => _PinnedBar(
                       pinned: pinned,
                       onTap: () => jumpTo(pinned.id),
-                      onUnpin: isAdmin ? _unpin : null,
+                      onUnpin: canPin ? _unpin : null,
                     ),
               bottom: known && !joined && !ofCommunity
                   ? ComposerNote(
@@ -448,7 +462,7 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
               statusOf: (m) =>
                   m.pending ? MessageStatus.pending : MessageStatus.sent,
               extraActions: (m) => [
-                if (isAdmin && !m.unsent && !m.pending && m.text.isNotEmpty)
+                if (canPin && !m.unsent && !m.pending && m.text.isNotEmpty)
                   MessageAction(
                     icon: pinned?.id == m.id
                         ? Icons.push_pin
@@ -456,8 +470,13 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
                     label: pinned?.id == m.id ? s.unpinMessage : s.pinMessage,
                     onSelected: () => pinned?.id == m.id ? _unpin() : _pin(m),
                   ),
-                // The admin takes anyone else's message down.
-                if (isAdmin && m.senderUid != _me && !m.unsent && !m.pending)
+                // The admin takes anyone else's message down; a moderator,
+                // anyone's but the admin's.
+                if ((isAdmin ||
+                        (isModerator && m.senderUid != community.createdBy)) &&
+                    m.senderUid != _me &&
+                    !m.unsent &&
+                    !m.pending)
                   MessageAction(
                     icon: Icons.remove_circle_outline_rounded,
                     label: s.removeMessage,
