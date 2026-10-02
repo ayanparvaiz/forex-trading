@@ -27,6 +27,7 @@ import '../widgets/feed_picker.dart';
 import '../widgets/forward_sheet.dart';
 import '../widgets/medal_pill.dart';
 import '../widgets/paged_list.dart';
+import '../widgets/question_sheet.dart';
 import '../widgets/report_sheet.dart';
 import 'post_comments_sheet.dart';
 import 'communities_screen.dart';
@@ -158,6 +159,13 @@ class _CommunityScreenState extends State<CommunityScreen>
     CommunityRepository repository, {
     RankShare? rank,
   }) async {
+    // From the button, a post or a question; from a leaderboard row, a post.
+    if (rank == null) {
+      final choice = await chooseCompose(context);
+      if (!mounted || choice == null) return;
+      if (choice == ComposeChoice.question) return _ask(repository);
+    }
+    if (!mounted) return;
     final posted = await showPostComposer(
       context,
       repository: repository,
@@ -175,6 +183,33 @@ class _CommunityScreenState extends State<CommunityScreen>
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(context.s.posted)));
+  }
+
+  /// Asks a question of the feed on screen.
+  Future<void> _ask(CommunityRepository repository) async {
+    final session = context.session;
+    final uid = session.uid;
+    final username = session.profile?.username;
+    final s = context.s;
+    final messenger = ScaffoldMessenger.of(context);
+    final question = await showQuestionSheet(context);
+    if (question == null || uid == null || username == null || !mounted) {
+      return;
+    }
+    final id = await repository.createQuestion(
+      uid: uid,
+      username: username,
+      question: question,
+      community: _feed,
+    );
+    if (!mounted) return;
+    if (id == null) {
+      messenger.showSnackBar(SnackBar(content: Text(s.couldNotSave)));
+      return;
+    }
+    setState(() => _feedVersion++);
+    _tabs.animateTo(1);
+    messenger.showSnackBar(SnackBar(content: Text(s.questionPosted)));
   }
 
   @override
@@ -1286,6 +1321,7 @@ class FeedCard extends StatelessWidget {
   final ValueChanged<String>? onDeleted;
 
   bool get _isRank => post.kind == PostKind.rank;
+  bool get _isQuestion => post.kind == PostKind.question;
 
   Future<void> _report(BuildContext context) async {
     final uid = await repository.uidFor(post.author.id);
@@ -1366,7 +1402,7 @@ class FeedCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      _isRank
+                      _isRank || _isQuestion
                           ? s.timeAgo(post.postedAt)
                           : '${post.symbol} · ${s.timeAgo(post.postedAt)}',
                       style: const TextStyle(
@@ -1377,7 +1413,9 @@ class FeedCard extends StatelessWidget {
                   ],
                 ),
               ),
-              _isRank
+              _isQuestion
+                  ? const Text('❓', style: TextStyle(fontSize: 18))
+                  : _isRank
                   ? Text(
                       '#${post.rank}',
                       style: const TextStyle(
@@ -1460,8 +1498,9 @@ class FeedCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // A rank post has no trade behind it, so there is no reasoning
-                // to show — only the line about how the author got there.
-                if (!_isRank) ...[
+                // to show — only the line about how the author got there. A
+                // question is only its question.
+                if (!_isRank && !_isQuestion) ...[
                   Text(
                     s.whyITookIt,
                     style: const TextStyle(
@@ -1479,7 +1518,11 @@ class FeedCard extends StatelessWidget {
                   Gap.h12,
                 ],
                 Text(
-                  _isRank ? s.howYouGotHere : s.whatILearned,
+                  _isQuestion
+                      ? s.questionLabel
+                      : _isRank
+                      ? s.howYouGotHere
+                      : s.whatILearned,
                   style: TextStyle(
                     fontSize: 10.5,
                     fontWeight: FontWeight.w700,
@@ -1492,7 +1535,11 @@ class FeedCard extends StatelessWidget {
                 Gap.h4,
                 Text(
                   post.lesson,
-                  style: const TextStyle(fontSize: 12.5, height: 1.5),
+                  style: TextStyle(
+                    fontSize: _isQuestion ? 14.5 : 12.5,
+                    height: 1.5,
+                    fontWeight: _isQuestion ? FontWeight.w600 : null,
+                  ),
                 ),
               ],
             ),
@@ -1500,7 +1547,21 @@ class FeedCard extends StatelessWidget {
           Gap.h12,
           Row(
             children: [
-              if (_isRank)
+              if (_isQuestion)
+                post.answerId != null
+                    ? Pill(
+                        text: s.answered,
+                        color: AppColors.profit,
+                        icon: Icons.check_circle_outline_rounded,
+                        dense: true,
+                      )
+                    : Pill(
+                        text: s.openQuestion,
+                        color: AppColors.warning,
+                        icon: Icons.help_outline_rounded,
+                        dense: true,
+                      )
+              else if (_isRank)
                 Pill(
                   text:
                       '${s.discipline} '
@@ -1730,6 +1791,11 @@ class _PostActionsState extends State<_PostActions> {
                 context,
                 postId: widget.post.id,
                 repository: widget.repository,
+                // On a question of mine, I pick the best answer.
+                pickBest:
+                    widget.post.kind == PostKind.question &&
+                    widget.post.author.id == context.session.profile?.username,
+                answerId: widget.post.answerId,
               ),
               borderRadius: Radii.pill,
               child: Padding(
