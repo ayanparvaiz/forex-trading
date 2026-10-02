@@ -1208,6 +1208,27 @@ service cloud.firestore {
         && (rules.size() < 5 || ruleLineOk(rules[4]));
     }
 
+    // A community's moderators, listed on it: three at most, each one a
+    // moderator in the members — and anyone taken off the list no longer
+    // one. So the list is every moderator there is, and three is the limit.
+    function isModeratorAfter(cid, uid) {
+      return existsAfter(memberPath(cid, uid))
+        && getAfter(memberPath(cid, uid)).data.role == 'moderator';
+    }
+
+    function moderatorsOk(cid) {
+      let after = request.resource.data.get('moderators', []);
+      let before = resource.data.get('moderators', []);
+      return after is list
+        && after.size() <= 3
+        && (after.size() < 1 || isModeratorAfter(cid, after[0]))
+        && (after.size() < 2 || isModeratorAfter(cid, after[1]))
+        && (after.size() < 3 || isModeratorAfter(cid, after[2]))
+        && (before.size() < 1 || before[0] in after || !isModeratorAfter(cid, before[0]))
+        && (before.size() < 2 || before[1] in after || !isModeratorAfter(cid, before[1]))
+        && (before.size() < 3 || before[2] in after || !isModeratorAfter(cid, before[2]));
+    }
+
     // A community changing hands: to someone already in it, with both
     // memberships saying so in the same write.
     function handOverOk(cid, from, to) {
@@ -1246,7 +1267,10 @@ service cloud.firestore {
         && (communityCountOk(cid)
             || (resource.data.createdBy == request.auth.uid
                 && request.resource.data.diff(resource.data).affectedKeys()
-                     .hasOnly(['description', 'avatarId', 'locked', 'createdBy', 'slowSeconds', 'rules'])
+                     .hasOnly(['description', 'avatarId', 'locked', 'createdBy', 'slowSeconds', 'rules',
+                               'moderators'])
+                && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['moderators'])
+                    || moderatorsOk(cid))
                 && request.resource.data.get('slowSeconds', 0) in [0, 10, 30, 60, 300]
                 && communityRulesOk(request.resource.data)
                 && request.resource.data.description is string
@@ -1321,7 +1345,10 @@ service cloud.firestore {
           && ((getAfter(communityPath(cid)).data.createdBy == uid
                && request.resource.data.role == 'admin')
               || (getAfter(communityPath(cid)).data.createdBy != uid
-               && request.resource.data.role in ['member', 'moderator']));
+               && request.resource.data.role in ['member', 'moderator']
+               // A moderator only as one of the community's listed few.
+               && (request.resource.data.role != 'moderator'
+                   || uid in getAfter(communityPath(cid)).data.get('moderators', []))));
         // Leaving: counted out, and no longer your community. Not for its
         // admin, who deletes it instead — a community is never left without
         // one.
