@@ -82,7 +82,9 @@ class SharedPostCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      if (p.kind == PostKind.rank)
+                      if (p.kind == PostKind.question)
+                        const Text('❓', style: TextStyle(fontSize: 14))
+                      else if (p.kind == PostKind.rank)
                         Text(
                           '#${p.rank}',
                           style: const TextStyle(
@@ -104,10 +106,13 @@ class SharedPostCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    p.kind == PostKind.rank
-                        ? '${s.discipline} '
-                              '${(p.disciplineScore ?? 0).toStringAsFixed(0)}'
-                        : p.symbol,
+                    switch (p.kind) {
+                      PostKind.rank =>
+                        '${s.discipline} '
+                            '${(p.disciplineScore ?? 0).toStringAsFixed(0)}',
+                      PostKind.question => s.questionLabel,
+                      PostKind.trade => p.symbol,
+                    },
                     style: const TextStyle(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,

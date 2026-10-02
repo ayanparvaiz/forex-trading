@@ -409,6 +409,30 @@ class Strings {
   );
   String get last24h => _t('২৪ ঘণ্টায়', '24h');
 
+  // --- Questions ---------------------------------------------------------
+
+  String get askQuestion => _t('প্রশ্ন করুন', 'Ask a question');
+  String get shareAPost => _t('পোস্ট লিখুন', 'Write a post');
+  String get shareAPostHint =>
+      _t('একটা ট্রেড, যা শিখলেন', 'A trade, and what you learned');
+  String get askQuestionHint => _t(
+    'সবাই উত্তর দেবে; সেরাটা আপনি বেছে নেবেন',
+    'Everyone answers; you pick the best',
+  );
+  String get questionLabel => _t('প্রশ্ন', 'QUESTION');
+  String get questionFieldHint => _t(
+    'যেমন: USD/JPY-তে লট সাইজ কীভাবে হিসাব করেন?',
+    'e.g. How do you size a trade on USD/JPY?',
+  );
+  String get answered => _t('উত্তর পাওয়া গেছে', 'Answered');
+  String get openQuestion => _t('উত্তরের অপেক্ষা', 'Open question');
+  String get bestAnswer => _t('সেরা উত্তর', 'Best answer');
+  String get markBestAnswer =>
+      _t('সেরা উত্তর হিসেবে বাছুন', 'Mark as best answer');
+  String get unmarkBestAnswer =>
+      _t('সেরা উত্তর থেকে সরান', 'Remove best answer');
+  String get questionPosted => _t('প্রশ্ন পোস্ট হয়েছে', 'Question posted');
+
   // --- Weekly challenges -------------------------------------------------
 
   String get challengeThisWeek =>

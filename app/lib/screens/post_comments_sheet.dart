@@ -9,14 +9,18 @@ import '../models/app_notification.dart';
 import '../models/post_comment.dart';
 import '../theme/app_theme.dart';
 import '../widgets/avatar_image.dart';
+import '../widgets/common.dart';
 import '../widgets/report_sheet.dart';
 import 'profile_screen.dart';
 
-/// Opens the comment thread for a post.
+/// Opens the comment thread for a post. On a question, [pickBest] for the
+/// one who asked it, who picks the best answer — [answerId], once picked.
 Future<void> showPostComments(
   BuildContext context, {
   required String postId,
   required CommunityRepository repository,
+  bool pickBest = false,
+  String? answerId,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -25,15 +29,29 @@ Future<void> showPostComments(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
-    builder: (_) => _CommentsSheet(postId: postId, repository: repository),
+    builder: (_) => _CommentsSheet(
+      postId: postId,
+      repository: repository,
+      pickBest: pickBest,
+      answerId: answerId,
+    ),
   );
 }
 
 class _CommentsSheet extends StatefulWidget {
-  const _CommentsSheet({required this.postId, required this.repository});
+  const _CommentsSheet({
+    required this.postId,
+    required this.repository,
+    this.pickBest = false,
+    this.answerId,
+  });
 
   final String postId;
   final CommunityRepository repository;
+
+  /// On a question, for the one who asked it.
+  final bool pickBest;
+  final String? answerId;
 
   @override
   State<_CommentsSheet> createState() => _CommentsSheetState();
@@ -46,6 +64,27 @@ class _CommentsSheetState extends State<_CommentsSheet> {
 
   /// The comment being answered, shown over the box until sent or dropped.
   PostComment? _replyingTo;
+
+  /// On a question, the best answer picked so far.
+  late String? _answerId = widget.answerId;
+
+  /// The asker picks the best answer, or takes the pick back — at once,
+  /// then written.
+  Future<void> _pickBest(PostComment c) async {
+    final before = _answerId;
+    final next = before == c.id ? null : c.id;
+    setState(() => _answerId = next);
+    try {
+      await widget.repository.setBestAnswer(widget.postId, next);
+    } catch (e) {
+      debugPrint('best answer failed: $e');
+      if (!mounted) return;
+      setState(() => _answerId = before);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.s.couldNotSave)));
+    }
+  }
 
   @override
   void dispose() {
@@ -197,17 +236,27 @@ class _CommentsSheetState extends State<_CommentsSheet> {
 
                   // Replies under the comment they answer.
                   final thread = threadComments(comments);
+                  final me = context.session.uid;
+                  final asking = me != null && widget.pickBest;
                   return ListView.builder(
                     controller: scrollController,
                     padding: const EdgeInsets.all(Gap.lg),
                     itemCount: thread.length,
-                    itemBuilder: (context, i) => _CommentRow(
-                      comment: thread[i].$1,
-                      isReply: thread[i].$2,
-                      postId: widget.postId,
-                      repository: widget.repository,
-                      onReply: () => _replyTo(thread[i].$1),
-                    ),
+                    itemBuilder: (context, i) {
+                      final c = thread[i].$1;
+                      return _CommentRow(
+                        comment: c,
+                        isReply: thread[i].$2,
+                        postId: widget.postId,
+                        repository: widget.repository,
+                        onReply: () => _replyTo(c),
+                        best: _answerId == c.id,
+                        // Who asked picks among the others' answers.
+                        onPickBest: asking && c.authorUid != me
+                            ? () => _pickBest(c)
+                            : null,
+                      );
+                    },
                   );
                 },
               ),
@@ -305,12 +354,20 @@ class _CommentRow extends StatelessWidget {
     required this.repository,
     required this.onReply,
     this.isReply = false,
+    this.best = false,
+    this.onPickBest,
   });
 
   final PostComment comment;
   final String postId;
   final CommunityRepository repository;
   final VoidCallback onReply;
+
+  /// Picked as the question's best answer.
+  final bool best;
+
+  /// Set for whoever asked: picking this one, or taking the pick back.
+  final VoidCallback? onPickBest;
 
   /// Drawn indented, under the comment it answers.
   final bool isReply;
@@ -415,6 +472,15 @@ class _CommentRow extends StatelessWidget {
                       ),
                     ],
                   ),
+                  if (best) ...[
+                    Gap.h4,
+                    Pill(
+                      text: s.bestAnswer,
+                      icon: Icons.check_circle_rounded,
+                      color: AppColors.profit,
+                      dense: true,
+                    ),
+                  ],
                   Gap.h4,
                   Text.rich(
                     TextSpan(
@@ -486,6 +552,35 @@ class _CommentRow extends StatelessWidget {
                           ),
                         ),
                       ),
+                      if (onPickBest != null) ...[
+                        Gap.w12,
+                        Flexible(
+                          child: TextButton.icon(
+                            onPressed: onPickBest,
+                            icon: Icon(
+                              best
+                                  ? Icons.check_circle_rounded
+                                  : Icons.check_circle_outline_rounded,
+                              size: 15,
+                            ),
+                            label: Text(
+                              best ? s.unmarkBestAnswer : s.markBestAnswer,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.zero,
+                              minimumSize: const Size(0, 30),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              foregroundColor: AppColors.profit,
+                              textStyle: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ],

@@ -509,7 +509,9 @@ class _PostTile extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        rank
+                        post.kind == PostKind.question
+                            ? '  ❓'
+                            : rank
                             ? '  #${post.rank}'
                             : '  ${post.symbol} ${rMultiple(post.rMultiple)}',
                         style: TextStyle(
