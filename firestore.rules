@@ -236,6 +236,21 @@ service cloud.firestore {
         allow update: if false;
       }
 
+      // Messages starred, to find again: which conversation and which
+      // message, never a copy of it — an unsent message is gone here too.
+      // For a chat, who it is with, to open it by.
+      match /starred/{starId} {
+        allow read, delete: if isOwner(uid);
+        allow create: if isOwner(uid)
+          && request.resource.data.keys()
+               .hasOnly(['conversationId', 'messageId', 'room', 'starredAt', 'otherUid', 'otherUsername'])
+          && request.resource.data.keys().hasAll(['conversationId', 'messageId', 'room', 'starredAt'])
+          && starId == request.resource.data.conversationId + '__' + request.resource.data.messageId
+          && request.resource.data.room is bool
+          && request.resource.data.starredAt == request.time;
+        allow update: if false;
+      }
+
       // --- Chat preferences -------------------------------------------------
       //
       // What you have deleted "for me": one document per conversation, with
