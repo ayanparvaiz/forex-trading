@@ -103,6 +103,18 @@ test('a shared post says so', async () => {
   assert.equal(sent[0].notification.body, '📊 Post · look');
 });
 
+test('a poll reads as its question', async () => {
+  const docs = world();
+  docs.set('rooms/global/messages/g-poll', {
+    senderUid: 'u-me', senderName: 'Me', text: '', sentAt: ago(1), unsent: false,
+    attachment: { type: 'poll', question: 'Which pair?', options: ['EURUSD', 'GBPUSD'] },
+  });
+  const { sent } = await run(docs, 'u-me', { type: 'room', roomId: 'global', messageId: 'g-poll' });
+  const byToken = Object.fromEntries(sent.map((m) => [m.token, m]));
+  assert.equal(byToken['tok-ana'].notification.body, 'Me: 🗳️ Poll · Which pair?');
+  assert.equal(byToken['tok-bo'].notification.body, 'Me: 🗳️ পোল · Which pair?');
+});
+
 test('the Global room tells its other members, each in their language', async () => {
   const docs = world();
   const { sent } = await run(docs, 'u-me', { type: 'room', roomId: 'global', messageId: 'g1' });
