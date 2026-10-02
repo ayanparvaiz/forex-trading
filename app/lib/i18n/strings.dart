@@ -300,6 +300,20 @@ class Strings {
   String get lookFurtherBack => _t('আরো পেছনে খুঁজুন', 'Look further back');
   String get nothingFound => _t('কিছু পাওয়া যায়নি', 'Nothing found');
 
+  // --- Community rules ---------------------------------------------------
+
+  String get communityRules => _t('কমিউনিটির নিয়ম', 'Community rules');
+  String get noRulesAdmin => _t(
+    'এখনো কোনো নিয়ম নেই — যোগ দেওয়ার আগে সবাই দেখবে।',
+    'No rules yet — everyone sees them before joining.',
+  );
+  String get editRules => _t('নিয়ম লিখুন', 'Edit rules');
+  String ruleLine(int n) => _t('নিয়ম $n', 'Rule $n');
+  String get addRule => _t('আরেকটা নিয়ম', 'Add a rule');
+  String rulesOf(String name) => _t('$name-এর নিয়ম', 'The rules of $name');
+  String get agreeAndJoin => _t('মেনে যোগ দিন', 'Agree and join');
+  String get rulesSaved => _t('নিয়ম সেভ হয়েছে', 'Rules saved');
+
   // --- Moderators --------------------------------------------------------
 
   String get moderator => _t('মডারেটর', 'Moderator');
