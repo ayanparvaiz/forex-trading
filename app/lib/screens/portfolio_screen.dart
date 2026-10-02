@@ -102,76 +102,80 @@ class _ProfileButton extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(Gap.lg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  AvatarImage(avatarId, size: 52),
-                  Gap.w12,
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          name,
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(Gap.lg),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    AvatarImage(avatarId, size: 52),
+                    Gap.w12,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                        ),
-                        Text(
-                          '@${session.profile?.username ?? ''}',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: AppColors.textMuted,
+                          Text(
+                            '@${session.profile?.username ?? ''}',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textMuted,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                Gap.h24,
+                FilledButton.icon(
+                  onPressed: () {
+                    final username = session.profile?.username;
+                    Navigator.of(sheetContext).pop();
+                    if (username == null) return;
+                    openProfile(
+                      context,
+                      username,
+                      buildCommunityRepository(
+                        session.language,
+                        viewerUid: session.uid,
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.person_outline, size: 18),
+                  label: Text(s.profile),
+                ),
+                Gap.h8,
+                // Everything else about the account — editing it, the password,
+                // language, privacy, signing out — lives in Settings, so this
+                // sheet stays a short way in rather than a second settings page.
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.of(sheetContext).pop();
+                    openSettings(context);
+                  },
+                  icon: const Icon(Icons.settings_outlined, size: 18),
+                  label: Text(s.settings),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48),
+                    foregroundColor: AppColors.textPrimary,
+                    side: const BorderSide(color: AppColors.border),
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: Radii.tile,
                     ),
                   ),
-                ],
-              ),
-              Gap.h24,
-              FilledButton.icon(
-                onPressed: () {
-                  final username = session.profile?.username;
-                  Navigator.of(sheetContext).pop();
-                  if (username == null) return;
-                  openProfile(
-                    context,
-                    username,
-                    buildCommunityRepository(
-                      session.language,
-                      viewerUid: session.uid,
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.person_outline, size: 18),
-                label: Text(s.profile),
-              ),
-              Gap.h8,
-              // Everything else about the account — editing it, the password,
-              // language, privacy, signing out — lives in Settings, so this
-              // sheet stays a short way in rather than a second settings page.
-              OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.of(sheetContext).pop();
-                  openSettings(context);
-                },
-                icon: const Icon(Icons.settings_outlined, size: 18),
-                label: Text(s.settings),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
-                  foregroundColor: AppColors.textPrimary,
-                  side: const BorderSide(color: AppColors.border),
-                  shape: const RoundedRectangleBorder(borderRadius: Radii.tile),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -227,17 +231,22 @@ class _EquityCard extends StatelessWidget {
           ),
           Gap.h4,
           Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
-                pointsValue(equity),
-                style: const TextStyle(
-                  fontSize: 34,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -1.2,
-                  height: 1.1,
-                  fontFeatures: tabularFigures,
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    pointsValue(equity),
+                    style: const TextStyle(
+                      fontSize: 34,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -1.2,
+                      height: 1.1,
+                      fontFeatures: tabularFigures,
+                    ),
+                  ),
                 ),
               ),
               Gap.w8,
