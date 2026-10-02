@@ -380,6 +380,33 @@ void main() {
     expect(find.byIcon(Icons.check_circle_rounded), findsNothing);
   });
 
+  testWidgets('a poll fits a small phone, long answers and all', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(640, 1136);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final source = await pump(tester, showSenderNames: true);
+    source.latest.add([
+      ChatMessage(
+        id: 'p2',
+        senderUid: 'ana',
+        senderName: 'Ana',
+        text: '',
+        sentAt: t0,
+        unsent: false,
+        pending: false,
+        attachment: Poll(
+          question: 'Q' * 140,
+          options: ['A' * 40, 'B' * 40, 'C' * 40, 'D' * 40],
+        ),
+        votes: const {'ana': 0, 'bo': 3},
+      ),
+    ]);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('no voting where you cannot write', (tester) async {
     final source = await pump(tester, canSend: false);
     source.latest.add([pollMsg()]);
