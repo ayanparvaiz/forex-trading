@@ -27,14 +27,8 @@ export function weekId(ms) {
   return `${year}-W${String(week).padStart(2, '0')}`;
 }
 
-/**
- * This week's numbers from [trades]. weekBoard is the week's id when there
- * are enough trades to be ranked, '' otherwise — the one field the board
- * is asked for by.
- */
-export function weeklyStats(trades, now = new Date()) {
-  const nowMs = now instanceof Date ? now.getTime() : Date.parse(now);
-  const week = weekId(nowMs);
+/** The numbers of week [week] from [trades]. */
+function statsFor(trades, week) {
   const closed = trades.filter(
     (t) => t.closedAt != null && weekId(Date.parse(t.closedAt)) === week,
   );
@@ -48,9 +42,32 @@ export function weeklyStats(trades, now = new Date()) {
     r += rMultiple(t) ?? 0;
   }
   return {
-    weekBoard: closed.length >= MIN_WEEK_TRADES ? week : '',
-    weekScore: closed.length ? score / closed.length : 100,
-    weekTrades: closed.length,
-    weekR: r,
+    board: closed.length >= MIN_WEEK_TRADES ? week : '',
+    score: closed.length ? score / closed.length : 100,
+    trades: closed.length,
+    r,
+  };
+}
+
+/**
+ * This week's numbers from [trades]. weekBoard is the week's id when there
+ * are enough trades to be ranked, '' otherwise — the one field the board
+ * is asked for by.
+ *
+ * Last week's too, final once the week is over, so a challenge between two
+ * traders can still be settled after it — whoever traded since or not.
+ */
+export function weeklyStats(trades, now = new Date()) {
+  const nowMs = now instanceof Date ? now.getTime() : Date.parse(now);
+  const week = statsFor(trades, weekId(nowMs));
+  const last = statsFor(trades, weekId(nowMs - 7 * DAY_MS));
+  return {
+    weekBoard: week.board,
+    weekScore: week.score,
+    weekTrades: week.trades,
+    weekR: week.r,
+    lastWeekBoard: last.board,
+    lastWeekScore: last.score,
+    lastWeekTrades: last.trades,
   };
 }

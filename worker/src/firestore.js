@@ -85,7 +85,7 @@ export async function scoreState(projectId, uid, token) {
 // Counts are written as integers and everything else as doubles, so the
 // document reads the same whether a number happens to be whole or not — a
 // discipline score of exactly 100 is still a double.
-const INTEGER_FIELDS = new Set(['badgePoints', 'tradeCount', 'journalStreak', 'weekTrades']);
+const INTEGER_FIELDS = new Set(['badgePoints', 'tradeCount', 'journalStreak', 'weekTrades', 'lastWeekTrades']);
 
 /**
  * Writes the score fields, and only those.

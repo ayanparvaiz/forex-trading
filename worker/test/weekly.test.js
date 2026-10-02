@@ -48,5 +48,30 @@ test("only this week's trades, and three of them to be on the board", () => {
 
 test('a quiet week: nothing, and nothing on the board', () => {
   const s = weeklyStats([trade('2026-09-01T06:00:00Z')], new Date('2026-10-01T06:00:00Z'));
-  assert.deepEqual(s, { weekBoard: '', weekScore: 100, weekTrades: 0, weekR: 0 });
+  assert.deepEqual(s, {
+    weekBoard: '',
+    weekScore: 100,
+    weekTrades: 0,
+    weekR: 0,
+    lastWeekBoard: '',
+    lastWeekScore: 100,
+    lastWeekTrades: 0,
+  });
+});
+
+test("last week's numbers, final, beside this week's", () => {
+  const now = new Date('2026-10-01T06:00:00Z'); // W40
+  const s = weeklyStats(
+    [
+      trade('2026-09-22T06:00:00Z'),
+      trade('2026-09-23T06:00:00Z', ['revengeTrade']),
+      trade('2026-09-24T06:00:00Z'),
+      trade('2026-09-30T06:00:00Z'),
+    ],
+    now,
+  );
+  assert.equal(s.lastWeekBoard, '2026-W39');
+  assert.equal(s.lastWeekTrades, 3);
+  assert.equal(s.lastWeekScore, (100 + 75 + 100) / 3);
+  assert.equal(s.weekTrades, 1);
 });
