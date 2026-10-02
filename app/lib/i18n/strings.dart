@@ -284,6 +284,18 @@ class Strings {
     'একসাথে ১০টার বেশি অ্যালার্ট রাখা যায় না।',
     'Ten alerts at most — remove one first.',
   );
+  // --- Starred messages --------------------------------------------------
+
+  String get starMessage => _t('স্টার দিন', 'Star');
+  String get unstarMessage => _t('স্টার সরান', 'Unstar');
+  String get starredMessages => _t('স্টার দেওয়া মেসেজ', 'Starred messages');
+  String get noStarred => _t(
+    'কোনো মেসেজে স্টার নেই। মেসেজ চেপে ধরে "স্টার দিন" — পরে এখানে পাবেন।',
+    'Nothing starred. Long-press a message and tap Star to find it here.',
+  );
+  String get starredGone =>
+      _t('মেসেজটি আর নেই', 'This message is no longer available');
+
   // --- Searching a conversation -----------------------------------------
 
   String get searchChat => _t('এই চ্যাটে খুঁজুন', 'Search this chat');
