@@ -15,6 +15,7 @@ import '../widgets/conversation_view.dart';
 import '../widgets/mute_sheet.dart';
 import '../widgets/report_sheet.dart';
 import '../widgets/safety_actions.dart';
+import 'message_search_screen.dart';
 import 'post_screen.dart';
 import 'profile_screen.dart';
 
@@ -65,6 +66,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
   /// Set once the conversation is known to exist.
   _DirectSource? _source;
+
+  /// For a search to send the conversation to what it found.
+  final _conversation = ConversationController();
 
   ChatThread? _thread;
 
@@ -267,8 +271,27 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     return true;
   }
 
+  /// Finds words in the conversation, and goes to the message picked.
+  Future<void> _search() async {
+    final source = _source;
+    if (source == null) return;
+    final s = context.s;
+    final inbox = _inbox;
+    final id = await searchMessages(
+      context,
+      source: source,
+      nameOf: (uid, _) => uid == _me ? s.you : _partnerName,
+      // Not what I deleted for myself.
+      shows: (m) =>
+          (inbox?.prefsFor(source.prefsId) ?? ChatPrefs.none).shows(m),
+    );
+    if (id != null && mounted) await _conversation.jumpTo(id);
+  }
+
   Future<void> _menu(String action) async {
     switch (action) {
+      case 'search':
+        await _search();
       case 'mute':
         final inbox = _inbox;
         if (inbox != null) await muteChat(context, inbox, widget.chatId);
@@ -437,6 +460,17 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             color: AppColors.elevated,
             onSelected: (action) => _menu(action),
             itemBuilder: (_) => [
+              if (source != null)
+                PopupMenuItem(
+                  value: 'search',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.search_rounded, size: 19),
+                      Gap.w12,
+                      Text(s.searchChat),
+                    ],
+                  ),
+                ),
               PopupMenuItem(
                 value: muted ? 'unmute' : 'mute',
                 child: MuteMenuRow(s: s, prefs: prefs, now: now),
@@ -509,6 +543,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           : ConversationView(
               source: source,
               me: _me,
+              controller: _conversation,
               canSend: _connected == true && !blockedByMe,
               nameOf: (uid, _) => uid == _me ? s.you : _partnerName,
               emptyText: s.sayHi,
