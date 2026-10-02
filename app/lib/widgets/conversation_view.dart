@@ -388,6 +388,7 @@ class _ConversationViewState extends State<ConversationView> {
       id: communityId,
       onTap: () => openCommunity(context, communityId),
     ),
+    final SharedTrade trade => SharedTradeCard(trade: trade, s: s),
     final Poll poll => PollCard(
       poll: poll,
       counts: m.voteCounts(poll.options.length),

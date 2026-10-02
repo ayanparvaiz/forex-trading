@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../i18n/strings.dart';
+import '../models/chat.dart';
+import '../models/instrument.dart';
+import '../models/trade.dart';
 import '../models/trader.dart';
 import '../theme/app_theme.dart';
 import 'avatar_image.dart';
@@ -223,6 +226,93 @@ class SharedRankCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// A closed trade sent in a conversation: the pair and side, how it ended
+/// in R, the prices, and what the plan had aimed for.
+class SharedTradeCard extends StatelessWidget {
+  const SharedTradeCard({super.key, required this.trade, required this.s});
+
+  final SharedTrade trade;
+  final Strings s;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = trade;
+    final pair = Instrument.bySymbol(t.symbol);
+    final won = t.r > 0;
+    final color = won ? AppColors.profit : AppColors.loss;
+    final side = t.isBuy ? TradeDirection.buy : TradeDirection.sell;
+    return Container(
+      width: 240,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.22),
+        borderRadius: const BorderRadius.all(Radius.circular(10)),
+        border: Border(left: BorderSide(color: color, width: 3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Flexible(
+                child: Text(
+                  t.symbol,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              Gap.w8,
+              Pill(
+                text: s.isBangla ? side.bn : side.en,
+                color: t.isBuy ? AppColors.profit : AppColors.loss,
+                dense: true,
+              ),
+              const Spacer(),
+              Gap.w8,
+              Text(
+                rMultiple(t.r),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  fontFeatures: tabularFigures,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+          Gap.h8,
+          Text(
+            '${s.entry} ${pair.formatPrice(t.entryPrice)} → '
+            '${pair.formatPrice(t.exitPrice)}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontFeatures: tabularFigures,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            [
+              ?t.exit?.label(s.isBangla),
+              s.plannedRR(t.plannedRiskReward.toStringAsFixed(1)),
+            ].join(' · '),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+          ),
+        ],
       ),
     );
   }

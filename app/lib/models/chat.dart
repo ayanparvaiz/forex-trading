@@ -1,3 +1,5 @@
+import 'trade.dart';
+
 /// A conversation between two traders, as the inbox lists it.
 ///
 /// The id is the id of the connection between the same two people —
@@ -169,6 +171,8 @@ sealed class MessageAttachment {
       'community' when json['communityId'] is String => SharedCommunity(
         communityId: json['communityId'] as String,
       ),
+      'trade' when json['tradeId'] is String && json['r'] is num =>
+        SharedTrade.fromJson(json),
       'poll' when json['question'] is String && json['options'] is List => Poll(
         question: json['question'] as String,
         options: [
@@ -226,6 +230,113 @@ class SharedCommunity extends MessageAttachment {
 
   @override
   Map<String, Object> toJson() => {'type': type, 'communityId': communityId};
+}
+
+/// A closed trade, as its owner's journal has it: the pair, the side, the
+/// prices, and how it ended in R. The rules check it against the journal
+/// (firestore.rules, tradeCardOk), so a card never claims a better trade
+/// than the one taken.
+class SharedTrade extends MessageAttachment {
+  const SharedTrade({
+    required this.ownerUid,
+    required this.tradeId,
+    required this.symbol,
+    required this.direction,
+    required this.entryPrice,
+    required this.stopPrice,
+    required this.targetPrice,
+    required this.exitPrice,
+    required this.exitReason,
+    required this.r,
+  });
+
+  /// [trade]'s card, or null while it is open, or when it risked nothing —
+  /// a stop moved to the entry has no R to speak of.
+  static SharedTrade? of(Trade trade, String ownerUid) {
+    final r = trade.rMultiple;
+    final exit = trade.exitPrice;
+    final reason = trade.exitReason;
+    if (r == null || exit == null || reason == null) return null;
+    if (trade.entryPrice == trade.stopPrice) return null;
+    return SharedTrade(
+      ownerUid: ownerUid,
+      tradeId: trade.id,
+      symbol: trade.symbol,
+      direction: trade.direction.name,
+      entryPrice: trade.entryPrice,
+      stopPrice: trade.stopPrice,
+      targetPrice: trade.targetPrice,
+      exitPrice: exit,
+      exitReason: reason.name,
+      r: r,
+    );
+  }
+
+  factory SharedTrade.fromJson(Map<dynamic, dynamic> json) {
+    double n(Object? v) => (v as num?)?.toDouble() ?? 0;
+    return SharedTrade(
+      ownerUid: json['ownerUid'] as String? ?? '',
+      tradeId: json['tradeId'] as String,
+      symbol: json['symbol'] as String? ?? '',
+      direction: json['direction'] as String? ?? 'buy',
+      entryPrice: n(json['entryPrice']),
+      stopPrice: n(json['stopPrice']),
+      targetPrice: n(json['targetPrice']),
+      exitPrice: n(json['exitPrice']),
+      exitReason: json['exitReason'] as String? ?? '',
+      r: n(json['r']),
+    );
+  }
+
+  final String ownerUid;
+  final String tradeId;
+  final String symbol;
+
+  /// "buy" or "sell", as [TradeDirection] names them.
+  final String direction;
+  final double entryPrice;
+  final double stopPrice;
+  final double targetPrice;
+  final double exitPrice;
+
+  /// As [ExitReason] names them.
+  final String exitReason;
+
+  /// The result in R, after costs.
+  final double r;
+
+  bool get isBuy => direction == TradeDirection.buy.name;
+
+  /// What the plan aimed for: the target as a multiple of the stop.
+  double get plannedRiskReward {
+    final risk = (entryPrice - stopPrice).abs();
+    return risk == 0 ? 0 : (targetPrice - entryPrice).abs() / risk;
+  }
+
+  ExitReason? get exit {
+    for (final e in ExitReason.values) {
+      if (e.name == exitReason) return e;
+    }
+    return null;
+  }
+
+  @override
+  String get type => 'trade';
+
+  @override
+  Map<String, Object> toJson() => {
+    'type': type,
+    'ownerUid': ownerUid,
+    'tradeId': tradeId,
+    'symbol': symbol,
+    'direction': direction,
+    'entryPrice': entryPrice,
+    'stopPrice': stopPrice,
+    'targetPrice': targetPrice,
+    'exitPrice': exitPrice,
+    'exitReason': exitReason,
+    'r': r,
+  };
 }
 
 /// A question for a room, with two to four answers to pick from. The votes

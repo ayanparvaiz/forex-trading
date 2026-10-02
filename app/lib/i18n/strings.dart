@@ -355,6 +355,10 @@ class Strings {
     'A moment to stop before each trade',
   );
 
+  // --- A trade, sent in a chat ------------------------------------------
+
+  String plannedRR(String rr) => _t('প্ল্যান ছিল 1:$rr', 'Planned 1:$rr');
+
   // --- Watchlist ---------------------------------------------------------
 
   String get watchlistTitle => _t('ওয়াচলিস্ট', 'Watchlist');
@@ -988,6 +992,7 @@ class Strings {
       'rank' => '🏅 $sharedRank',
       'community' => '👥 ${_t('কমিউনিটি', 'Community')}',
       'poll' => '🗳️ $poll',
+      'trade' => '📈 ${_t('ট্রেড', 'Trade')}',
       _ => null,
     };
     if (label == null) return text;
