@@ -37,6 +37,7 @@ import { serviceAccountToken, signedInRecently, verifyIdTokenClaims } from './go
 import { TryAgain, listTrades, restStore, scoreState, writeStats } from './firestore.js';
 import { earnedAchievements, keepAchievements } from './achievements.js';
 import { weeklyStats } from './weekly.js';
+import { lastJournalDay, streakReminders } from './streak.js';
 import { deleteCommunity, isCommunityId, removeMember } from './community.js';
 import { eraseAccount } from './erase.js';
 import { sendPush } from './fcm.js';
@@ -46,6 +47,9 @@ import { referenceRates } from './rates.js';
 // The quarter-hourly trigger in wrangler.toml, for event reminders. The
 // other, daily, is the morning one.
 const EVENT_CRON = '*/15 * * * *';
+
+// 8 pm in Dhaka: streaks that end at midnight.
+const STREAK_CRON = '0 14 * * *';
 
 // How often one account may trigger a recompute.
 //
@@ -148,6 +152,10 @@ export default {
         // Every quarter hour: events about to start remind those going.
         if (event.cron === EVENT_CRON) {
           await eventReminders(restStore(env.FIREBASE_PROJECT_ID, token, { budget: 15 }), push);
+          return;
+        }
+        if (event.cron === STREAK_CRON) {
+          await streakReminders(restStore(env.FIREBASE_PROJECT_ID, token, { budget: 10 }), push);
           return;
         }
         await dailyReminder(push);
@@ -285,14 +293,16 @@ async function recompute(uid, env) {
     );
     // This week's board, from this week's trades alone.
     const week = weeklyStats(trades);
+    // The day of the last lesson, for the evening streak reminder.
+    const journalDay = lastJournalDay(trades);
     await writeStats(
       env.FIREBASE_PROJECT_ID,
       uid,
-      { ...stats, ranked, achievements, ...week },
+      { ...stats, ranked, achievements, ...week, journalDay },
       token,
     );
 
-    return json({ ...stats, ranked, achievements, ...week });
+    return json({ ...stats, ranked, achievements, ...week, journalDay });
   } catch (error) {
     if (error.message === 'no such user') return json({ error: 'no profile' }, 404);
     console.error('recompute failed for', uid, error);
