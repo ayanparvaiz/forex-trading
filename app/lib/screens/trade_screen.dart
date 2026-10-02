@@ -4,6 +4,7 @@ import '../core/calculations.dart';
 import '../data/account_scope.dart';
 import '../data/session_controller.dart';
 import '../data/trade_checklist_pref.dart';
+import '../firebase/firebase_bootstrap.dart';
 import '../i18n/strings.dart';
 import '../models/candle.dart';
 import '../models/instrument.dart';
@@ -12,6 +13,7 @@ import '../models/trade_preset.dart';
 import '../theme/app_theme.dart';
 import '../widgets/candle_chart.dart';
 import '../widgets/common.dart';
+import '../widgets/market_mood_card.dart';
 import '../widgets/price_alert_sheet.dart';
 import '../widgets/session_clock.dart';
 import '../widgets/trade_checklist_sheet.dart';
@@ -150,6 +152,11 @@ class _TradeScreenState extends State<TradeScreen> {
             Gap.h12,
             const SessionClock(),
             Gap.h12,
+            // Other people's say: needs the server everyone shares.
+            if (FirebaseBootstrap.isReady) ...[
+              MarketMoodCard(instrument: _instrument),
+              Gap.h12,
+            ],
             _directionToggle(s),
             Gap.h12,
             _planCard(size, s),
