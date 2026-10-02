@@ -182,6 +182,41 @@ Future<bool> confirmMakeAdmin(
   return true;
 }
 
+/// Makes [member] a moderator of [community], or a member again. No
+/// question first: it is undone the same way. True once done.
+Future<bool> toggleModerator(
+  BuildContext context,
+  Community community,
+  CommunityMember member,
+  String name, {
+  required int moderators,
+}) async {
+  final s = context.s;
+  final repo = buildCommunitiesRepository();
+  if (repo == null) return false;
+  final messenger = ScaffoldMessenger.of(context);
+  final making = !member.isModerator;
+  if (making && moderators >= CommunityMember.maxModerators) {
+    messenger.showSnackBar(
+      SnackBar(content: Text(s.moderatorsFull(CommunityMember.maxModerators))),
+    );
+    return false;
+  }
+  try {
+    await repo.setModerator(community.id, member.uid, making);
+  } catch (e) {
+    debugPrint('moderator failed: $e');
+    messenger.showSnackBar(SnackBar(content: Text(s.couldNotSave)));
+    return false;
+  }
+  messenger.showSnackBar(
+    SnackBar(
+      content: Text(making ? s.madeModerator(name) : s.moderatorRemoved(name)),
+    ),
+  );
+  return true;
+}
+
 /// Takes [member] out of [community], once its admin is sure.
 Future<bool> confirmRemoveMember(
   BuildContext context,
@@ -799,6 +834,19 @@ class _CommunityProfileScreenState extends State<CommunityProfileScreen> {
                         m,
                         name,
                       ),
+                      _MemberAction.moderator =>
+                        toggleModerator(
+                          context,
+                          c,
+                          m,
+                          name,
+                          moderators:
+                              _members?.where((x) => x.isModerator).length ?? 0,
+                        ).then((done) {
+                          // The list is fetched, not followed: fetch it again.
+                          if (done) _loadMembers(c);
+                          return done;
+                        }),
                       _MemberAction.remove => confirmRemoveMember(
                         context,
                         c,
@@ -810,6 +858,15 @@ class _CommunityProfileScreenState extends State<CommunityProfileScreen> {
                 : null,
           ),
           if (isAdmin) ...[
+            Gap.h8,
+            Text(
+              s.moderatorsCan,
+              style: const TextStyle(
+                fontSize: 12,
+                height: 1.4,
+                color: AppColors.textMuted,
+              ),
+            ),
             Gap.h24,
             Text(
               s.adminCantLeave,
@@ -852,7 +909,7 @@ class _CommunityProfileScreenState extends State<CommunityProfileScreen> {
 }
 
 /// What the admin can do to someone in it.
-enum _MemberAction { makeAdmin, remove }
+enum _MemberAction { makeAdmin, moderator, remove }
 
 typedef _OnMemberAction =
     void Function(CommunityMember member, String name, _MemberAction action);
@@ -889,6 +946,10 @@ class _Members extends StatelessWidget {
           a.uid == community.createdBy ? 1 : 0,
         );
         if (admin != 0) return admin;
+        final moderator = (b.isModerator ? 1 : 0).compareTo(
+          a.isModerator ? 1 : 0,
+        );
+        if (moderator != 0) return moderator;
         final pa = place[a.username] ?? 1 << 20;
         final pb = place[b.username] ?? 1 << 20;
         if (pa != pb) return pa.compareTo(pb);
@@ -983,7 +1044,14 @@ class _MemberRow extends StatelessWidget {
                 color: AppColors.brand,
                 dense: true,
               )
-            else if (onAction != null)
+            else if (member.isModerator)
+              Pill(
+                text: s.moderator,
+                icon: Icons.verified_user_outlined,
+                color: AppColors.discipline,
+                dense: true,
+              ),
+            if (!isAdmin && onAction != null)
               // Behind a menu, so nobody is removed by a stray tap.
               PopupMenuButton<_MemberAction>(
                 icon: const Icon(
@@ -1006,6 +1074,26 @@ class _MemberRow extends StatelessWidget {
                         ),
                         Gap.w12,
                         Text(s.makeAdmin),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: _MemberAction.moderator,
+                    child: Row(
+                      children: [
+                        Icon(
+                          member.isModerator
+                              ? Icons.remove_moderator_outlined
+                              : Icons.verified_user_outlined,
+                          size: 19,
+                          color: AppColors.discipline,
+                        ),
+                        Gap.w12,
+                        Text(
+                          member.isModerator
+                              ? s.removeModerator
+                              : s.makeModerator,
+                        ),
                       ],
                     ),
                   ),
