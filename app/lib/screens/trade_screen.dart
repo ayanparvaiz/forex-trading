@@ -57,6 +57,9 @@ class _TradeScreenState extends State<TradeScreen> {
 
   final _reasonController = TextEditingController();
 
+  /// How the trader feels placing it, if they say.
+  TradeMood? _mood;
+
   /// Whether the checklist comes up before the trade goes.
   final _checklist = TradeChecklistPref();
 
@@ -712,6 +715,32 @@ class _TradeScreenState extends State<TradeScreen> {
             s.whyFootnote,
             style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted),
           ),
+          Gap.h16,
+          Text(
+            s.howDoYouFeel,
+            style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
+          ),
+          Gap.h8,
+          Wrap(
+            spacing: Gap.sm,
+            runSpacing: Gap.sm,
+            children: [
+              for (final mood in TradeMood.values)
+                ChoiceChip(
+                  label: Text('${mood.emoji} ${mood.label(s.isBangla)}'),
+                  selected: _mood == mood,
+                  // The same again: unsaid.
+                  onSelected: (on) => setState(() => _mood = on ? mood : null),
+                  showCheckmark: false,
+                  visualDensity: VisualDensity.compact,
+                ),
+            ],
+          ),
+          Gap.h4,
+          Text(
+            s.moodHint,
+            style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted),
+          ),
         ],
       ),
     );
@@ -860,10 +889,11 @@ class _TradeScreenState extends State<TradeScreen> {
       stopPrice: _stopPrice,
       targetPrice: _targetPrice,
       reason: _reasonController.text.trim(),
+      mood: _mood,
     );
 
     _reasonController.clear();
-    setState(() {});
+    setState(() => _mood = null);
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
