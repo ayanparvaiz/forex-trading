@@ -2,16 +2,19 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../data/chat_inbox.dart';
 import '../data/communities_repository.dart';
 import '../data/community_admin.dart';
 import '../data/community_repository.dart';
 import '../data/firestore_community_repository.dart';
 import '../data/session_controller.dart';
+import '../models/chat.dart';
 import '../models/community.dart';
 import '../models/trader.dart';
 import '../theme/app_theme.dart';
 import '../widgets/avatar_image.dart';
 import '../widgets/common.dart';
+import '../widgets/forward_sheet.dart';
 import '../widgets/community_badge.dart';
 import '../widgets/community_events.dart';
 import '../widgets/community_picture_picker.dart';
@@ -450,7 +453,23 @@ class _CommunityProfileScreenState extends State<CommunityProfileScreen> {
     final rank = index < 0 ? null : index + 1;
 
     return Scaffold(
-      appBar: AppBar(title: Text(c.name)),
+      appBar: AppBar(
+        title: Text(c.name),
+        actions: [
+          // Into any chat, as a card that opens it — unless it is locked,
+          // when there is nothing to invite anyone to.
+          if (!c.locked && InboxScope.of(context) != null)
+            IconButton(
+              onPressed: () => shareIntoChats(
+                context,
+                text: '',
+                attachment: SharedCommunity(communityId: c.id),
+              ),
+              icon: const Icon(Icons.person_add_alt_1_outlined),
+              tooltip: s.inviteToCommunity,
+            ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.xxl),
         children: [
