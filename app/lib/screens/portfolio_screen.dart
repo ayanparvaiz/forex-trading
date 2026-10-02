@@ -10,6 +10,7 @@ import '../i18n/strings.dart';
 import '../models/trade.dart';
 import '../theme/app_theme.dart';
 import '../widgets/avatar_image.dart';
+import '../widgets/challenges_card.dart';
 import '../widgets/common.dart';
 import '../widgets/watchlist_card.dart';
 import 'notifications_screen.dart';
@@ -61,6 +62,8 @@ class PortfolioScreen extends StatelessWidget {
           Gap.h12,
           _StatsCard(stats: stats, s: s),
           Gap.h12,
+          // Shows only when there is a challenge on.
+          const ChallengesCard(),
           const WatchlistCard(),
           Gap.h12,
           _OpenPositions(store: store, s: s),
