@@ -1323,6 +1323,63 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // --- Market mood --------------------------------------------------------
+    //
+    // Each day, for each pair, who thinks it goes up and who down: everyone's,
+    // or one community's own — `{scope}_{pair}_{day}`, the scope 'global' or
+    // the community's id. One side each, your own uid only, today's only.
+    // The pairs are the app's (app/lib/models/instrument.dart).
+
+    /// Today's date in Dhaka, as the app writes it: 20261002.
+    function dhakaDay() {
+      let t = request.time + duration.value(6, 'h');
+      return string(t.year())
+        + (t.month() < 10 ? '0' : '') + string(t.month())
+        + (t.day() < 10 ? '0' : '') + string(t.day());
+    }
+
+    function moodScopeOk(scope) {
+      return scope == 'global' || myCommunity() == scope;
+    }
+
+    function noRepeats(l) {
+      return l is list && l.size() == l.toSet().size();
+    }
+
+    /// The list [field] the same but for the person asking.
+    function othersUnchanged(field) {
+      return request.resource.data[field].toSet().difference([request.auth.uid].toSet())
+        == resource.data[field].toSet().difference([request.auth.uid].toSet());
+    }
+
+    match /sentiment/{id} {
+      // By the id, so a day nobody has voted on yet can be watched too.
+      allow read: if isSignedIn() && moodScopeOk(id.split('_')[0]);
+      allow create: if isSignedIn()
+        && request.resource.data.keys().hasOnly(['scope', 'pair', 'day', 'bulls', 'bears'])
+        && request.resource.data.keys().hasAll(['scope', 'pair', 'day', 'bulls', 'bears'])
+        && id == request.resource.data.scope + '_' + request.resource.data.pair
+                 + '_' + request.resource.data.day
+        && request.resource.data.pair in ['EURUSD', 'GBPUSD', 'USDJPY']
+        && request.resource.data.day == dhakaDay()
+        && moodScopeOk(request.resource.data.scope)
+        && ((request.resource.data.bulls == [request.auth.uid]
+             && request.resource.data.bears == [])
+            || (request.resource.data.bulls == []
+             && request.resource.data.bears == [request.auth.uid]));
+      allow update: if isSignedIn()
+        && moodScopeOk(resource.data.scope)
+        && resource.data.day == dhakaDay()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['bulls', 'bears'])
+        && noRepeats(request.resource.data.bulls)
+        && noRepeats(request.resource.data.bears)
+        && othersUnchanged('bulls')
+        && othersUnchanged('bears')
+        && !(request.auth.uid in request.resource.data.bulls
+             && request.auth.uid in request.resource.data.bears);
+      allow delete: if false;
+    }
+
     // --- Lessons ------------------------------------------------------------
     //
     // Course content, published from the repo. Read-only to everyone.
