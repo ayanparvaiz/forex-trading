@@ -703,7 +703,45 @@ service cloud.firestore {
         || (a.keys().hasOnly(['type', 'communityId'])
           && a.keys().hasAll(['type', 'communityId'])
           && a.type == 'community'
-          && exists(communityPath(a.communityId))));
+          && exists(communityPath(a.communityId)))
+        // A poll: a question and two to four answers.
+        || (a.keys().hasOnly(['type', 'question', 'options'])
+          && a.keys().hasAll(['type', 'question', 'options'])
+          && a.type == 'poll'
+          && pollOk(a)));
+    }
+
+    function pollOptionOk(o) {
+      return o is string && o.size() > 0 && o.size() <= 40;
+    }
+
+    function pollOk(a) {
+      return a.question is string
+        && a.question.size() > 0
+        && a.question.size() <= 140
+        && a.options is list
+        && a.options.size() >= 2
+        && a.options.size() <= 4
+        && pollOptionOk(a.options[0])
+        && pollOptionOk(a.options[1])
+        && (a.options.size() < 3 || pollOptionOk(a.options[2]))
+        && (a.options.size() < 4 || pollOptionOk(a.options[3]));
+    }
+
+    /// A vote on a poll: one each, only your own, for an answer it has —
+    /// and none on a poll that has been unsent.
+    function voteOk() {
+      let before = resource.data.get('votes', {});
+      let after = request.resource.data.get('votes', {});
+      return resource.data.unsent == false
+        && resource.data.get('attachment', {}).get('type', '') == 'poll'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes'])
+        && after is map
+        && after.diff(before).affectedKeys().hasOnly([request.auth.uid])
+        && (!(request.auth.uid in after)
+            || (after[request.auth.uid] is int
+                && after[request.auth.uid] >= 0
+                && after[request.auth.uid] < resource.data.attachment.options.size()));
     }
 
     // A message has words, or something shared, or both.
@@ -774,6 +812,8 @@ service cloud.firestore {
               || request.resource.data.forwarded == true)
           && request.resource.data.senderUid == request.auth.uid
           && messageBodyOk(request.resource.data)
+          // Polls are for rooms, where there are people to ask.
+          && request.resource.data.get('attachment', {}).get('type', '') != 'poll'
           && request.resource.data.sentAt == request.time
           && request.resource.data.unsent == false
           // Still connected. Removing the connection closes the conversation.
@@ -1036,7 +1076,7 @@ service cloud.firestore {
               || (isMember(roomId)
                   && canUseRoom(roomId)
                   && (roomId == 'global' || communityOpenTo(roomId.split('_')[1]))
-                  && reactionOk()));
+                  && (reactionOk() || voteOk())));
         allow delete: if false;
       }
     }
