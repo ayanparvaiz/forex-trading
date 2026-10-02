@@ -672,6 +672,31 @@ class FirestoreCommunityRepository implements CommunityRepository {
   }
 
   @override
+  Future<String?> createQuestion({
+    required String uid,
+    required String username,
+    required String question,
+    String community = 'global',
+  }) async {
+    final now = DateTime.now();
+    try {
+      final doc = await _posts.add({
+        ..._envelope(uid, username, now, community),
+        'kind': 'question',
+        'lesson': question.trim(),
+      });
+      return doc.id;
+    } on FirebaseException catch (error) {
+      debugPrint('create question failed: ${error.code}');
+      return null;
+    }
+  }
+
+  @override
+  Future<void> setBestAnswer(String postId, String? commentId) =>
+      _posts.doc(postId).update({'answerId': commentId});
+
+  @override
   Future<FeedPost?> post(String postId) async {
     final doc = await _posts.doc(postId).get();
     final authorUid = doc.data()?['authorUid'] as String?;
@@ -1194,6 +1219,19 @@ class FirestoreCommunityRepository implements CommunityRepository {
 
     // Posts written before rank sharing existed carry no kind at all, so the
     // absence of the field means "trade" rather than meaning nothing.
+    if (data['kind'] == 'question') {
+      return FeedPost.question(
+        id: doc.id,
+        author: author,
+        postedAt: (data['postedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        lesson: data['lesson'] as String? ?? '',
+        claps: (data['claps'] as num?)?.toInt() ?? 0,
+        commentCount: (data['commentCount'] as num?)?.toInt() ?? 0,
+        answerId: data['answerId'] as String?,
+        reach: (data['reach'] as num?)?.toInt() ?? 0,
+        community: data['community'] as String? ?? 'global',
+      );
+    }
     if (data['kind'] == 'rank') {
       return FeedPost.rank(
         id: doc.id,

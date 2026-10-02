@@ -184,6 +184,18 @@ abstract class CommunityRepository {
     String community = 'global',
   });
 
+  /// Asks [question] of the feed, as a post. Its id, or null when it could
+  /// not be posted.
+  Future<String?> createQuestion({
+    required String uid,
+    required String username,
+    required String question,
+    String community = 'global',
+  });
+
+  /// On your own question: [commentId] is the best answer — or none.
+  Future<void> setBestAnswer(String postId, String? commentId);
+
   /// One post, for opening it from a chat it was shared into. Null when it
   /// has been deleted.
   Future<FeedPost?> post(String postId);
@@ -419,6 +431,18 @@ class LocalCommunityRepository implements CommunityRepository {
     required String lesson,
     String community = 'global',
   }) async => null;
+
+  /// This device never publishes to the feed.
+  @override
+  Future<String?> createQuestion({
+    required String uid,
+    required String username,
+    required String question,
+    String community = 'global',
+  }) async => null;
+
+  @override
+  Future<void> setBestAnswer(String postId, String? commentId) async {}
 
   @override
   Future<FeedPost?> post(String postId) async {

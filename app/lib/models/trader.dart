@@ -67,6 +67,10 @@ enum PostKind {
   /// restated itself every time somebody scrolled past would be making a claim
   /// nobody ever wrote.
   rank,
+
+  /// A question for everyone — answered in its comments, and the best
+  /// answer picked by whoever asked.
+  question,
 }
 
 /// A shared journal entry in the community feed.
@@ -89,7 +93,8 @@ class FeedPost {
     this.community = 'global',
   }) : kind = PostKind.trade,
        rank = null,
-       disciplineScore = null;
+       disciplineScore = null,
+       answerId = null;
 
   /// A leaderboard position shared to the feed.
   ///
@@ -110,7 +115,33 @@ class FeedPost {
        symbol = '',
        rMultiple = 0,
        reason = '',
-       followedRules = true;
+       followedRules = true,
+       answerId = null;
+
+  /// A question: [lesson] holds what is asked.
+  const FeedPost.question({
+    required this.id,
+    required this.author,
+    required this.postedAt,
+    required this.lesson,
+    required this.claps,
+    required this.commentCount,
+    this.answerId,
+    this.reach = 0,
+    this.community = 'global',
+  }) : kind = PostKind.question,
+       symbol = '',
+       rMultiple = 0,
+       reason = '',
+       followedRules = true,
+       rank = null,
+       disciplineScore = null;
+
+  /// The longest question the rules take.
+  static const questionMax = 500;
+
+  /// On a question: the comment its author picked as the best answer.
+  final String? answerId;
 
   final PostKind kind;
 
