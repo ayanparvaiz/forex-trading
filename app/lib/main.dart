@@ -15,6 +15,7 @@ import 'screens/auth/auth_gate.dart';
 import 'screens/splash_screen.dart';
 import 'theme/app_theme.dart';
 import 'widgets/inbox_host.dart';
+import 'widgets/price_alert_host.dart';
 import 'widgets/push_host.dart';
 
 Future<void> main() async {
@@ -134,7 +135,10 @@ class _ForexTradingAppState extends State<ForexTradingApp> {
           // over whichever one is showing.
           builder: (context, child) => InboxHost(
             navigatorKey: _navigator,
-            child: PushHost(navigatorKey: _navigator, child: child!),
+            child: PushHost(
+              navigatorKey: _navigator,
+              child: PriceAlertHost(child: child!),
+            ),
           ),
           home: _booting ? const SplashScreen() : const AuthGate(),
         ),
