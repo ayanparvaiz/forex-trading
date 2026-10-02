@@ -11,6 +11,7 @@ import '../models/trade.dart';
 import '../theme/app_theme.dart';
 import '../widgets/avatar_image.dart';
 import '../widgets/common.dart';
+import '../widgets/watchlist_card.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
 import 'settings_screen.dart';
@@ -59,6 +60,8 @@ class PortfolioScreen extends StatelessWidget {
           _BadgeCard(store: store, s: s),
           Gap.h12,
           _StatsCard(stats: stats, s: s),
+          Gap.h12,
+          const WatchlistCard(),
           Gap.h12,
           _OpenPositions(store: store, s: s),
         ],
