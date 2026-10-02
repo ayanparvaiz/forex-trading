@@ -4,6 +4,8 @@ import '../core/calculations.dart';
 import '../data/account_scope.dart';
 import '../data/session_controller.dart';
 import '../data/trade_checklist_pref.dart';
+import '../data/trade_focus.dart';
+import '../data/watchlist.dart';
 import '../firebase/firebase_bootstrap.dart';
 import '../i18n/strings.dart';
 import '../models/candle.dart';
@@ -57,9 +59,29 @@ class _TradeScreenState extends State<TradeScreen> {
   final _checklist = TradeChecklistPref();
 
   @override
+  void initState() {
+    super.initState();
+    watchlist.addListener(_refresh);
+    watchlist.load();
+    tradeFocus.addListener(_focus);
+  }
+
+  @override
   void dispose() {
+    watchlist.removeListener(_refresh);
+    tradeFocus.removeListener(_focus);
     _reasonController.dispose();
     super.dispose();
+  }
+
+  void _refresh() {
+    if (mounted) setState(() {});
+  }
+
+  /// A pair asked for elsewhere — a watchlist row — shown here.
+  void _focus() {
+    final pair = tradeFocus.pair;
+    if (pair != null && mounted) setState(() => _instrument = pair);
   }
 
   double get _entryPrice {
@@ -194,10 +216,15 @@ class _TradeScreenState extends State<TradeScreen> {
         itemCount: Instrument.all.length,
         separatorBuilder: (_, _) => Gap.w8,
         itemBuilder: (context, i) {
-          final instrument = Instrument.all[i];
+          // Starred first.
+          final instrument = watchlist.starredFirst(Instrument.all)[i];
           final selected = instrument.symbol == _instrument.symbol;
           return ChoiceChip(
-            label: Text(instrument.symbol),
+            label: Text(
+              watchlist.contains(instrument)
+                  ? '★ ${instrument.symbol}'
+                  : instrument.symbol,
+            ),
             selected: selected,
             onSelected: (_) => setState(() => _instrument = instrument),
             showCheckmark: false,
@@ -213,6 +240,21 @@ class _TradeScreenState extends State<TradeScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  /// ☆ to watch this pair from the portfolio; ★ to stop.
+  Widget _starButton(Strings s) {
+    final starred = watchlist.contains(_instrument);
+    return IconButton(
+      onPressed: () => watchlist.toggle(_instrument),
+      tooltip: starred ? s.removeFromWatchlist : s.addToWatchlist,
+      visualDensity: VisualDensity.compact,
+      icon: Icon(
+        starred ? Icons.star_rounded : Icons.star_outline_rounded,
+        size: 22,
+        color: starred ? AppColors.warning : AppColors.textMuted,
       ),
     );
   }
@@ -257,6 +299,7 @@ class _TradeScreenState extends State<TradeScreen> {
                           dense: true,
                         ),
                       ),
+                      _starButton(s),
                     ],
                   ),
                   Row(
