@@ -98,6 +98,9 @@ service cloud.firestore {
         && unchanged('achievements')
         && unchanged('weekBoard')
         && unchanged('weekScore')
+        && unchanged('lastWeekBoard')
+        && unchanged('lastWeekScore')
+        && unchanged('lastWeekTrades')
         && unchanged('weekTrades')
         && unchanged('weekR')
         && unchanged('journalDay');
@@ -173,7 +176,9 @@ service cloud.firestore {
         // Nor with achievements, or a place on this week's board: those are
         // earned, from trades.
         && !('achievements' in request.resource.data)
-        && !('weekBoard' in request.resource.data);
+        && !('weekBoard' in request.resource.data)
+        && !('lastWeekBoard' in request.resource.data)
+        && !('lastWeekScore' in request.resource.data);
 
       // Settings are the trader's own; stats are not. The username is fixed at
       // creation — the claim document points at this uid and nothing updates it.
@@ -1400,6 +1405,42 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['lastActiveAt'])
         && request.resource.data.lastActiveAt == request.time;
       allow delete: if false;
+    }
+
+    // --- Weekly challenges --------------------------------------------------
+    //
+    // Two connections, one week: whose discipline score is higher by Sunday
+    // midnight. The scores are the worker's (weekScore, lastWeekScore); the
+    // challenge only says who, and which week. `{week}_{connection}`, so one
+    // a week between any two.
+    match /challenges/{id} {
+      allow read: if isSignedIn() && request.auth.uid in resource.data.uids;
+      allow create: if isSignedIn()
+        && request.resource.data.keys()
+             .hasOnly(['fromUid', 'toUid', 'uids', 'pair', 'week', 'createdAt', 'accepted'])
+        && request.resource.data.keys()
+             .hasAll(['fromUid', 'toUid', 'uids', 'pair', 'week', 'createdAt', 'accepted'])
+        && request.resource.data.fromUid == request.auth.uid
+        && request.resource.data.toUid != request.auth.uid
+        && request.resource.data.uids
+             == [request.resource.data.fromUid, request.resource.data.toUid]
+        && request.resource.data.week is string
+        && request.resource.data.week.matches('^[0-9]{4}-W[0-9]{2}$')
+        && id == request.resource.data.week + '_' + request.resource.data.pair
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.accepted == false
+        // Connected: the two of them, accepted.
+        && get(/databases/$(database)/documents/connections/$(request.resource.data.pair)).data.accepted == true
+        && get(/databases/$(database)/documents/connections/$(request.resource.data.pair)).data.uids
+             .hasAll([request.auth.uid, request.resource.data.toUid])
+        && !blockedEitherWay(request.auth.uid, request.resource.data.toUid);
+      // Accepted by the one challenged; nothing else changes.
+      allow update: if isSignedIn()
+        && resource.data.toUid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['accepted'])
+        && request.resource.data.accepted == true;
+      // Declined, or called off, by either.
+      allow delete: if isSignedIn() && request.auth.uid in resource.data.uids;
     }
 
     // --- Market mood --------------------------------------------------------
