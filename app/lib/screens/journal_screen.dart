@@ -13,6 +13,7 @@ import '../data/firestore_community_repository.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/forward_sheet.dart';
+import '../widgets/habit_calendar_card.dart';
 import 'post_composer_sheet.dart';
 import 'learn_screen.dart';
 import 'monthly_report_screen.dart';
@@ -61,6 +62,8 @@ class JournalScreen extends StatelessWidget {
                 _PerformanceCard(stats: stats, s: s),
                 Gap.h12,
                 _DrawdownCard(stats: stats, s: s),
+                Gap.h12,
+                HabitCalendarCard(trades: closed),
                 Gap.h12,
                 if (moodStats(closed) case final moods
                     when moods.isNotEmpty) ...[
