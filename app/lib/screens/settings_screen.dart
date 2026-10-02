@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/chat_inbox.dart';
 import '../data/communities_repository.dart';
 import '../data/push.dart';
+import '../data/loss_limit.dart';
 import '../data/session_controller.dart';
 import '../data/trade_checklist_pref.dart';
 import '../i18n/strings.dart';
@@ -120,7 +121,7 @@ class SettingsScreen extends StatelessWidget {
                 Gap.h24,
                 SettingsSection(
                   title: s.sectionTrading,
-                  children: const [_ChecklistTile()],
+                  children: const [_ChecklistTile(), LossLimitTile()],
                 ),
                 if (buildCommunitiesRepository() != null) ...[
                   Gap.h24,
@@ -393,6 +394,104 @@ class _CommunityTileState extends State<_CommunityTile> {
 }
 
 /// Push notifications on this phone, on or off.
+/// The daily loss limit: what it is, what is waiting for tomorrow, and a
+/// sheet to change it.
+class LossLimitTile extends StatefulWidget {
+  const LossLimitTile({super.key, this.limit});
+
+  /// The app's [lossLimit] unless a test says otherwise.
+  final LossLimit? limit;
+
+  @override
+  State<LossLimitTile> createState() => _LossLimitTileState();
+}
+
+class _LossLimitTileState extends State<LossLimitTile> {
+  late final LossLimit _limit = widget.limit ?? lossLimit;
+
+  @override
+  void initState() {
+    super.initState();
+    _limit.addListener(_refresh);
+    _limit.load();
+  }
+
+  @override
+  void dispose() {
+    _limit.removeListener(_refresh);
+    super.dispose();
+  }
+
+  void _refresh() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _pick() async {
+    final s = context.s;
+    final picked = await showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheet) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                s.dailyLossLimit,
+                style: Theme.of(sheet).textTheme.titleMedium,
+              ),
+              Gap.h8,
+              Text(
+                s.lossLimitExplain,
+                style: const TextStyle(
+                  fontSize: 13,
+                  height: 1.45,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              Gap.h8,
+              for (final pct in LossLimit.choices)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  onTap: () => Navigator.of(sheet).pop(pct),
+                  leading: Icon(
+                    (_limit.pending ?? _limit.percent) == pct
+                        ? Icons.radio_button_checked_rounded
+                        : Icons.radio_button_unchecked_rounded,
+                    color: AppColors.brand,
+                  ),
+                  title: Text(s.lossLimitValue(pct)),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (picked != null) await _limit.set(picked);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.s;
+    final pending = _limit.pending;
+    return SettingsTile(
+      icon: Icons.front_hand_outlined,
+      title: s.dailyLossLimit,
+      subtitle: [
+        s.lossLimitValue(_limit.percent),
+        if (pending != null) s.lossLimitPending(pending),
+      ].join(' · '),
+      onTap: _pick,
+    );
+  }
+}
+
 /// The checklist before each trade, on or off.
 class _ChecklistTile extends StatefulWidget {
   const _ChecklistTile();
