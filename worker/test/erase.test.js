@@ -127,7 +127,7 @@ test('stopped part-way again and again, it still ends in the same place', async 
     assert.ok(rounds < 20, 'never finished');
     try {
       // Enough for the fixed queries plus a little progress each time.
-      await eraseAccount(memoryStore(docs, { budget: 22 }), ME);
+      await eraseAccount(memoryStore(docs, { budget: 24 }), ME);
       break;
     } catch (error) {
       if (!(error instanceof TryAgain)) throw error;
@@ -254,6 +254,15 @@ test('the admin going takes their community with them, and everyone in it leaves
   assert.deepEqual(left, [], 'nothing of the community is left');
   assert.equal(docs.get('users/u-ana').communityId, '', 'Ana is in no community now');
   assert.equal(docs.has('users/u-me'), false);
+});
+
+test("out of the market's mood, both ways, and nobody else's vote", async () => {
+  const docs = world();
+  docs.set('sentiment/global_EURUSD_20261002', { scope: 'global', bulls: [ME, 'u-ana'], bears: [] });
+  docs.set('sentiment/bulls1_GBPUSD_20261002', { scope: 'bulls1', bulls: [], bears: ['u-ana', ME] });
+  await eraseAccount(memoryStore(docs), ME);
+  assert.deepEqual(docs.get('sentiment/global_EURUSD_20261002').bulls, ['u-ana']);
+  assert.deepEqual(docs.get('sentiment/bulls1_GBPUSD_20261002').bears, ['u-ana']);
 });
 
 test("out of the events they were going to, and nobody else's", async () => {

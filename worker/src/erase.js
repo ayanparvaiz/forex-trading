@@ -155,6 +155,16 @@ async function eraseFromCommunity(store, writes, uid, communityId) {
   await writes.flush();
 }
 
+/** Takes [uid] out of the list [field] wherever it is in one. */
+async function pullEverywhere(store, writes, uid, { collection, group = false, field }) {
+  for (;;) {
+    const rows = await store.find({ collection, group, field, op: 'array-contains', value: uid, limit: PAGE });
+    for (const r of rows) await writes.add({ pull: r.path, field, value: uid });
+    await writes.flush();
+    if (rows.length < PAGE) break;
+  }
+}
+
 /**
  * Erases the account [uid] from Firestore. Throws TryAgain when it has to
  * stop early; calling it again continues.
@@ -182,33 +192,12 @@ export async function eraseAccount(store, uid) {
   await eraseOnOthersPosts(store, writes, uid, { collection: 'claps', field: 'uid', counter: 'claps' });
 
   // The events they said they were going to.
-  for (;;) {
-    const rows = await store.find({
-      collection: 'events',
-      group: true,
-      field: 'going',
-      op: 'array-contains',
-      value: uid,
-      limit: PAGE,
-    });
-    for (const r of rows) await writes.add({ pull: r.path, field: 'going', value: uid });
-    await writes.flush();
-    if (rows.length < PAGE) break;
-  }
-
+  await pullEverywhere(store, writes, uid, { collection: 'events', group: true, field: 'going' });
   // The likes they gave other people's comments.
-  for (;;) {
-    const rows = await store.find({
-      collection: 'comments',
-      group: true,
-      field: 'likedBy',
-      op: 'array-contains',
-      value: uid,
-      limit: PAGE,
-    });
-    for (const r of rows) await writes.add({ pull: r.path, field: 'likedBy', value: uid });
-    await writes.flush();
-    if (rows.length < PAGE) break;
+  await pullEverywhere(store, writes, uid, { collection: 'comments', group: true, field: 'likedBy' });
+  // Which way they thought the market would go.
+  for (const field of ['bulls', 'bears']) {
+    await pullEverywhere(store, writes, uid, { collection: 'sentiment', field });
   }
 
   // Conversations go for both people, as the policy says. A conversation with
