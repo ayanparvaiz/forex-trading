@@ -18,6 +18,7 @@ import '../widgets/forward_sheet.dart';
 import '../widgets/community_badge.dart';
 import '../widgets/community_events.dart';
 import '../widgets/community_picture_picker.dart';
+import '../widgets/community_rules.dart';
 import 'profile_screen.dart';
 import 'room_screen.dart';
 
@@ -44,6 +45,8 @@ Future<bool> joinCommunity(BuildContext context, Community target) async {
     );
     return false;
   }
+  // Its rules first: joining is agreeing to them.
+  if (!await agreeToRules(context, target) || !context.mounted) return false;
   if (leaving != null) {
     final current = await repo.watch(leaving).first.catchError((_) => null);
     if (!context.mounted) return false;
@@ -660,6 +663,10 @@ class _CommunityProfileScreenState extends State<CommunityProfileScreen> {
               ],
             ),
           ),
+          if (c.rules.isNotEmpty || isAdmin) ...[
+            Gap.h16,
+            CommunityRulesCard(community: c, isAdmin: isAdmin),
+          ],
           Gap.h16,
           if (mine) ...[
             // Joined with the community: its members' own room, and what
