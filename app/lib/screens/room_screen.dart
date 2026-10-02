@@ -19,6 +19,7 @@ import '../widgets/mute_sheet.dart';
 import '../widgets/poll_sheet.dart';
 import '../widgets/report_sheet.dart';
 import 'community_profile_screen.dart';
+import 'message_search_screen.dart';
 import 'post_screen.dart';
 import 'profile_screen.dart';
 
@@ -53,6 +54,9 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
   ChatInbox? _inbox;
   late String _me;
   _RoomSource? _source;
+
+  /// For a search to send the room to what it found.
+  final _conversation = ConversationController();
 
   bool _started = false;
   bool _markingRead = false;
@@ -220,10 +224,34 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
     if (mounted) setState(() => _busy = false);
   }
 
+  /// Finds words in the room, and goes to the message picked.
+  Future<void> _search() async {
+    final source = _source;
+    final inbox = _inbox;
+    if (source == null) return;
+    final s = context.s;
+    final id = await searchMessages(
+      context,
+      source: source,
+      nameOf: (uid, m) {
+        if (uid == _me) return s.you;
+        final name = m.senderName ?? '';
+        return name.isNotEmpty ? name : '…';
+      },
+      // Not what I deleted for myself, nor anyone I blocked.
+      shows: (m) =>
+          (inbox?.prefsFor(widget.roomId) ?? ChatPrefs.none).shows(m) &&
+          !(inbox?.blocked.any((b) => b.uid == m.senderUid) ?? false),
+    );
+    if (id != null && mounted) await _conversation.jumpTo(id);
+  }
+
   Future<void> _menu(String action) async {
     final inbox = _inbox;
     if (inbox == null) return;
     switch (action) {
+      case 'search':
+        await _search();
       case 'mute':
         await muteChat(context, inbox, widget.roomId);
       case 'unmute':
@@ -371,6 +399,17 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
               color: AppColors.elevated,
               onSelected: _menu,
               itemBuilder: (_) => [
+                if (source != null)
+                  PopupMenuItem(
+                    value: 'search',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.search_rounded, size: 19),
+                        Gap.w12,
+                        Text(s.searchChat),
+                      ],
+                    ),
+                  ),
                 if (joined)
                   PopupMenuItem(
                     value: muted ? 'unmute' : 'mute',
@@ -428,6 +467,7 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
           : ConversationView(
               source: source,
               me: _me,
+              controller: _conversation,
               canSend: canSend,
               nameOf: (uid, m) {
                 if (uid == _me) return s.you;
