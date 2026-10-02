@@ -16,6 +16,7 @@ class Community {
     this.locked = false,
     this.slowSeconds = 0,
     this.rules = const [],
+    this.titles = const [],
   });
 
   static const nameMin = 3;
@@ -49,6 +50,10 @@ class Community {
   /// Its rules, shown before joining. Empty when it has none.
   final List<String> rules;
 
+  /// The months it was champion — on top when the month turned — as
+  /// "2026-09", oldest first. Given by the worker alone.
+  final List<String> titles;
+
   /// The admin's uid: whoever started it, until they hand it to someone
   /// else.
   final String createdBy;
@@ -72,6 +77,40 @@ class Community {
   /// The name as it is stored: trimmed, single-spaced.
   static String tidyName(String name) =>
       name.trim().replaceAll(RegExp(r'\s+'), ' ');
+}
+
+/// A month's champion, as the worker crowned it (worker/src/champion.js).
+class Champion {
+  const Champion({
+    required this.month,
+    required this.communityId,
+    required this.name,
+    required this.points,
+  });
+
+  /// "2026-09".
+  final String month;
+
+  /// Empty when nobody had points that month.
+  final String communityId;
+  final String name;
+  final int points;
+}
+
+/// The first of the month [id] — "2026-09" — or null when it is not one.
+DateTime? monthOf(String id) {
+  final m = RegExp(r'^(\d{4})-(\d{2})$').firstMatch(id);
+  if (m == null) return null;
+  final month = int.parse(m.group(2)!);
+  if (month < 1 || month > 12) return null;
+  return DateTime(int.parse(m.group(1)!), month);
+}
+
+/// The month before the one [now] falls in, in Dhaka: the last one crowned.
+String lastMonthId(DateTime now) {
+  final d = now.toUtc().add(const Duration(hours: 6));
+  final prev = DateTime.utc(d.year, d.month - 1);
+  return '${prev.year}-${prev.month.toString().padLeft(2, '0')}';
 }
 
 /// Something a community's admin has planned — a chart review, a Q&A —

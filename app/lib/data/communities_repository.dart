@@ -273,6 +273,19 @@ class CommunitiesRepository {
   Future<void> setLocked(String id, bool locked) =>
       _community(id).update({'locked': locked});
 
+  /// The champion of [month] — "2026-09" — or null before it is crowned.
+  Future<Champion?> champion(String month) async {
+    final d = await _db.collection('champions').doc(month).get();
+    final data = d.data();
+    if (data == null) return null;
+    return Champion(
+      month: month,
+      communityId: data['communityId'] as String? ?? '',
+      name: data['name'] as String? ?? '',
+      points: (data['points'] as num?)?.toInt() ?? 0,
+    );
+  }
+
   /// The admin's rules: blank lines left out, each trimmed.
   Future<void> setRules(String id, List<String> rules) =>
       _community(id).update({
@@ -302,6 +315,10 @@ class CommunitiesRepository {
       rules: [
         for (final r in data['rules'] as List<dynamic>? ?? const [])
           if (r is String && r.isNotEmpty) r,
+      ],
+      titles: [
+        for (final t in data['titles'] as List<dynamic>? ?? const [])
+          if (t is String && monthOf(t) != null) t,
       ],
     );
   }
