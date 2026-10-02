@@ -5,6 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../data/communities_repository.dart';
 import '../data/community_avatars.dart';
+import '../data/session_controller.dart';
 import '../i18n/strings.dart';
 import '../models/community.dart';
 import '../theme/app_theme.dart';
@@ -247,3 +248,132 @@ class RoomPicture extends StatelessWidget {
 /// room by the community's name.
 String roomTitle(Strings s, String room, String name) =>
     Community.ofRoom(room) == null ? s.globalChat : name;
+
+/// An invitation to community [id], as a card in a conversation: its
+/// picture, name and members, as they are now. Tapping it opens it.
+class CommunityInviteCard extends StatefulWidget {
+  const CommunityInviteCard({super.key, required this.id, this.onTap});
+
+  final String id;
+  final VoidCallback? onTap;
+
+  @override
+  State<CommunityInviteCard> createState() => _CommunityInviteCardState();
+}
+
+class _CommunityInviteCardState extends State<CommunityInviteCard> {
+  StreamSubscription<Community?>? _following;
+  Community? _community;
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _following = buildCommunitiesRepository()
+        ?.watch(widget.id)
+        .listen(
+          (c) {
+            if (mounted) {
+              setState(() {
+                _community = c;
+                _loaded = true;
+              });
+            }
+          },
+          onError: (_) {
+            if (mounted) setState(() => _loaded = true);
+          },
+        );
+  }
+
+  @override
+  void dispose() {
+    _following?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.s;
+    final c = _community;
+    return GestureDetector(
+      onTap: c == null ? null : widget.onTap,
+      child: Container(
+        width: 230,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.overlay,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: c == null
+            ? Text(
+                _loaded ? s.communityUnavailable : '…',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontStyle: FontStyle.italic,
+                  color: AppColors.textMuted,
+                ),
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    s.communityInvite.toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
+                      color: AppColors.brand,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      CommunityBadge(
+                        id: c.id,
+                        name: c.name,
+                        avatarId: c.avatarId,
+                        size: 40,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              c.name,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            Text(
+                              s.members(c.memberCount),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${s.seeCommunity} ›',
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.brand,
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+}

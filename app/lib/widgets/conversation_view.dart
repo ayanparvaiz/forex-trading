@@ -12,8 +12,10 @@ import '../i18n/strings.dart';
 import '../models/chat.dart';
 import '../models/mentions.dart';
 import '../models/trader.dart';
+import '../screens/community_profile_screen.dart';
 import '../theme/app_theme.dart';
 import 'chat_bits.dart';
+import 'community_badge.dart';
 import 'forward_sheet.dart';
 import 'shared_cards.dart';
 
@@ -352,6 +354,10 @@ class _ConversationViewState extends State<ConversationView> {
       name: _nameOf(m.senderUid, m),
       s: s,
       onTap: widget.onOpenSender == null ? null : () => widget.onOpenSender!(m),
+    ),
+    SharedCommunity(:final communityId) => CommunityInviteCard(
+      id: communityId,
+      onTap: () => openCommunity(context, communityId),
     ),
   };
 
