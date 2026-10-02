@@ -409,6 +409,29 @@ class Strings {
   );
   String get last24h => _t('২৪ ঘণ্টায়', '24h');
 
+  // --- Daily loss limit --------------------------------------------------
+
+  String get dailyLossLimit => _t('দৈনিক লস লিমিট', 'Daily loss limit');
+  String lossLimitValue(int pct) =>
+      pct == 0 ? _t('বন্ধ', 'Off') : _t('দিনে $pct%', '$pct% a day');
+  String lossLimitPending(int pct) => pct == 0
+      ? _t('কাল থেকে বন্ধ', 'Off from tomorrow')
+      : _t('কাল থেকে $pct%', '$pct% from tomorrow');
+  String get lossLimitExplain => _t(
+    'আজকের বন্ধ ট্রেডে এতটা লস হলে রাত ১২টা পর্যন্ত আর ট্রেড নেওয়া যাবে না। কড়া করলে এখনই চালু হয়; ঢিলে বা বন্ধ করলে কাল থেকে — রাগের মাথায় যেন বদলানো না যায়।',
+    "Once today's closed trades have lost this much, no more trades until "
+        'midnight. Stricter counts at once; looser, or off, only from '
+        'tomorrow — so it cannot be undone mid-tilt.',
+  );
+  String lossLimitReached(String pct) => _t(
+    'আজকের লস লিমিট ($pct%) ছুঁয়েছে — রাত ১২টায় আবার ট্রেড করা যাবে।',
+    "Today's loss limit ($pct%) is reached — trading opens again at midnight.",
+  );
+  String lossTodayOf(String loss, int limit) => _t(
+    'আজকের লস $loss% · লিমিট $limit%',
+    'Lost today $loss% · limit $limit%',
+  );
+
   // --- Market mood -------------------------------------------------------
 
   String get marketMood => _t('মার্কেটের মুড', 'Market mood');
