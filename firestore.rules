@@ -922,8 +922,7 @@ service cloud.firestore {
       let o = resource.data;
       let n = request.resource.data;
       return n.diff(o).affectedKeys().hasOnly(['pinned'])
-        && ((roomId != 'global'
-             && get(communityPath(roomId.split('_')[1])).data.createdBy == request.auth.uid
+        && (((isRoomAdmin(roomId) || isRoomModerator(roomId))
              && (n.pinned == null || pinOk(roomId, n.pinned)))
             || (n.pinned == null
                 && o.get('pinned', null) != null
@@ -951,12 +950,28 @@ service cloud.firestore {
         && get(communityPath(roomId.split('_')[1])).data.createdBy == request.auth.uid;
     }
 
+    /// Whether the person asking is one of the moderators its admin picked
+    /// to help keep a community's room.
+    function isRoomModerator(roomId) {
+      return roomId != 'global'
+        && exists(memberPath(roomId.split('_')[1], request.auth.uid))
+        && get(memberPath(roomId.split('_')[1], request.auth.uid)).data.role == 'moderator';
+    }
+
+    /// Who may take down a message by [senderUid]: the admin, anyone's; a
+    /// moderator, anyone's but the admin's.
+    function canRemove(roomId, senderUid) {
+      return isRoomAdmin(roomId)
+        || (isRoomModerator(roomId)
+            && senderUid != get(communityPath(roomId.split('_')[1])).data.createdBy);
+    }
+
     // The admin took the newest message down: the preview says so, and
     // nothing else about it changes.
     function roomRemovalPreviewOk(roomId) {
       let o = resource.data;
       let n = request.resource.data;
-      return isRoomAdmin(roomId)
+      return (isRoomAdmin(roomId) || isRoomModerator(roomId))
         && n.diff(o).affectedKeys().hasOnly(['lastMessage'])
         && o.lastMessage.id == n.lastMessage.id
         && n.lastMessage.keys().hasOnly(['id', 'senderUid', 'senderName', 'text', 'unsent'])
@@ -1055,8 +1070,9 @@ service cloud.firestore {
               || request.resource.data.forwarded == true);
 
         // Unsending: the sender blanks their own, as in a chat. Removing:
-        // a community's admin blanks anyone's, marked as removed. Reacting:
-        // any member, where they could write.
+        // a community's admin blanks anyone's, and a moderator anyone's but
+        // the admin's, marked as removed. Reacting and voting: any member,
+        // where they could write.
         allow update: if isSignedIn()
           && ((resource.data.senderUid == request.auth.uid
                && request.resource.data.diff(resource.data).affectedKeys()
@@ -1065,7 +1081,7 @@ service cloud.firestore {
                && !('attachment' in request.resource.data)
                && request.resource.data.unsent == true
                && request.resource.data.text == '')
-              || (isRoomAdmin(roomId)
+              || (canRemove(roomId, resource.data.senderUid)
                   && resource.data.unsent == false
                   && request.resource.data.diff(resource.data).affectedKeys()
                        .hasOnly(['text', 'unsent', 'attachment', 'removed'])
@@ -1211,15 +1227,15 @@ service cloud.firestore {
               && get(communityPath(cid)).data.get('locked', false) != true
               && getAfter(communityPath(cid)).data.memberCount
                    == get(communityPath(cid)).data.memberCount + 1));
-        // A role changes only as the community changes hands, by its admin:
-        // admin for the one it is handed to, member for everyone else.
+        // A role is the admin's to give: admin for the one the community is
+        // handed to; moderator, or member, for anyone else.
         allow update: if isSignedIn()
           && get(communityPath(cid)).data.createdBy == request.auth.uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role'])
           && ((getAfter(communityPath(cid)).data.createdBy == uid
                && request.resource.data.role == 'admin')
               || (getAfter(communityPath(cid)).data.createdBy != uid
-               && request.resource.data.role == 'member'));
+               && request.resource.data.role in ['member', 'moderator']));
         // Leaving: counted out, and no longer your community. Not for its
         // admin, who deletes it instead — a community is never left without
         // one.
