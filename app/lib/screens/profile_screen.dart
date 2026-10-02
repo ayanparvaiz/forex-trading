@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../data/challenges_repository.dart';
 import '../data/chat_inbox.dart';
 import '../data/community_repository.dart';
 import '../data/firestore_community_repository.dart';
@@ -225,6 +226,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  /// Challenges them for this week: whose discipline score ends higher.
+  Future<void> _challenge() async {
+    final me = _me;
+    final myUid = context.session.uid;
+    final otherUid = _otherUid;
+    final repo = buildChallenges();
+    if (me == null || myUid == null || otherUid == null || repo == null) {
+      return;
+    }
+    final s = context.s;
+    final messenger = ScaffoldMessenger.of(context);
+    final pair = FirestoreCommunityRepository.pairId(me, widget.username);
+    final now = DateTime.now();
+    try {
+      if (await repo.exists(pair, now)) {
+        messenger.showSnackBar(SnackBar(content: Text(s.challengeExists)));
+        return;
+      }
+      await repo.challenge(from: myUid, to: otherUid, pair: pair, now: now);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(s.challengeSent(_trader?.name ?? widget.username)),
+        ),
+      );
+    } catch (e) {
+      debugPrint('challenge failed: $e');
+      messenger.showSnackBar(SnackBar(content: Text(s.couldNotSave)));
+    }
+  }
+
   Future<void> _message() async {
     final me = _me;
     if (me == null) return;
@@ -447,6 +478,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
                     ],
                   ),
+                  // A week's contest, between connections.
+                  if (_status == ConnectionStatus.connected &&
+                      FirebaseBootstrap.isReady) ...[
+                    Gap.h8,
+                    OutlinedButton.icon(
+                      onPressed: _challenge,
+                      icon: const Text('⚔️'),
+                      label: Text(s.challengeThisWeek),
+                    ),
+                  ],
                   Gap.h12,
                 ],
                 _StatsCard(
