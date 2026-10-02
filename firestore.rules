@@ -99,7 +99,8 @@ service cloud.firestore {
         && unchanged('weekBoard')
         && unchanged('weekScore')
         && unchanged('weekTrades')
-        && unchanged('weekR');
+        && unchanged('weekR')
+        && unchanged('journalDay');
     }
 
     // --- Username claims ----------------------------------------------------
