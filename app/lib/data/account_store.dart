@@ -244,6 +244,7 @@ class AccountStore extends ChangeNotifier {
     required double stopPrice,
     required double targetPrice,
     required String reason,
+    TradeMood? mood,
   }) {
     // Fill at the spread-adjusted price, the way a real broker does: buys fill
     // at the ask, sells at the bid.
@@ -262,6 +263,7 @@ class AccountStore extends ChangeNotifier {
       openedAt: DateTime.now(),
       balanceAtEntry: balance,
       reason: reason,
+      mood: mood,
     );
 
     final violations = previewViolations(

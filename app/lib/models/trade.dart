@@ -15,6 +15,23 @@ enum TradeDirection {
 
 enum TradeStatus { open, closed }
 
+/// How the trader felt placing it — said honestly, it shows later which
+/// feelings pay and which cost.
+enum TradeMood {
+  calm('😌', 'শান্ত', 'Calm'),
+  fomo('🏃', 'মিস করার ভয়', 'FOMO'),
+  fear('😨', 'ভয়', 'Afraid'),
+  angry('😤', 'রাগ', 'Angry'),
+  bored('🥱', 'বিরক্ত', 'Bored');
+
+  const TradeMood(this.emoji, this.bn, this.en);
+  final String emoji;
+  final String bn;
+  final String en;
+
+  String label(bool bangla) => bangla ? bn : en;
+}
+
 enum ExitReason {
   stopLoss('স্টপ লস', 'Stopped out'),
   takeProfit('টার্গেট', 'Target hit'),
@@ -121,6 +138,7 @@ class Trade {
     this.lesson,
     this.violations = const {},
     this.isShared = false,
+    this.mood,
   });
 
   final String id;
@@ -152,6 +170,9 @@ class Trade {
   final Set<RuleViolation> violations;
   final bool isShared;
 
+  /// How the trader felt placing it, if they said. Fixed once placed.
+  final TradeMood? mood;
+
   /// Everything needed to rebuild the trade, and nothing derived.
   ///
   /// Pips, risk, R and P&L are all computed from these, so storing them would
@@ -178,6 +199,7 @@ class Trade {
     'lesson': lesson,
     'violations': [for (final v in violations) v.name],
     'isShared': isShared,
+    'mood': ?mood?.name,
   };
 
   /// Rebuilds a trade from storage.
@@ -223,6 +245,7 @@ class Trade {
           ...RuleViolation.values.where((v) => v.name == name),
       },
       isShared: json['isShared'] as bool? ?? false,
+      mood: TradeMood.values.where((m) => m.name == json['mood']).firstOrNull,
     );
   }
 
@@ -323,6 +346,7 @@ class Trade {
       lesson: lesson ?? this.lesson,
       violations: violations ?? this.violations,
       isShared: isShared ?? this.isShared,
+      mood: mood,
     );
   }
 }
