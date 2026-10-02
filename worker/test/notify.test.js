@@ -103,6 +103,16 @@ test('a shared post says so', async () => {
   assert.equal(sent[0].notification.body, '📊 Post · look');
 });
 
+test('a shared trade says so', async () => {
+  const docs = world();
+  docs.set('chats/ana-me/messages/m-trade', {
+    senderUid: 'u-me', text: 'held to the stop', sentAt: ago(1), unsent: false,
+    attachment: { type: 'trade', symbol: 'EUR/USD', r: -1.02 },
+  });
+  const { sent } = await run(docs, 'u-me', { type: 'message', chatId: 'ana-me', messageId: 'm-trade' });
+  assert.equal(sent[0].notification.body, '📈 Trade · held to the stop');
+});
+
 test('a poll reads as its question', async () => {
   const docs = world();
   docs.set('rooms/global/messages/g-poll', {

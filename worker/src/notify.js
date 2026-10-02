@@ -29,6 +29,7 @@ const TEXT = {
   bn: {
     community: '👥 কমিউনিটি',
     poll: '🗳️ পোল',
+    trade: '📈 ট্রেড',
     newEvent: (community) => `${community}: নতুন ইভেন্ট`,
     startingSoon: (title) => `শীঘ্রই শুরু: ${title}`,
     global: 'গ্লোবাল',
@@ -44,6 +45,7 @@ const TEXT = {
   en: {
     community: '👥 Community',
     poll: '🗳️ Poll',
+    trade: '📈 Trade',
     newEvent: (community) => `${community}: new event`,
     startingSoon: (title) => `Starting soon: ${title}`,
     global: 'Global',
@@ -66,7 +68,7 @@ function preview(t, text, attachment) {
   if (attachment?.type === 'poll') {
     return `${t.poll} · ${attachment.question ?? ''}`;
   }
-  const label = { post: t.post, rank: t.rank, community: t.community }[attachment?.type] ?? null;
+  const label = { post: t.post, rank: t.rank, community: t.community, trade: t.trade }[attachment?.type] ?? null;
   if (!label) return text;
   return text ? `${label} · ${text}` : label;
 }
