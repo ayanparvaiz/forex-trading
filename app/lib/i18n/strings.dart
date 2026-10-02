@@ -599,6 +599,11 @@ class Strings {
   );
   String get tryAgain => _t('আবার চেষ্টা', 'Try again');
   String get allTime => _t('সব সময়', 'All time');
+  String get weeklyPointsExplain => _t(
+    'এই সপ্তাহের লিডারবোর্ড থেকে একই হিসাব — এই সপ্তাহে যাদের সদস্যরা ভালো ট্রেড করছে, তারা এগিয়ে।',
+    "The same count, from this week's board — the communities whose "
+        'members are trading well this week lead.',
+  );
   String get thisWeek => _t('এই সপ্তাহ', 'This week');
   String get weeklyEmpty => _t(
     'এই সপ্তাহে এখনো কেউ ৩টা ট্রেড ক্লোজ করেনি — করলেই আপনি বোর্ডে।',
