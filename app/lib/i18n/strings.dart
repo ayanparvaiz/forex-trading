@@ -284,6 +284,42 @@ class Strings {
     'একসাথে ১০টার বেশি অ্যালার্ট রাখা যায় না।',
     'Ten alerts at most — remove one first.',
   );
+  // --- Market sessions ---------------------------------------------------
+
+  String get marketSessions => _t('মার্কেট সেশন', 'Market sessions');
+
+  /// A session by its name in code: sydney, tokyo, london, newYork.
+  String sessionName(String id) => switch (id) {
+    'sydney' => _t('সিডনি', 'Sydney'),
+    'tokyo' => _t('টোকিও', 'Tokyo'),
+    'london' => _t('লন্ডন', 'London'),
+    _ => _t('নিউ ইয়র্ক', 'New York'),
+  };
+  String get sessionOpen => _t('খোলা', 'Open');
+  String get sessionClosed => _t('বন্ধ', 'Closed');
+  String closesIn(String d) => _t('$d পরে বন্ধ', 'Closes in $d');
+  String opensIn(String d) => _t('$d পরে খুলবে', 'Opens in $d');
+
+  /// A wait, short: "1d 4h", "3h 20m", "45m".
+  String shortWait(Duration d) {
+    final days = d.inDays;
+    final hours = d.inHours % 24;
+    final minutes = d.inMinutes % 60;
+    final (dd, hh, mm) = isBangla ? ('দি', 'ঘ', 'মি') : ('d', 'h', 'm');
+    if (days > 0) return '$days$dd $hours$hh';
+    if (hours > 0) return '$hours$hh $minutes$mm';
+    return '$minutes$mm';
+  }
+
+  String get busiestHours => _t(
+    'লন্ডন আর নিউ ইয়র্ক একসাথে খোলা — দিনের সবচেয়ে ব্যস্ত সময়।',
+    'London and New York are both open — the busiest hours of the day.',
+  );
+  String get marketWeekend => _t(
+    'উইকেন্ড: আসল মার্কেট বন্ধ, প্র্যাকটিস চলবে।',
+    'Weekend: the real market is closed; practice goes on.',
+  );
+
   String get riskCalculatorIntro => _t(
     'ট্রেড নেওয়ার আগে হিসাব: কত হারাতে রাজি, স্টপ কত দূরে — সাইজ নিজে থেকেই বের হয়।',
     'Before the trade: how much you will lose if wrong, and how far the '
