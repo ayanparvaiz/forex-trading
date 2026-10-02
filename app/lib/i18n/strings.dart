@@ -842,11 +842,29 @@ class Strings {
       'post' => '📊 $sharedPost',
       'rank' => '🏅 $sharedRank',
       'community' => '👥 ${_t('কমিউনিটি', 'Community')}',
+      'poll' => '🗳️ $poll',
       _ => null,
     };
     if (label == null) return text;
     return text.isEmpty ? label : '$label · $text';
   }
+
+  // --- Polls -----------------------------------------------------------
+
+  String get poll => _t('পোল', 'Poll');
+  String get newPoll => _t('নতুন পোল', 'New poll');
+  String get pollQuestion => _t('প্রশ্ন', 'Question');
+  String get pollQuestionHint =>
+      _t('যেমন: এই সপ্তাহে কোন পেয়ার?', 'e.g. Which pair this week?');
+  String pollOption(int n) => _t('উত্তর $n', 'Answer $n');
+  String get addPollOption => _t('আরেকটি উত্তর', 'Add an answer');
+  String get removePollOption => _t('উত্তরটি বাদ দিন', 'Remove this answer');
+  String get askPoll => _t('জিজ্ঞেস করুন', 'Ask');
+  String votesCount(int n) => _t('$n ভোট', n == 1 ? '1 vote' : '$n votes');
+  String get pollTapToVote => _t(
+    'ভোট দিতে উত্তরে চাপুন — আবার চাপলে ভোট ফিরে যাবে।',
+    'Tap an answer to vote — tap it again to take it back.',
+  );
 
   String get postUnavailable =>
       _t('পোস্টটি আর নেই', 'This post is no longer available');
