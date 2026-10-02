@@ -355,6 +355,18 @@ class Strings {
     'A moment to stop before each trade',
   );
 
+  // --- Watchlist ---------------------------------------------------------
+
+  String get watchlistTitle => _t('ওয়াচলিস্ট', 'Watchlist');
+  String get addToWatchlist => _t('ওয়াচলিস্টে রাখুন', 'Add to watchlist');
+  String get removeFromWatchlist =>
+      _t('ওয়াচলিস্ট থেকে সরান', 'Remove from watchlist');
+  String get watchlistEmpty => _t(
+    'ট্রেড স্ক্রিনে পেয়ারের পাশে ☆ চাপুন — এখানে দাম দেখাবে।',
+    'Tap ☆ beside a pair on the trade screen to watch its price here.',
+  );
+  String get last24h => _t('২৪ ঘণ্টায়', '24h');
+
   // --- Market mood -------------------------------------------------------
 
   String get marketMood => _t('মার্কেটের মুড', 'Market mood');
