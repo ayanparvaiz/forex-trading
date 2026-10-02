@@ -306,7 +306,10 @@ service cloud.firestore {
           && request.resource.data.targetPrice is number
           && request.resource.data.stopPrice != request.resource.data.entryPrice
           && request.resource.data.reason is string
-          && request.resource.data.reason.size() >= 10;
+          && request.resource.data.reason.size() >= 10
+          // How they felt, if they said (app/lib/models/trade.dart, TradeMood).
+          && request.resource.data.get('mood', 'calm')
+               in ['calm', 'fomo', 'fear', 'angry', 'bored'];
 
         // Violations may be added, and one of them may be cleared.
         //
@@ -332,6 +335,8 @@ service cloud.firestore {
           && unchanged('direction')
           && unchanged('lots')
           && unchanged('balanceAtEntry')
+          // Said once, as it was felt: not rewritten after the result.
+          && unchanged('mood')
           && violationsOnlyGrow();
 
         allow delete: if false;
