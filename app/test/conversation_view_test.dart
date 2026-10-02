@@ -17,6 +17,7 @@ class FakeSource implements MessageSource {
   final sent = <(String, ReplyRef?)>[];
   final unsent = <(String, bool)>[];
   final reacted = <(String, String?)>[];
+  final voted = <(String, int?)>[];
 
   @override
   String get prefsId => 'fake';
@@ -44,6 +45,10 @@ class FakeSource implements MessageSource {
   @override
   Future<void> react(ChatMessage m, String? emoji) async =>
       reacted.add((m.id, emoji));
+
+  @override
+  Future<void> vote(ChatMessage m, int? option) async =>
+      voted.add((m.id, option));
 }
 
 void main() {
@@ -325,6 +330,64 @@ void main() {
     await tester.longPress(find.textContaining('held my stop'));
     await tester.pumpAndSettle();
     expect(find.text('🔥'), findsNothing);
+  });
+
+  ChatMessage pollMsg({Map<String, int> votes = const {}}) => ChatMessage(
+    id: 'p1',
+    senderUid: 'ana',
+    senderName: 'Ana',
+    text: '',
+    sentAt: t0,
+    unsent: false,
+    pending: false,
+    attachment: const Poll(
+      question: 'Which pair this week?',
+      options: ['EURUSD', 'GBPUSD', 'USDJPY'],
+    ),
+    votes: votes,
+  );
+
+  testWidgets('a poll shows its answers and their votes; a tap votes, and '
+      'mine again takes it back', (tester) async {
+    final source = await pump(tester, showSenderNames: true);
+    source.latest.add([
+      pollMsg(votes: {'ana': 0, 'bo': 0, 'cy': 1}),
+    ]);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Which pair this week?'), findsOneWidget);
+    expect(find.text('EURUSD'), findsOneWidget);
+    expect(find.text('USDJPY'), findsOneWidget);
+    expect(find.textContaining('3 votes'), findsOneWidget);
+
+    await tester.tap(find.text('GBPUSD'));
+    await tester.pumpAndSettle();
+    expect(source.voted, [('p1', 1)]);
+    // At once, before the server says anything.
+    expect(find.text('4 votes'), findsOneWidget);
+    expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
+
+    // Another answer moves my vote.
+    await tester.tap(find.text('USDJPY'));
+    await tester.pumpAndSettle();
+    expect(source.voted.last, ('p1', 2));
+    expect(find.text('4 votes'), findsOneWidget);
+
+    await tester.tap(find.text('USDJPY'));
+    await tester.pumpAndSettle();
+    expect(source.voted.last, ('p1', null));
+    expect(find.textContaining('3 votes'), findsOneWidget);
+    expect(find.byIcon(Icons.check_circle_rounded), findsNothing);
+  });
+
+  testWidgets('no voting where you cannot write', (tester) async {
+    final source = await pump(tester, canSend: false);
+    source.latest.add([pollMsg()]);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('EURUSD'));
+    await tester.pumpAndSettle();
+    expect(source.voted, isEmpty);
+    expect(find.byIcon(Icons.check_circle_rounded), findsNothing);
   });
 
   testWidgets('typing @ offers the people talking here, and fills one in', (

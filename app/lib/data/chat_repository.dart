@@ -496,6 +496,7 @@ ChatMessage messageFromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
   final sentAt = data['sentAt'];
   final reply = data['replyTo'];
   final reactions = data['reactions'];
+  final votes = data['votes'];
   return ChatMessage(
     id: doc.id,
     senderUid: data['senderUid'] as String? ?? '',
@@ -523,6 +524,11 @@ ChatMessage messageFromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
               value is String &&
               reactionEmojis.contains(value))
             key: value,
+    },
+    votes: {
+      if (votes is Map)
+        for (final MapEntry(:key, :value) in votes.entries)
+          if (key is String && value is int) key: value,
     },
   );
 }

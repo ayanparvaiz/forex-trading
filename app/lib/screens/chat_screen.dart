@@ -601,4 +601,9 @@ class _DirectSource implements MessageSource {
   @override
   Future<void> react(ChatMessage m, String? emoji) =>
       repo.react(chatId: chatId, messageId: m.id, me: me, emoji: emoji);
+
+  /// Polls are for rooms; the rules keep them out of a chat between two.
+  @override
+  Future<void> vote(ChatMessage m, int? option) =>
+      throw UnsupportedError('no polls between two people');
 }

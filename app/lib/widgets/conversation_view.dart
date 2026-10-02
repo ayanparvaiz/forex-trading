@@ -17,6 +17,7 @@ import '../theme/app_theme.dart';
 import 'chat_bits.dart';
 import 'community_badge.dart';
 import 'forward_sheet.dart';
+import 'poll_card.dart';
 import 'shared_cards.dart';
 
 /// Where one conversation's messages come from and go to — a chat between
@@ -46,6 +47,9 @@ abstract class MessageSource {
 
   /// My reaction to [m] — one of [reactionEmojis] — or none.
   Future<void> react(ChatMessage m, String? emoji);
+
+  /// My vote on the poll [m] carries — an answer's index — or none.
+  Future<void> vote(ChatMessage m, int? option);
 }
 
 /// One more thing a long-press on a message can do — reporting, which each
@@ -359,6 +363,13 @@ class _ConversationViewState extends State<ConversationView> {
       id: communityId,
       onTap: () => openCommunity(context, communityId),
     ),
+    final Poll poll => PollCard(
+      poll: poll,
+      counts: m.voteCounts(poll.options.length),
+      mine: m.votes[_me],
+      // Voting is a kind of writing: where you can write, you can vote.
+      onVote: widget.canSend && !m.pending ? (o) => _vote(m, o) : null,
+    ),
   };
 
   /// The message a reply answers: from those loaded, or fetched once.
@@ -652,7 +663,9 @@ class _ConversationViewState extends State<ConversationView> {
                   tile(Icons.reply_rounded, s.reply, () => pick('reply')),
                 if (!m.unsent && m.text.isNotEmpty)
                   tile(Icons.copy_rounded, s.copy, () => pick('copy')),
-                if (!m.unsent && _inbox != null)
+                // A poll belongs to the room it asks; its votes do not
+                // travel with it.
+                if (!m.unsent && _inbox != null && m.attachment is! Poll)
                   tile(
                     Icons.shortcut_rounded,
                     s.forward,
@@ -719,6 +732,28 @@ class _ConversationViewState extends State<ConversationView> {
       await _source.react(m, emoji);
     } catch (e) {
       debugPrint('react failed: $e');
+      if (!mounted) return;
+      show(before);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.s.couldNotSave)));
+    }
+  }
+
+  /// Shows my vote on [m] at once, then writes it; puts it back if the write
+  /// is refused, as [_react] does.
+  Future<void> _vote(ChatMessage m, int? option) async {
+    final before = m.votes[_me];
+    void show(int? o) => setState(
+      () => _messages = [
+        for (final x in _messages) x.id == m.id ? x.withVote(_me, o) : x,
+      ],
+    );
+    show(option);
+    try {
+      await _source.vote(m, option);
+    } catch (e) {
+      debugPrint('vote failed: $e');
       if (!mounted) return;
       show(before);
       ScaffoldMessenger.of(

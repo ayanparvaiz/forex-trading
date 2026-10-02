@@ -169,6 +169,13 @@ sealed class MessageAttachment {
       'community' when json['communityId'] is String => SharedCommunity(
         communityId: json['communityId'] as String,
       ),
+      'poll' when json['question'] is String && json['options'] is List => Poll(
+        question: json['question'] as String,
+        options: [
+          for (final o in json['options'] as List)
+            if (o is String) o,
+        ],
+      ),
       _ => null,
     };
   }
@@ -221,6 +228,31 @@ class SharedCommunity extends MessageAttachment {
   Map<String, Object> toJson() => {'type': type, 'communityId': communityId};
 }
 
+/// A question for a room, with two to four answers to pick from. The votes
+/// are on the message ([ChatMessage.votes]), one each, changeable.
+class Poll extends MessageAttachment {
+  const Poll({required this.question, required this.options});
+
+  /// The limits the rules hold (firestore.rules, pollOk).
+  static const questionMax = 140;
+  static const optionMax = 40;
+  static const minOptions = 2;
+  static const maxOptions = 4;
+
+  final String question;
+  final List<String> options;
+
+  @override
+  String get type => 'poll';
+
+  @override
+  Map<String, Object> toJson() => {
+    'type': type,
+    'question': question,
+    'options': options,
+  };
+}
+
 /// The message a reply answers: which one, and whose.
 ///
 /// No copy of its text — the original is looked up and shown as it is now,
@@ -252,6 +284,7 @@ class ChatMessage {
     this.cursor,
     this.reactions = const {},
     this.removed = false,
+    this.votes = const {},
   });
 
   final String id;
@@ -288,6 +321,9 @@ class ChatMessage {
   /// Taken down by a community's admin, rather than unsent by its sender.
   final bool removed;
 
+  /// On a [Poll]: who picked which answer, by uid, as its index.
+  final Map<String, int> votes;
+
   /// The same message with [uid]'s reaction set to [emoji], or taken away.
   ChatMessage withReaction(String uid, String? emoji) => ChatMessage(
     id: id,
@@ -308,7 +344,41 @@ class ChatMessage {
       uid: ?emoji,
     },
     removed: removed,
+    votes: votes,
   );
+
+  /// The same message with [uid]'s vote set to answer [option], or taken
+  /// away.
+  ChatMessage withVote(String uid, int? option) => ChatMessage(
+    id: id,
+    senderUid: senderUid,
+    text: text,
+    sentAt: sentAt,
+    unsent: unsent,
+    pending: pending,
+    replyTo: replyTo,
+    forwarded: forwarded,
+    senderName: senderName,
+    senderUsername: senderUsername,
+    attachment: attachment,
+    cursor: cursor,
+    reactions: reactions,
+    removed: removed,
+    votes: {
+      for (final e in votes.entries)
+        if (e.key != uid) e.key: e.value,
+      uid: ?option,
+    },
+  );
+
+  /// How many picked each of [options] answers, in their order.
+  List<int> voteCounts(int options) {
+    final counts = List.filled(options, 0);
+    for (final v in votes.values) {
+      if (v >= 0 && v < options) counts[v]++;
+    }
+    return counts;
+  }
 
   /// Each reaction with how many gave it — most first, then in the order
   /// they are offered.
