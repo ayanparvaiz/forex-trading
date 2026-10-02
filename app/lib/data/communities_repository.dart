@@ -290,45 +290,41 @@ class CommunitiesRepository {
 /// Waits for the first board before saying anything, so the list does not
 /// open in one order and jump to another. If the board fails, the
 /// communities still come, all on zero.
+///
+/// Can be listened to again after it is left — switching from this week's
+/// ranking back to all time's does exactly that — each time starting over
+/// from [communities] and [board], which have to allow it (Firestore's do).
 Stream<List<(Community, int)>> rankLive(
   Stream<List<Community>> communities,
   Stream<List<Trader>> board,
-) {
+) => Stream.multi((out) {
   List<Community>? latest;
   Map<String, int>? points;
-  StreamSubscription<List<Community>>? all;
-  StreamSubscription<List<Trader>>? standings;
-  late final StreamController<List<(Community, int)>> out;
   void emit() {
     if (latest case final c? when points != null) {
       out.add(rankCommunities(c, points!));
     }
   }
 
-  out = StreamController(
-    onListen: () {
-      all = communities.listen((c) {
-        latest = c;
-        emit();
-      }, onError: out.addError);
-      standings = board.listen(
-        (b) {
-          points = communityPoints(b);
-          emit();
-        },
-        onError: (Object e) {
-          points ??= const {};
-          emit();
-        },
-      );
+  final all = communities.listen((c) {
+    latest = c;
+    emit();
+  }, onError: out.addError);
+  final standings = board.listen(
+    (b) {
+      points = communityPoints(b);
+      emit();
     },
-    onCancel: () async {
-      await all?.cancel();
-      await standings?.cancel();
+    onError: (Object e) {
+      points ??= const {};
+      emit();
     },
   );
-  return out.stream;
-}
+  out.onCancel = () async {
+    await all.cancel();
+    await standings.cancel();
+  };
+});
 
 /// Firestore when it is configured; nothing otherwise — communities need a
 /// server everyone shares.
