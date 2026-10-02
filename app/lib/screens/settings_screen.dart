@@ -19,6 +19,7 @@ import 'delete_account_screen.dart';
 import 'edit_name_screen.dart';
 import 'legal_screen.dart';
 import 'saved_posts_screen.dart';
+import 'starred_messages_screen.dart';
 
 Future<void> openSettings(BuildContext context) => Navigator.of(
   context,
@@ -103,6 +104,11 @@ class SettingsScreen extends StatelessWidget {
                       icon: Icons.bookmark_border,
                       title: s.savedPosts,
                       onTap: () => openSavedPosts(context),
+                    ),
+                    SettingsTile(
+                      icon: Icons.star_outline_rounded,
+                      title: s.starredMessages,
+                      onTap: () => openStarredMessages(context),
                     ),
                     SettingsTile(
                       icon: Icons.translate_rounded,

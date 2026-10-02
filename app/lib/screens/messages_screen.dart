@@ -18,6 +18,7 @@ import 'community_profile_screen.dart';
 import 'profile_screen.dart';
 import 'room_screen.dart';
 import 'search_screen.dart';
+import 'starred_messages_screen.dart';
 
 /// Your conversations, most recent first, under the Global room.
 ///
@@ -83,6 +84,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
       appBar: AppBar(
         title: Text(s.messages),
         actions: [
+          if (inbox != null)
+            IconButton(
+              onPressed: () => openStarredMessages(context),
+              icon: const Icon(Icons.star_outline_rounded),
+              tooltip: s.starredMessages,
+            ),
           IconButton(
             onPressed: () => openSearch(context),
             icon: const Icon(Icons.search_rounded),
