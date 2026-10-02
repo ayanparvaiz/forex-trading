@@ -1,6 +1,13 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forex_trading/core/habit_calendar.dart';
+import 'package:forex_trading/data/auth_repository.dart';
+import 'package:forex_trading/data/session_controller.dart';
+import 'package:forex_trading/i18n/strings.dart';
 import 'package:forex_trading/models/trade.dart';
+import 'package:forex_trading/theme/app_theme.dart';
+import 'package:forex_trading/widgets/habit_calendar_card.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   Trade closedOn(DateTime day, {bool broke = false}) => Trade(
@@ -60,4 +67,37 @@ void main() {
     expect(cleanStreak(marks, DateTime(2026, 9, 26, 8)), 0);
     expect(cleanStreak(const {}, oct2), 0);
   });
+
+  for (final language in AppLanguage.values) {
+    testWidgets('the calendar fits a small phone, in ${language.name}', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(640, 1136);
+      tester.view.devicePixelRatio = 2;
+      addTearDown(tester.view.reset);
+      SharedPreferences.setMockInitialValues({});
+      final session = SessionController(
+        LocalAuthRepository(prefs: await SharedPreferences.getInstance()),
+      )..setLanguage(language);
+      await tester.pumpWidget(
+        SessionScope(
+          controller: session,
+          child: MaterialApp(
+            theme: buildAppTheme(),
+            home: Scaffold(
+              body: Padding(
+                padding: const EdgeInsets.all(16),
+                child: HabitCalendarCard(
+                  trades: [closedOn(oct1), closedOn(oct2)],
+                  now: () => DateTime(2026, 10, 2, 18),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.textContaining('🔥'), findsOneWidget);
+    });
+  }
 }
