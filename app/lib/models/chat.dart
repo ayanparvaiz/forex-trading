@@ -166,6 +166,9 @@ sealed class MessageAttachment {
         rank: (json['rank'] as num).toInt(),
         score: (json['score'] as num?)?.toDouble() ?? 0,
       ),
+      'community' when json['communityId'] is String => SharedCommunity(
+        communityId: json['communityId'] as String,
+      ),
       _ => null,
     };
   }
@@ -202,6 +205,20 @@ class SharedRank extends MessageAttachment {
 
   @override
   Map<String, Object> toJson() => {'type': type, 'rank': rank, 'score': score};
+}
+
+/// An invitation to a community. Only which one: the card shows it as it is
+/// now — its picture, name and members — and opens it.
+class SharedCommunity extends MessageAttachment {
+  const SharedCommunity({required this.communityId});
+
+  final String communityId;
+
+  @override
+  String get type => 'community';
+
+  @override
+  Map<String, Object> toJson() => {'type': type, 'communityId': communityId};
 }
 
 /// The message a reply answers: which one, and whose.

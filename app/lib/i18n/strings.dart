@@ -598,6 +598,11 @@ class Strings {
     "Couldn't do that — check your connection and try again.",
   );
   String get openChat => _t('চ্যাট খুলুন', 'Open chat');
+  String get inviteToCommunity => _t('ইনভাইট করুন', 'Invite');
+  String get communityInvite => _t('কমিউনিটিতে আমন্ত্রণ', 'Community invite');
+  String get seeCommunity => _t('দেখুন ও জয়েন করুন', 'See and join');
+  String get communityUnavailable =>
+      _t('কমিউনিটিটি আর নেই', 'This community is no longer here');
 
   // Lessons.
   String get learn => _t('শিখুন', 'Learn');
@@ -836,6 +841,7 @@ class Strings {
     final label = switch (attachmentType) {
       'post' => '📊 $sharedPost',
       'rank' => '🏅 $sharedRank',
+      'community' => '👥 ${_t('কমিউনিটি', 'Community')}',
       _ => null,
     };
     if (label == null) return text;
