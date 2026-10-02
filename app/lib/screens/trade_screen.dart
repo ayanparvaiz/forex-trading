@@ -203,42 +203,61 @@ class _TradeScreenState extends State<TradeScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
-            child: Row(
-              children: [
-                Text(
-                  _instrument.formatPrice(livePrice),
-                  style: const TextStyle(
-                    fontSize: 21,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                    fontFeatures: tabularFigures,
-                  ),
-                ),
-                Gap.w8,
-                Pill(
-                  text: '${s.spread} ${_instrument.spreadPips}',
-                  color: AppColors.warning,
-                  dense: true,
-                ),
-                const Spacer(),
-                for (final tf in Timeframe.values)
-                  GestureDetector(
-                    onTap: () => setState(() => _timeframe = tf),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 5),
-                      child: Text(
-                        tf.label,
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w700,
-                          color: tf == _timeframe
-                              ? AppColors.brand
-                              : AppColors.textMuted,
+            child: SizedBox(
+              width: double.infinity,
+              child: Wrap(
+                // One line where it fits; the timeframes under the price where
+                // it does not.
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                runSpacing: Gap.xs,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _instrument.formatPrice(livePrice),
+                        style: const TextStyle(
+                          fontSize: 21,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                          fontFeatures: tabularFigures,
                         ),
                       ),
-                    ),
+                      Gap.w8,
+                      Flexible(
+                        child: Pill(
+                          text: '${s.spread} ${_instrument.spreadPips}',
+                          color: AppColors.warning,
+                          dense: true,
+                        ),
+                      ),
+                    ],
                   ),
-              ],
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (final tf in Timeframe.values)
+                        GestureDetector(
+                          onTap: () => setState(() => _timeframe = tf),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 5),
+                            child: Text(
+                              tf.label,
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                                color: tf == _timeframe
+                                    ? AppColors.brand
+                                    : AppColors.textMuted,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
           Gap.h8,
