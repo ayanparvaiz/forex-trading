@@ -570,7 +570,7 @@ class _CommunityProfileScreenState extends State<CommunityProfileScreen> {
                         color: AppColors.textMuted,
                       ),
                     ),
-                    if (mine || c.locked) ...[
+                    if (mine || c.locked || c.titles.isNotEmpty) ...[
                       Gap.h8,
                       Wrap(
                         spacing: Gap.xs,
@@ -590,6 +590,14 @@ class _CommunityProfileScreenState extends State<CommunityProfileScreen> {
                               color: AppColors.warning,
                               dense: true,
                             ),
+                          // Newest title first.
+                          for (final t in c.titles.reversed)
+                            if (monthOf(t) case final month?)
+                              Pill(
+                                text: '🏆 ${s.championOf(s.monthYear(month))}',
+                                color: AppColors.warning,
+                                dense: true,
+                              ),
                         ],
                       ),
                     ],
