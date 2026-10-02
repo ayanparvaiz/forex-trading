@@ -158,11 +158,21 @@ class CommunitiesRepository {
           uid: d.id,
           username: d.data()['username'] as String? ?? '',
           isAdmin: d.data()['role'] == 'admin',
+          isModerator: d.data()['role'] == 'moderator',
           joinedAt:
               (d.data()['joinedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
         ),
     ];
   }
+
+  /// [uid]'s role in [id] — admin, moderator or member — live; null when
+  /// they are not in it.
+  Stream<String?> watchRole(String id, String uid) =>
+      _member(id, uid).snapshots().map((d) => d.data()?['role'] as String?);
+
+  /// The admin making [uid] a moderator, or a member again.
+  Future<void> setModerator(String id, String uid, bool moderator) =>
+      _member(id, uid).update({'role': moderator ? 'moderator' : 'member'});
 
   /// The admin's own words about the community.
   Future<void> setDescription(String id, String description) =>

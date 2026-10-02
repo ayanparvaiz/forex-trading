@@ -101,12 +101,20 @@ class CommunityMember {
     required this.username,
     required this.isAdmin,
     required this.joinedAt,
+    this.isModerator = false,
   });
+
+  /// How many moderators an admin may pick.
+  static const maxModerators = 3;
 
   final String uid;
   final String username;
   final bool isAdmin;
   final DateTime joinedAt;
+
+  /// Picked by the admin to help keep the room: pins messages, and takes
+  /// down anyone's but the admin's.
+  final bool isModerator;
 }
 
 /// A community's points, from where its members stand on the leaderboard:
