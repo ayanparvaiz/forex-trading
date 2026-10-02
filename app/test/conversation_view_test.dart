@@ -73,6 +73,7 @@ void main() {
     Widget? bottom,
     ValueChanged<ChatMessage>? onOpenSender,
     ValueChanged<String>? onOpenPost,
+    List<MessageAction> Function(ChatMessage m)? extraActions,
   }) async {
     SharedPreferences.setMockInitialValues({});
     final session = SessionController(
@@ -95,6 +96,7 @@ void main() {
               bottom: bottom,
               onOpenSender: onOpenSender,
               onOpenPost: onOpenPost,
+              extraActions: extraActions,
             ),
           ),
         ),
@@ -385,5 +387,38 @@ void main() {
     ]);
     await tester.pumpAndSettle();
     expect(find.textContaining('Removed by the admin'), findsOneWidget);
+  });
+
+  testWidgets('every action on a message fits a small phone', (tester) async {
+    // The sheet that overflowed: reactions, then reply, copy, three of the
+    // room's own, delete for me and unsend — on an iPhone SE.
+    tester.view.physicalSize = const Size(640, 1136);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final source = await pump(
+      tester,
+      extraActions: (m) => [
+        for (final label in ['Pin', 'Remove message', 'Report'])
+          MessageAction(
+            icon: Icons.push_pin_outlined,
+            label: label,
+            onSelected: () {},
+          ),
+      ],
+    );
+    source.latest.add([msg('m1', 0, text: 'mine, to act on')]);
+    await tester.pumpAndSettle();
+
+    await tester.longPress(find.textContaining('mine, to act on'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text('🔥'), findsOneWidget);
+    // The last of them is there to reach.
+    await tester.scrollUntilVisible(
+      find.text('Unsend'),
+      100,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Unsend'), findsOneWidget);
   });
 }

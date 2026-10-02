@@ -603,6 +603,13 @@ class _ConversationViewState extends State<ConversationView> {
 
     final action = await showModalBottomSheet<Object>(
       context: context,
+      // Reactions, then up to eight things to do: taller than a sheet is
+      // by default on a small phone. Most of the screen, and it scrolls past
+      // that.
+      isScrollControlled: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.9,
+      ),
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -610,52 +617,58 @@ class _ConversationViewState extends State<ConversationView> {
       builder: (sheet) {
         void pick(Object a) => Navigator.of(sheet).pop(a);
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: Gap.sm),
-              if (canReact)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    Gap.lg,
-                    Gap.xs,
-                    Gap.lg,
-                    Gap.sm,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: Gap.sm),
+                if (canReact)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      Gap.lg,
+                      Gap.xs,
+                      Gap.lg,
+                      Gap.sm,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        for (final e in reactionEmojis)
+                          _ReactionChoice(
+                            emoji: e,
+                            chosen: current == e,
+                            onTap: () => pick(_React(e)),
+                          ),
+                      ],
+                    ),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      for (final e in reactionEmojis)
-                        _ReactionChoice(
-                          emoji: e,
-                          chosen: current == e,
-                          onTap: () => pick(_React(e)),
-                        ),
-                    ],
+                if (widget.canSend && !m.unsent)
+                  tile(Icons.reply_rounded, s.reply, () => pick('reply')),
+                if (!m.unsent && m.text.isNotEmpty)
+                  tile(Icons.copy_rounded, s.copy, () => pick('copy')),
+                if (!m.unsent && _inbox != null)
+                  tile(
+                    Icons.shortcut_rounded,
+                    s.forward,
+                    () => pick('forward'),
                   ),
-                ),
-              if (widget.canSend && !m.unsent)
-                tile(Icons.reply_rounded, s.reply, () => pick('reply')),
-              if (!m.unsent && m.text.isNotEmpty)
-                tile(Icons.copy_rounded, s.copy, () => pick('copy')),
-              if (!m.unsent && _inbox != null)
-                tile(Icons.shortcut_rounded, s.forward, () => pick('forward')),
-              for (final a in extra)
-                tile(a.icon, a.label, () => pick(a), danger: a.danger),
-              tile(
-                Icons.delete_outline_rounded,
-                s.deleteForMe,
-                () => pick('hide'),
-                danger: true,
-              ),
-              if (mine && !m.pending && !m.unsent)
+                for (final a in extra)
+                  tile(a.icon, a.label, () => pick(a), danger: a.danger),
                 tile(
-                  Icons.undo_rounded,
-                  s.unsend,
-                  () => pick('unsend'),
+                  Icons.delete_outline_rounded,
+                  s.deleteForMe,
+                  () => pick('hide'),
                   danger: true,
                 ),
-            ],
+                if (mine && !m.pending && !m.unsent)
+                  tile(
+                    Icons.undo_rounded,
+                    s.unsend,
+                    () => pick('unsend'),
+                    danger: true,
+                  ),
+              ],
+            ),
           ),
         );
       },
