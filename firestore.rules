@@ -698,7 +698,12 @@ service cloud.firestore {
           && a.keys().hasAll(['type', 'rank', 'score'])
           && a.type == 'rank'
           && a.rank is int && a.rank > 0
-          && a.score is number && a.score >= 0 && a.score <= 100));
+          && a.score is number && a.score >= 0 && a.score <= 100)
+        // An invitation: a community that exists.
+        || (a.keys().hasOnly(['type', 'communityId'])
+          && a.keys().hasAll(['type', 'communityId'])
+          && a.type == 'community'
+          && exists(communityPath(a.communityId))));
     }
 
     // A message has words, or something shared, or both.
