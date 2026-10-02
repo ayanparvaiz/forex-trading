@@ -160,6 +160,17 @@ void main() {
     expect(find.byKey(const ValueKey('composer.reason')), findsNothing);
   });
 
+  testWidgets('✕ closes it, posting nothing', (tester) async {
+    result = 'unset';
+    await open(tester);
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+    // It threw before: the close button answered with a bool.
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('composer.lesson')), findsNothing);
+    expect(result, isNull);
+  });
+
   testWidgets('a plain post asks for the pair and the reason', (tester) async {
     await open(tester);
 

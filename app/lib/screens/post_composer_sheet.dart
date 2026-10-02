@@ -229,7 +229,8 @@ class _ComposerState extends State<_Composer> {
                 Text(_title(s), style: Theme.of(context).textTheme.titleMedium),
                 const Spacer(),
                 IconButton(
-                  onPressed: () => Navigator.of(context).pop(false),
+                  // Closed without posting: no feed to report.
+                  onPressed: () => Navigator.of(context).pop(),
                   icon: const Icon(Icons.close, size: 20),
                   color: AppColors.textMuted,
                 ),
