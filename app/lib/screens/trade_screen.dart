@@ -12,6 +12,7 @@ import '../theme/app_theme.dart';
 import '../widgets/candle_chart.dart';
 import '../widgets/common.dart';
 import '../widgets/price_alert_sheet.dart';
+import '../widgets/session_clock.dart';
 import 'risk_calculator_screen.dart';
 
 /// Order ticket.
@@ -141,6 +142,8 @@ class _TradeScreenState extends State<TradeScreen> {
             _pairSelector(),
             Gap.h12,
             _chartCard(store.market.price(_instrument), s),
+            Gap.h12,
+            const SessionClock(),
             Gap.h12,
             _directionToggle(s),
             Gap.h12,
