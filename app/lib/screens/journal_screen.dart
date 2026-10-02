@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/calculations.dart';
+import '../core/mood_stats.dart';
 import '../data/account_scope.dart';
 import '../data/account_store.dart';
 import '../data/chat_inbox.dart';
@@ -61,6 +62,11 @@ class JournalScreen extends StatelessWidget {
                 Gap.h12,
                 _DrawdownCard(stats: stats, s: s),
                 Gap.h12,
+                if (moodStats(closed) case final moods
+                    when moods.isNotEmpty) ...[
+                  MoodResultsCard(stats: moods),
+                  Gap.h12,
+                ],
                 Padding(
                   padding: const EdgeInsets.only(left: 4, bottom: Gap.sm),
                   child: Text(
@@ -75,6 +81,76 @@ class JournalScreen extends StatelessWidget {
                   ),
               ],
             ),
+    );
+  }
+}
+
+/// Each mood's trades: how many, how many won, and the average R — so a
+/// trader sees in their own numbers what FOMO costs.
+class MoodResultsCard extends StatelessWidget {
+  const MoodResultsCard({super.key, required this.stats});
+
+  final List<MoodStat> stats;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.s;
+    return SectionCard(
+      title: s.moodAndResults,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final m in stats)
+            Padding(
+              padding: const EdgeInsets.only(bottom: Gap.sm),
+              child: Row(
+                children: [
+                  Text(m.mood.emoji, style: const TextStyle(fontSize: 20)),
+                  Gap.w12,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          m.mood.label(s.isBangla),
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          s.moodLine(
+                            m.trades,
+                            (m.winRate * 100).round(),
+                            rMultiple(m.averageR),
+                          ),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Gap.w8,
+                  Text(
+                    rMultiple(m.averageR),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      fontFeatures: tabularFigures,
+                      color: AppColors.forValue(m.averageR),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          Text(
+            s.moodResultsHint,
+            style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -330,6 +406,16 @@ class _TradeCard extends StatelessWidget {
                             color: isLong ? AppColors.profit : AppColors.loss,
                           ),
                         ),
+                        if (trade.mood case final mood?) ...[
+                          Gap.w8,
+                          Tooltip(
+                            message: mood.label(s.isBangla),
+                            child: Text(
+                              mood.emoji,
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                     Text(

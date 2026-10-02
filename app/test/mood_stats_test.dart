@@ -1,6 +1,13 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forex_trading/core/mood_stats.dart';
+import 'package:forex_trading/data/auth_repository.dart';
+import 'package:forex_trading/data/session_controller.dart';
+import 'package:forex_trading/i18n/strings.dart';
 import 'package:forex_trading/models/trade.dart';
+import 'package:forex_trading/screens/journal_screen.dart';
+import 'package:forex_trading/theme/app_theme.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   Trade trade(String id, TradeMood? mood, double? exit) => Trade(
@@ -43,4 +50,36 @@ void main() {
     expect(calm.averageR, closeTo(1, 0.1));
     expect(stats.last.averageR, lessThan(-1));
   });
+
+  for (final language in AppLanguage.values) {
+    testWidgets('the mood card fits a small phone, in ${language.name}', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(640, 1136);
+      tester.view.devicePixelRatio = 2;
+      addTearDown(tester.view.reset);
+      SharedPreferences.setMockInitialValues({});
+      final session = SessionController(
+        LocalAuthRepository(prefs: await SharedPreferences.getInstance()),
+      )..setLanguage(language);
+      await tester.pumpWidget(
+        SessionScope(
+          controller: session,
+          child: MaterialApp(
+            theme: buildAppTheme(),
+            home: Scaffold(
+              body: MoodResultsCard(
+                stats: moodStats([
+                  for (final (i, m) in TradeMood.values.indexed)
+                    trade('t$i', m, i.isEven ? 1.144 : 1.138),
+                ]),
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.text(TradeMood.fomo.emoji), findsOneWidget);
+    });
+  }
 }
