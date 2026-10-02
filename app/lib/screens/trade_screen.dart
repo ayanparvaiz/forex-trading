@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../core/calculations.dart';
 import '../data/account_scope.dart';
+import '../data/account_store.dart';
+import '../data/loss_limit.dart';
 import '../data/session_controller.dart';
 import '../data/trade_checklist_pref.dart';
 import '../data/trade_focus.dart';
@@ -63,12 +65,15 @@ class _TradeScreenState extends State<TradeScreen> {
     super.initState();
     watchlist.addListener(_refresh);
     watchlist.load();
+    lossLimit.addListener(_refresh);
+    lossLimit.load();
     tradeFocus.addListener(_focus);
   }
 
   @override
   void dispose() {
     watchlist.removeListener(_refresh);
+    lossLimit.removeListener(_refresh);
     tradeFocus.removeListener(_focus);
     _reasonController.dispose();
     super.dispose();
@@ -202,6 +207,17 @@ class _TradeScreenState extends State<TradeScreen> {
   /// Kept separate from rule *violations*: a violation is allowed through and
   /// costs discipline points, but these are hard stops.
   String? _blockingReason(PositionSize size, String reason, Strings s) {
+    // The trader's own stop for the day, ahead of everything else.
+    final limit = lossLimit.percent;
+    final store = AccountScope.of(context);
+    if (limit > 0 &&
+        lossTodayPercent(
+              store.todaysClosedTrades,
+              AccountStore.dailyAllowance,
+            ) >=
+            limit) {
+      return s.lossLimitReached('$limit');
+    }
     if (size.isBelowMinimum) return s.blockedBelowMinLot;
     if (!size.isTradable) return s.blockedZeroSize;
     if (reason.trim().length < 10) return s.blockedNoReason;
