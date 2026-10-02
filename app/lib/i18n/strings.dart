@@ -409,6 +409,44 @@ class Strings {
   );
   String get last24h => _t('২৪ ঘণ্টায়', '24h');
 
+  // --- Weekly challenges -------------------------------------------------
+
+  String get challengeThisWeek =>
+      _t('এই সপ্তাহে চ্যালেঞ্জ', 'Challenge this week');
+  String get challenges => _t('সাপ্তাহিক চ্যালেঞ্জ', 'Weekly challenges');
+  String challengeSent(String name) =>
+      _t('$name-কে চ্যালেঞ্জ পাঠানো হয়েছে', 'Challenge sent to $name');
+  String get challengeExists => _t(
+    'এই সপ্তাহে আপনাদের চ্যালেঞ্জ আগেই আছে।',
+    'You two already have a challenge this week.',
+  );
+  String get challengeExplain => _t(
+    'সোমবার থেকে রবিবার রাত ১২টা: কার ডিসিপ্লিন স্কোর বেশি? গুনতে অন্তত ৩টা ট্রেড লাগবে।',
+    'Monday to Sunday midnight: whose discipline score is higher? At least '
+        '3 trades to count.',
+  );
+  String challengedYou(String name) =>
+      _t('$name আপনাকে চ্যালেঞ্জ করেছেন', '$name challenged you');
+  String waitingFor(String name) =>
+      _t('$name-এর উত্তরের অপেক্ষা', 'Waiting for $name');
+  String vsName(String name) => _t('বনাম $name', 'vs $name');
+  String get youLabel => _t('আপনি', 'You');
+  String get tooFewTrades => _t('৩টার কম ট্রেড', 'under 3 trades');
+  String challengeStatus(String result, bool over) => switch ((result, over)) {
+    ('ahead', false) => _t('আপনি এগিয়ে', "You're ahead"),
+    ('behind', false) => _t('আপনি পিছিয়ে', "You're behind"),
+    ('level', false) => _t('সমান সমান', 'Level'),
+    ('ahead', true) => _t('আপনি জিতেছেন 🏆', 'You won 🏆'),
+    ('behind', true) => _t('এবার হেরেছেন', 'You lost this one'),
+    ('level', true) => _t('ড্র', 'A draw'),
+    (_, false) => _t('এখনো কেউ ৩টা ট্রেড করেনি', 'Nobody has 3 trades yet'),
+    (_, true) => _t(
+      'কেউ ৩টা ট্রেড করেনি — ফল নেই',
+      'Nobody made 3 trades — no result',
+    ),
+  };
+  String get lastWeekLabel => _t('গত সপ্তাহ', 'Last week');
+
   // --- Habit calendar ----------------------------------------------------
 
   String get habitCalendar => _t('অভ্যাসের ক্যালেন্ডার', 'Habit calendar');
