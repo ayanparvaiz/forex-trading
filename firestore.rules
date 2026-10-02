@@ -402,8 +402,11 @@ service cloud.firestore {
             || (request.resource.data.community != ''
                 && request.resource.data.community == myCommunity()
                 && communityOpenTo(request.resource.data.community)))
-        && postKind() in ['trade', 'rank']
-        && (postKind() != 'rank' || rankShapeOk());
+        && postKind() in ['trade', 'rank', 'question']
+        && (postKind() != 'rank' || rankShapeOk())
+        // A question: its words, and no answer picked before anyone answers.
+        && (postKind() != 'question' || request.resource.data.lesson.size() <= 500)
+        && !('answerId' in request.resource.data);
 
       // Two separate update paths.
       //
@@ -426,7 +429,13 @@ service cloud.firestore {
             && unchanged('kind')
             && unchanged('rank')
             && unchanged('disciplineScore')
-            && unchanged('community'))
+            && unchanged('community')
+            // On a question, its author picks the best answer — one that is
+            // there — or takes the pick back.
+            && (unchanged('answerId')
+                || (resource.data.get('kind', 'trade') == 'question'
+                    && (request.resource.data.answerId == null
+                        || exists(/databases/$(database)/documents/posts/$(postId)/comments/$(request.resource.data.answerId))))))
           ||
           (onlyCounters()
             && canSee(resource.data)
