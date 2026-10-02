@@ -339,6 +339,32 @@ class Strings {
     'A moment to stop before each trade',
   );
 
+  // --- Market mood -------------------------------------------------------
+
+  String get marketMood => _t('মার্কেটের মুড', 'Market mood');
+  String moodQuestion(String pair) =>
+      _t('আজ $pair কোন দিকে যাবে?', 'Where is $pair going today?');
+  String get moodEveryone => _t('সবাই', 'Everyone');
+  String get moodMyCommunity => _t('আমার কমিউনিটি', 'My community');
+  String get moodUp => _t('উপরে', 'Up');
+  String get moodDown => _t('নিচে', 'Down');
+  String moodUpShare(int pct) => _t('$pct% উপরে', '$pct% up');
+  String moodDownShare(int pct) => _t('$pct% নিচে', '$pct% down');
+  String get moodNoVotes => _t(
+    'আজ এখনো কেউ বলেনি — প্রথম হন।',
+    'Nobody has said yet today — be the first.',
+  );
+  String moodVotes(int n) => _t(
+    '$n জনের মত · প্রতিদিন নতুন করে',
+    n == 1
+        ? '1 vote · starts afresh each day'
+        : '$n votes · starts afresh each day',
+  );
+  String get moodNotAdvice => _t(
+    'মতামত, পরামর্শ না — নিজের প্ল্যান মেনে চলুন।',
+    'Opinions, not advice — trade your own plan.',
+  );
+
   // --- Market sessions ---------------------------------------------------
 
   String get marketSessions => _t('মার্কেট সেশন', 'Market sessions');
