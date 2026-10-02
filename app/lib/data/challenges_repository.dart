@@ -6,10 +6,12 @@ import '../models/challenge.dart';
 
 /// Weekly challenges between connections, and where each side stands.
 class ChallengesRepository {
-  ChallengesRepository({FirebaseFirestore? db})
-    : _db = db ?? FirebaseFirestore.instance;
+  ChallengesRepository({FirebaseFirestore? db}) : _injected = db;
 
-  final FirebaseFirestore _db;
+  final FirebaseFirestore? _injected;
+
+  /// Asked for when first used, so a test can stand in without Firebase.
+  FirebaseFirestore get _db => _injected ?? FirebaseFirestore.instance;
 
   CollectionReference<Map<String, dynamic>> get _all =>
       _db.collection('challenges');
@@ -31,12 +33,15 @@ class ChallengesRepository {
         );
   }
 
-  /// [uid]'s standing in [week], live.
-  Stream<WeekStanding> watchStanding(String uid, String week) => _db
-      .collection('users')
-      .doc(uid)
-      .snapshots()
-      .map((d) => WeekStanding.of(d.data() ?? const {}, week));
+  /// [uid]'s name, and their standing in [week], live.
+  Stream<(String, WeekStanding)> watchSide(String uid, String week) =>
+      _db.collection('users').doc(uid).snapshots().map((d) {
+        final data = d.data() ?? const <String, dynamic>{};
+        return (
+          data['displayName'] as String? ?? '',
+          WeekStanding.of(data, week),
+        );
+      });
 
   /// [from] challenges [to] — a connection, [pair] — for this week.
   Future<void> challenge({
