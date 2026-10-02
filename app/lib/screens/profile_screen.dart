@@ -875,7 +875,8 @@ class _AchievementsCard extends StatelessWidget {
         crossAxisCount: 3,
         mainAxisSpacing: Gap.sm,
         crossAxisSpacing: Gap.sm,
-        childAspectRatio: 0.95,
+        // Tall enough for a two-line Bangla title under the badge.
+        childAspectRatio: 0.78,
         children: [
           for (final a in Achievement.all)
             _AchievementTile(

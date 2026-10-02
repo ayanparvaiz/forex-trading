@@ -213,7 +213,11 @@ class _EventTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Row(
+                // Wraps on a narrow phone rather than spill.
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: Gap.sm,
+                  runSpacing: 2,
                   children: [
                     Text(
                       s.clock(local),
@@ -222,15 +226,12 @@ class _EventTile extends StatelessWidget {
                         color: AppColors.textMuted,
                       ),
                     ),
-                    if (happening) ...[
-                      Gap.w8,
+                    if (happening)
                       Pill(
                         text: s.happeningNow,
                         color: AppColors.profit,
                         dense: true,
                       ),
-                    ],
-                    Gap.w8,
                     Text(
                       s.goingCount(e.going.length),
                       style: const TextStyle(

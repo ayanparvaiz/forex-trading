@@ -731,30 +731,33 @@ class _CommunityProfileScreenState extends State<CommunityProfileScreen> {
                     ],
                   ),
                   Gap.h12,
-                  SegmentedButton<int>(
-                    segments: [
+                  // Chips that wrap: five choices are wider than a small
+                  // phone's card.
+                  Wrap(
+                    spacing: Gap.xs,
+                    runSpacing: Gap.xs,
+                    children: [
                       for (final seconds in Community.slowModes)
-                        ButtonSegment(
-                          value: seconds,
+                        ChoiceChip(
                           label: Text(s.slowModeEvery(seconds)),
+                          selected: c.slowSeconds == seconds,
+                          showCheckmark: false,
+                          onSelected: _busy
+                              ? null
+                              : (_) => _setSlowMode(c, seconds),
+                          backgroundColor: AppColors.elevated,
+                          selectedColor: AppColors.brandDim,
+                          side: BorderSide(
+                            color: c.slowSeconds == seconds
+                                ? AppColors.brand
+                                : AppColors.border,
+                          ),
+                          labelStyle: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                     ],
-                    selected: {c.slowSeconds},
-                    showSelectedIcon: false,
-                    onSelectionChanged: _busy
-                        ? null
-                        : (v) => _setSlowMode(c, v.first),
-                    style: SegmentedButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      selectedBackgroundColor: AppColors.brandDim,
-                      selectedForegroundColor: AppColors.textPrimary,
-                      foregroundColor: AppColors.textSecondary,
-                      side: const BorderSide(color: AppColors.border),
-                      textStyle: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
                   ),
                 ],
               ),
