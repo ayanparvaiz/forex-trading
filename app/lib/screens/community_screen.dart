@@ -411,7 +411,7 @@ class _LeaderboardState extends State<_Leaderboard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(
+                Wrap(
                   children: [
                     for (final (weekly, label) in [
                       (false, s.allTime),
@@ -541,21 +541,23 @@ class _YourRankBarState extends State<_YourRankBar> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (sheet) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: Gap.sm),
-            ListTile(
-              leading: const Icon(Icons.dynamic_feed_outlined),
-              title: Text(s.postToFeed),
-              onTap: () => Navigator.of(sheet).pop('feed'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.send_outlined),
-              title: Text(s.sendInChat),
-              onTap: () => Navigator.of(sheet).pop('chat'),
-            ),
-          ],
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: Gap.sm),
+              ListTile(
+                leading: const Icon(Icons.dynamic_feed_outlined),
+                title: Text(s.postToFeed),
+                onTap: () => Navigator.of(sheet).pop('feed'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.send_outlined),
+                title: Text(s.sendInChat),
+                onTap: () => Navigator.of(sheet).pop('chat'),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -940,43 +942,30 @@ class _LeaderboardRow extends StatelessWidget {
                     ],
                   ),
                   Gap.h4,
-                  Row(
-                    children: [
-                      Text(
-                        s.tradeCount(trader.tradeCount),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-                      const Text(
-                        ' · ',
-                        style: TextStyle(color: AppColors.textMuted),
-                      ),
-                      // Profit is shown, never ranked on.
-                      Text(
-                        rMultiple(trader.totalR),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          fontFeatures: tabularFigures,
-                          color: AppColors.forValue(trader.totalR),
-                        ),
-                      ),
-                      if (trader.journalStreak > 0) ...[
-                        const Text(
-                          ' · ',
-                          style: TextStyle(color: AppColors.textMuted),
-                        ),
-                        Text(
-                          '🔥${trader.journalStreak}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: AppColors.textMuted,
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(text: s.tradeCount(trader.tradeCount)),
+                        const TextSpan(text: ' · '),
+                        // Profit is shown, never ranked on.
+                        TextSpan(
+                          text: rMultiple(trader.totalR),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontFeatures: tabularFigures,
+                            color: AppColors.forValue(trader.totalR),
                           ),
                         ),
+                        if (trader.journalStreak > 0)
+                          TextSpan(text: ' · 🔥${trader.journalStreak}'),
                       ],
-                    ],
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textMuted,
+                    ),
                   ),
                 ],
               ),
@@ -1138,7 +1127,7 @@ class _FeedState extends State<_Feed> {
           pageSize: 6,
           header: Padding(
             padding: const EdgeInsets.only(bottom: Gap.sm),
-            child: Row(
+            child: Wrap(
               children: [
                 for (final (only, label) in [
                   (false, s.feedEveryone),
