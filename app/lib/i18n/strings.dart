@@ -284,6 +284,24 @@ class Strings {
     'একসাথে ১০টার বেশি অ্যালার্ট রাখা যায় না।',
     'Ten alerts at most — remove one first.',
   );
+  // --- Moderators --------------------------------------------------------
+
+  String get moderator => _t('মডারেটর', 'Moderator');
+  String get makeModerator => _t('মডারেটর বানান', 'Make moderator');
+  String get removeModerator => _t('মডারেটর থেকে সরান', 'Remove as moderator');
+  String madeModerator(String name) =>
+      _t('$name এখন মডারেটর', '$name is now a moderator');
+  String moderatorRemoved(String name) =>
+      _t('$name আর মডারেটর নন', '$name is no longer a moderator');
+  String moderatorsFull(int n) => _t(
+    'সর্বোচ্চ $n জন মডারেটর রাখা যায় — আগে একজনকে সরান।',
+    'Up to $n moderators — remove one first.',
+  );
+  String get moderatorsCan => _t(
+    'মডারেটররা মেসেজ পিন করতে আর মেম্বারদের মেসেজ সরাতে পারেন।',
+    "Moderators can pin messages and take down members' messages.",
+  );
+
   // --- Before a trade ----------------------------------------------------
 
   String get beforeYouTrade => _t('ট্রেডের আগে', 'Before you trade');
