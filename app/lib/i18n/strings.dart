@@ -284,6 +284,43 @@ class Strings {
     'একসাথে ১০টার বেশি অ্যালার্ট রাখা যায় না।',
     'Ten alerts at most — remove one first.',
   );
+  // --- Before a trade ----------------------------------------------------
+
+  String get beforeYouTrade => _t('ট্রেডের আগে', 'Before you trade');
+  String get appChecked => _t('অ্যাপ যা দেখল', 'What the app checked');
+  String get yourWord => _t('আপনার কথা', 'Your word');
+  String riskWithinLimit(String max) => _t(
+    'রিস্ক আপনার সীমার মধ্যে (সর্বোচ্চ $max%)',
+    'Risk within your limit ($max% at most)',
+  );
+  String rewardAtLeast(String min) =>
+      _t('টার্গেট রিস্কের অন্তত $min গুণ', 'Target at least $min× the risk');
+  String get notAfterALoss =>
+      _t('লসের ঠিক পরপর না', 'Not straight after a loss');
+  String withinTradesToday(int n) =>
+      _t('আজকের ট্রেড সীমার মধ্যে ($n টা)', "Within today's limit ($n trades)");
+  String fineLosing(String points) => _t(
+    'স্টপ লাগলে $points পয়েন্ট হারালেও আমি ঠিক আছি',
+    "I'm fine losing $points points if the stop is hit",
+  );
+  String get myOwnSetup => _t(
+    'এটা আমার সেটআপ — দাম তাড়া করছি না',
+    "This is my setup — I'm not chasing the price",
+  );
+  String get calmNotWinningBack => _t(
+    'আমি শান্ত — কিছু ফেরত পেতে ট্রেড করছি না',
+    "I'm calm — not trading to win anything back",
+  );
+  String get askBeforeEveryTrade =>
+      _t('প্রতিটা ট্রেডের আগে দেখান', 'Show before every trade');
+  String get placeTrade => _t('ট্রেড নিন', 'Place trade');
+  String get sectionTrading => _t('ট্রেডিং', 'Trading');
+  String get tradeChecklist => _t('ট্রেড চেকলিস্ট', 'Trade checklist');
+  String get tradeChecklistHint => _t(
+    'প্রতিটা ট্রেডের আগে এক মুহূর্ত থামুন',
+    'A moment to stop before each trade',
+  );
+
   // --- Market sessions ---------------------------------------------------
 
   String get marketSessions => _t('মার্কেট সেশন', 'Market sessions');
