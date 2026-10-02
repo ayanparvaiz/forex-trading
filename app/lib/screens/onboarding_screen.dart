@@ -96,45 +96,51 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 onPageChanged: (i) => setState(() => _page = i),
                 children: [
                   for (final (icon, color, title, body) in pages)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: Gap.xl),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 120,
-                            height: 120,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: color.withValues(alpha: 0.14),
-                              border: Border.all(
-                                color: color.withValues(alpha: 0.5),
-                                width: 2,
+                    LayoutBuilder(
+                      builder: (context, box) => SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(horizontal: Gap.xl),
+                        child: ConstrainedBox(
+                          // Centred when it fits; scrolling when it does not.
+                          constraints: BoxConstraints(minHeight: box.maxHeight),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                width: 120,
+                                height: 120,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: color.withValues(alpha: 0.14),
+                                  border: Border.all(
+                                    color: color.withValues(alpha: 0.5),
+                                    width: 2,
+                                  ),
+                                ),
+                                child: Icon(icon, size: 56, color: color),
                               ),
-                            ),
-                            child: Icon(icon, size: 56, color: color),
+                              Gap.h32,
+                              Text(
+                                title,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.6,
+                                ),
+                              ),
+                              Gap.h12,
+                              Text(
+                                body,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  height: 1.5,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
                           ),
-                          Gap.h32,
-                          Text(
-                            title,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.6,
-                            ),
-                          ),
-                          Gap.h12,
-                          Text(
-                            body,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              height: 1.5,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                 ],
