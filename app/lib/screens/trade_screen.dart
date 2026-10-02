@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/calculations.dart';
 import '../data/account_scope.dart';
 import '../data/session_controller.dart';
+import '../data/trade_checklist_pref.dart';
 import '../i18n/strings.dart';
 import '../models/candle.dart';
 import '../models/instrument.dart';
@@ -13,6 +14,7 @@ import '../widgets/candle_chart.dart';
 import '../widgets/common.dart';
 import '../widgets/price_alert_sheet.dart';
 import '../widgets/session_clock.dart';
+import '../widgets/trade_checklist_sheet.dart';
 import 'risk_calculator_screen.dart';
 
 /// Order ticket.
@@ -48,6 +50,9 @@ class _TradeScreenState extends State<TradeScreen> {
   bool _customising = false;
 
   final _reasonController = TextEditingController();
+
+  /// Whether the checklist comes up before the trade goes.
+  final _checklist = TradeChecklistPref();
 
   @override
   void dispose() {
@@ -758,8 +763,29 @@ class _TradeScreenState extends State<TradeScreen> {
     );
   }
 
-  void _place(PositionSize size, Strings s) {
+  Future<void> _place(PositionSize size, Strings s) async {
     final store = AccountScope.of(context);
+
+    final ask = await _checklist.isOn();
+    if (!mounted) return;
+    if (ask) {
+      final go = await showTradeChecklist(
+        context,
+        TradeChecks(
+          violations: store.previewViolations(
+            riskPercent: size.actualRiskPercent,
+            riskReward: _rewardRatio,
+            reason: _reasonController.text,
+          ),
+          riskPoints: pointsValue(size.actualRisk),
+          maxRiskPercent: store.maxRiskPercent,
+          minRiskReward: store.minRiskReward,
+          maxTradesPerDay: store.maxTradesPerDay,
+        ),
+        pref: _checklist,
+      );
+      if (!go || !mounted) return;
+    }
 
     store.openTrade(
       instrument: _instrument,
