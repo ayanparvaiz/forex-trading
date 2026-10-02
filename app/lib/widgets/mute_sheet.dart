@@ -23,36 +23,41 @@ Future<DateTime?> pickMuteUntil(BuildContext context) {
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
     builder: (sheet) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.lg, Gap.lg, 6),
-            child: Text(
-              s.muteNotifications,
-              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(Gap.lg, 0, Gap.lg, Gap.sm),
-            child: Text(
-              s.muteExplain,
-              style: const TextStyle(
-                fontSize: 13,
-                height: 1.45,
-                color: AppColors.textSecondary,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.lg, Gap.lg, 6),
+              child: Text(
+                s.muteNotifications,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
-          ),
-          for (final (label, until) in choices)
-            ListTile(
-              leading: const Icon(Icons.notifications_off_outlined),
-              title: Text(label),
-              onTap: () => Navigator.of(sheet).pop(until),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(Gap.lg, 0, Gap.lg, Gap.sm),
+              child: Text(
+                s.muteExplain,
+                style: const TextStyle(
+                  fontSize: 13,
+                  height: 1.45,
+                  color: AppColors.textSecondary,
+                ),
+              ),
             ),
-          const SizedBox(height: Gap.sm),
-        ],
+            for (final (label, until) in choices)
+              ListTile(
+                leading: const Icon(Icons.notifications_off_outlined),
+                title: Text(label),
+                onTap: () => Navigator.of(sheet).pop(until),
+              ),
+            const SizedBox(height: Gap.sm),
+          ],
+        ),
       ),
     ),
   );

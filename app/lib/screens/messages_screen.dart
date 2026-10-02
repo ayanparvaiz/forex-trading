@@ -357,59 +357,62 @@ class _RoomRow extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (sheet) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: Gap.sm),
-            if (joined)
-              ListTile(
-                leading: Icon(
-                  muted
-                      ? Icons.notifications_active_outlined
-                      : Icons.notifications_off_outlined,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: Gap.sm),
+              if (joined)
+                ListTile(
+                  leading: Icon(
+                    muted
+                        ? Icons.notifications_active_outlined
+                        : Icons.notifications_off_outlined,
+                  ),
+                  title: Text(muted ? s.unmute : s.muteNotifications),
+                  subtitle: muted
+                      ? Text(s.mutedUntil(prefs.mutedUntil!, now))
+                      : null,
+                  onTap: () =>
+                      Navigator.of(sheet).pop(muted ? 'unmute' : 'mute'),
                 ),
-                title: Text(muted ? s.unmute : s.muteNotifications),
-                subtitle: muted
-                    ? Text(s.mutedUntil(prefs.mutedUntil!, now))
-                    : null,
-                onTap: () => Navigator.of(sheet).pop(muted ? 'unmute' : 'mute'),
+              ListTile(
+                leading: const Icon(Icons.delete_outline_rounded),
+                title: Text(s.deleteChat),
+                onTap: () => Navigator.of(sheet).pop('clear'),
               ),
-            ListTile(
-              leading: const Icon(Icons.delete_outline_rounded),
-              title: Text(s.deleteChat),
-              onTap: () => Navigator.of(sheet).pop('clear'),
-            ),
-            if (_ofCommunity)
-              ListTile(
-                leading: const Icon(Icons.groups_2_outlined),
-                title: Text(s.viewCommunity),
-                onTap: () => Navigator.of(sheet).pop('community'),
-              )
-            else if (joined)
-              ListTile(
-                leading: const Icon(
-                  Icons.logout_rounded,
-                  color: AppColors.loss,
+              if (_ofCommunity)
+                ListTile(
+                  leading: const Icon(Icons.groups_2_outlined),
+                  title: Text(s.viewCommunity),
+                  onTap: () => Navigator.of(sheet).pop('community'),
+                )
+              else if (joined)
+                ListTile(
+                  leading: const Icon(
+                    Icons.logout_rounded,
+                    color: AppColors.loss,
+                  ),
+                  title: Text(
+                    s.leave,
+                    style: const TextStyle(color: AppColors.loss),
+                  ),
+                  onTap: () => Navigator.of(sheet).pop('leave'),
+                )
+              else
+                ListTile(
+                  leading: const Icon(
+                    Icons.group_add_outlined,
+                    color: AppColors.brand,
+                  ),
+                  title: Text(
+                    s.join,
+                    style: const TextStyle(color: AppColors.brand),
+                  ),
+                  onTap: () => Navigator.of(sheet).pop('join'),
                 ),
-                title: Text(
-                  s.leave,
-                  style: const TextStyle(color: AppColors.loss),
-                ),
-                onTap: () => Navigator.of(sheet).pop('leave'),
-              )
-            else
-              ListTile(
-                leading: const Icon(
-                  Icons.group_add_outlined,
-                  color: AppColors.brand,
-                ),
-                title: Text(
-                  s.join,
-                  style: const TextStyle(color: AppColors.brand),
-                ),
-                onTap: () => Navigator.of(sheet).pop('join'),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -653,49 +656,51 @@ class _ThreadRow extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (sheet) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: Gap.sm),
-            ListTile(
-              leading: Icon(
-                isUnread
-                    ? Icons.mark_chat_read_outlined
-                    : Icons.mark_chat_unread_outlined,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: Gap.sm),
+              ListTile(
+                leading: Icon(
+                  isUnread
+                      ? Icons.mark_chat_read_outlined
+                      : Icons.mark_chat_unread_outlined,
+                ),
+                title: Text(isUnread ? s.markRead : s.markUnread),
+                onTap: () =>
+                    Navigator.of(sheet).pop(isUnread ? 'read' : 'unread'),
               ),
-              title: Text(isUnread ? s.markRead : s.markUnread),
-              onTap: () =>
-                  Navigator.of(sheet).pop(isUnread ? 'read' : 'unread'),
-            ),
-            ListTile(
-              leading: Icon(
-                muted
-                    ? Icons.notifications_active_outlined
-                    : Icons.notifications_off_outlined,
+              ListTile(
+                leading: Icon(
+                  muted
+                      ? Icons.notifications_active_outlined
+                      : Icons.notifications_off_outlined,
+                ),
+                title: Text(muted ? s.unmute : s.muteNotifications),
+                subtitle: muted
+                    ? Text(s.mutedUntil(prefs.mutedUntil!, now))
+                    : null,
+                onTap: () => Navigator.of(sheet).pop(muted ? 'unmute' : 'mute'),
               ),
-              title: Text(muted ? s.unmute : s.muteNotifications),
-              subtitle: muted
-                  ? Text(s.mutedUntil(prefs.mutedUntil!, now))
-                  : null,
-              onTap: () => Navigator.of(sheet).pop(muted ? 'unmute' : 'mute'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.person_outline),
-              title: Text(s.viewProfile),
-              onTap: () => Navigator.of(sheet).pop('profile'),
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.delete_outline_rounded,
-                color: AppColors.loss,
+              ListTile(
+                leading: const Icon(Icons.person_outline),
+                title: Text(s.viewProfile),
+                onTap: () => Navigator.of(sheet).pop('profile'),
               ),
-              title: Text(
-                s.deleteChat,
-                style: const TextStyle(color: AppColors.loss),
+              ListTile(
+                leading: const Icon(
+                  Icons.delete_outline_rounded,
+                  color: AppColors.loss,
+                ),
+                title: Text(
+                  s.deleteChat,
+                  style: const TextStyle(color: AppColors.loss),
+                ),
+                onTap: () => Navigator.of(sheet).pop('delete'),
               ),
-              onTap: () => Navigator.of(sheet).pop('delete'),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

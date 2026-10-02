@@ -96,66 +96,68 @@ Future<String?> pickFeed(
 
       return SafeArea(
         top: false,
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: Gap.md),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  Gap.lg,
-                  Gap.lg,
-                  Gap.lg,
-                  Gap.sm,
-                ),
-                child: Text(
-                  s.whichFeed,
-                  style: Theme.of(sheet).textTheme.titleMedium,
-                ),
-              ),
-              option(
-                leading: const RoomAvatar(size: 40),
-                title: s.globalChat,
-                subtitle: s.everyonesPosts,
-                selected: current == FeedScope.global,
-                onTap: () => Navigator.of(sheet).pop(FeedScope.global),
-              ),
-              if (communityId != null)
-                option(
-                  leading: CommunityBadge(
-                    id: communityId,
-                    name: community?.name ?? '',
-                    avatarId: community?.avatarId,
-                    size: 40,
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: Gap.md),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    Gap.lg,
+                    Gap.lg,
+                    Gap.lg,
+                    Gap.sm,
                   ),
-                  title: community?.name ?? '…',
-                  subtitle: s.membersOnly,
-                  selected: current == communityId,
-                  onTap: () => Navigator.of(sheet).pop(communityId),
-                )
-              else
-                option(
-                  leading: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: AppColors.elevated,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.group_add_outlined,
-                      color: AppColors.brand,
-                    ),
+                  child: Text(
+                    s.whichFeed,
+                    style: Theme.of(sheet).textTheme.titleMedium,
                   ),
-                  title: s.joinACommunity,
-                  subtitle: s.joinOrStart,
-                  onTap: () {
-                    Navigator.of(sheet).pop();
-                    openCommunities(context);
-                  },
                 ),
-            ],
+                option(
+                  leading: const RoomAvatar(size: 40),
+                  title: s.globalChat,
+                  subtitle: s.everyonesPosts,
+                  selected: current == FeedScope.global,
+                  onTap: () => Navigator.of(sheet).pop(FeedScope.global),
+                ),
+                if (communityId != null)
+                  option(
+                    leading: CommunityBadge(
+                      id: communityId,
+                      name: community?.name ?? '',
+                      avatarId: community?.avatarId,
+                      size: 40,
+                    ),
+                    title: community?.name ?? '…',
+                    subtitle: s.membersOnly,
+                    selected: current == communityId,
+                    onTap: () => Navigator.of(sheet).pop(communityId),
+                  )
+                else
+                  option(
+                    leading: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: AppColors.elevated,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.group_add_outlined,
+                        color: AppColors.brand,
+                      ),
+                    ),
+                    title: s.joinACommunity,
+                    subtitle: s.joinOrStart,
+                    onTap: () {
+                      Navigator.of(sheet).pop();
+                      openCommunities(context);
+                    },
+                  ),
+              ],
+            ),
           ),
         ),
       );
