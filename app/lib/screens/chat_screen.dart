@@ -8,9 +8,11 @@ import '../data/firestore_community_repository.dart';
 import '../data/push_notifier.dart';
 import '../data/safety_repository.dart';
 import '../data/session_controller.dart';
+import '../data/starred_messages.dart';
 import '../models/chat.dart';
 import '../theme/app_theme.dart';
 import '../widgets/chat_bits.dart';
+import '../widgets/conversation_stars.dart';
 import '../widgets/conversation_view.dart';
 import '../widgets/mute_sheet.dart';
 import '../widgets/report_sheet.dart';
@@ -25,6 +27,7 @@ Future<void> openChat(
   required String chatId,
   required String otherUid,
   required String otherUsername,
+  String? jumpTo,
 }) {
   return Navigator.of(context).push(
     MaterialPageRoute<void>(
@@ -32,6 +35,7 @@ Future<void> openChat(
         chatId: chatId,
         otherUid: otherUid,
         otherUsername: otherUsername,
+        jumpTo: jumpTo,
       ),
     ),
   );
@@ -49,11 +53,15 @@ class ChatScreen extends StatefulWidget {
     required this.chatId,
     required this.otherUid,
     required this.otherUsername,
+    this.jumpTo,
   });
 
   final String chatId;
   final String otherUid;
   final String otherUsername;
+
+  /// A message to go to once the conversation is open — a starred one.
+  final String? jumpTo;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -69,6 +77,31 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
   /// For a search to send the conversation to what it found.
   final _conversation = ConversationController();
+
+  /// Where the conversation goes once its messages are in, then nowhere.
+  late String? _pendingJump = widget.jumpTo;
+
+  /// Starring here, kept with the rest of my stars.
+  late final MessageStars? _stars = switch (buildStarredMessages()) {
+    final store? when context.session.uid != null => ConversationStars(
+      store: store,
+      uid: context.session.uid!,
+      conversationId: widget.chatId,
+      room: false,
+      otherUid: widget.otherUid,
+      otherUsername: widget.otherUsername,
+    ),
+    _ => null,
+  };
+
+  void _jumpOnce() {
+    final id = _pendingJump;
+    if (id == null) return;
+    _pendingJump = null;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _conversation.jumpTo(id);
+    });
+  }
 
   ChatThread? _thread;
 
@@ -544,6 +577,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               source: source,
               me: _me,
               controller: _conversation,
+              stars: _stars,
               canSend: _connected == true && !blockedByMe,
               nameOf: (uid, _) => uid == _me ? s.you : _partnerName,
               emptyText: s.sayHi,
@@ -576,6 +610,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               onMessages: (messages) {
                 _messages = messages;
                 _maybeMarkRead();
+                _jumpOnce();
               },
               onOpenPost: (id) => openPost(context, id),
               onOpenSender: (m) => openProfile(

@@ -9,11 +9,13 @@ import '../data/push_notifier.dart';
 import '../data/room_repository.dart';
 import '../data/safety_repository.dart';
 import '../data/session_controller.dart';
+import '../data/starred_messages.dart';
 import '../models/chat.dart';
 import '../models/community.dart';
 import '../models/user_profile.dart';
 import '../theme/app_theme.dart';
 import '../widgets/community_badge.dart';
+import '../widgets/conversation_stars.dart';
 import '../widgets/conversation_view.dart';
 import '../widgets/mute_sheet.dart';
 import '../widgets/poll_sheet.dart';
@@ -27,10 +29,14 @@ import 'profile_screen.dart';
 Future<void> openGlobalChat(BuildContext context) =>
     openRoom(context, RoomRepository.globalId);
 
-/// Opens room [roomId]: Global, or a community's.
-Future<void> openRoom(BuildContext context, String roomId) => Navigator.of(
-  context,
-).push(MaterialPageRoute<void>(builder: (_) => RoomScreen(roomId: roomId)));
+/// Opens room [roomId]: Global, or a community's — at [jumpTo], a message
+/// in it, when given.
+Future<void> openRoom(BuildContext context, String roomId, {String? jumpTo}) =>
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => RoomScreen(roomId: roomId, jumpTo: jumpTo),
+      ),
+    );
 
 /// A room — the Global chat, for everyone, or a community's, for its members.
 ///
@@ -41,9 +47,12 @@ Future<void> openRoom(BuildContext context, String roomId) => Navigator.of(
 /// [ConversationView] — with each run of someone's messages headed by their
 /// name.
 class RoomScreen extends StatefulWidget {
-  const RoomScreen({super.key, required this.roomId});
+  const RoomScreen({super.key, required this.roomId, this.jumpTo});
 
   final String roomId;
+
+  /// A message to go to once the room is open — a starred one.
+  final String? jumpTo;
 
   @override
   State<RoomScreen> createState() => _RoomScreenState();
@@ -57,6 +66,29 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
 
   /// For a search to send the room to what it found.
   final _conversation = ConversationController();
+
+  /// Where the room goes once its messages are in, then nowhere.
+  late String? _pendingJump = widget.jumpTo;
+
+  /// Starring here, kept with the rest of my stars.
+  late final MessageStars? _stars = switch (buildStarredMessages()) {
+    final store? when context.session.uid != null => ConversationStars(
+      store: store,
+      uid: context.session.uid!,
+      conversationId: widget.roomId,
+      room: true,
+    ),
+    _ => null,
+  };
+
+  void _jumpOnce() {
+    final id = _pendingJump;
+    if (id == null) return;
+    _pendingJump = null;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _conversation.jumpTo(id);
+    });
+  }
 
   bool _started = false;
   bool _markingRead = false;
@@ -468,6 +500,7 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
               source: source,
               me: _me,
               controller: _conversation,
+              stars: _stars,
               canSend: canSend,
               nameOf: (uid, m) {
                 if (uid == _me) return s.you;
@@ -540,7 +573,10 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
                     ),
                   ),
               ],
-              onMessages: (_) => _maybeMarkRead(),
+              onMessages: (_) {
+                _maybeMarkRead();
+                _jumpOnce();
+              },
               onOpenPost: (id) => openPost(context, id),
               // Tapping a name, or a rank someone shared, opens who it was.
               onOpenSender: (m) {
