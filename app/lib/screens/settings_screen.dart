@@ -4,6 +4,7 @@ import '../data/chat_inbox.dart';
 import '../data/communities_repository.dart';
 import '../data/push.dart';
 import '../data/session_controller.dart';
+import '../data/trade_checklist_pref.dart';
 import '../i18n/strings.dart';
 import '../legal/legal_text.dart';
 import '../models/community.dart';
@@ -109,6 +110,11 @@ class SettingsScreen extends StatelessWidget {
                       trailing: _LanguageSwitch(s: s),
                     ),
                   ],
+                ),
+                Gap.h24,
+                SettingsSection(
+                  title: s.sectionTrading,
+                  children: const [_ChecklistTile()],
                 ),
                 if (buildCommunitiesRepository() != null) ...[
                   Gap.h24,
@@ -381,6 +387,48 @@ class _CommunityTileState extends State<_CommunityTile> {
 }
 
 /// Push notifications on this phone, on or off.
+/// The checklist before each trade, on or off.
+class _ChecklistTile extends StatefulWidget {
+  const _ChecklistTile();
+
+  @override
+  State<_ChecklistTile> createState() => _ChecklistTileState();
+}
+
+class _ChecklistTileState extends State<_ChecklistTile> {
+  final _pref = TradeChecklistPref();
+  bool? _on;
+
+  @override
+  void initState() {
+    super.initState();
+    _pref.isOn().then((on) {
+      if (mounted) setState(() => _on = on);
+    });
+  }
+
+  void _toggle(bool on) {
+    setState(() => _on = on);
+    _pref.set(on);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.s;
+    return SettingsTile(
+      icon: Icons.checklist_rounded,
+      title: s.tradeChecklist,
+      subtitle: s.tradeChecklistHint,
+      trailing: Switch(
+        value: _on ?? true,
+        onChanged: _on == null ? null : _toggle,
+        activeThumbColor: Colors.white,
+        activeTrackColor: AppColors.brand,
+      ),
+    );
+  }
+}
+
 class _PushTile extends StatefulWidget {
   const _PushTile();
 
