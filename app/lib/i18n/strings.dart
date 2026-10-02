@@ -409,6 +409,18 @@ class Strings {
   );
   String get last24h => _t('২৪ ঘণ্টায়', '24h');
 
+  // --- Habit calendar ----------------------------------------------------
+
+  String get habitCalendar => _t('অভ্যাসের ক্যালেন্ডার', 'Habit calendar');
+  String get dayClean => _t('সব নিয়ম মানা', 'Every rule kept');
+  String get dayMixed => _t('কিছু ভাঙা', 'Some broken');
+  String get dayBroken => _t('নিয়ম ভাঙা', 'Rules broken');
+  String get dayNone => _t('ট্রেড নেই', 'No trades');
+  String cleanStreakDays(int n) => _t(
+    'টানা $n দিন সব নিয়ম মানা',
+    n == 1 ? '1 clean day in a row' : '$n clean days in a row',
+  );
+
   // --- Mood --------------------------------------------------------------
 
   String get howDoYouFeel =>
