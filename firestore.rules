@@ -1299,6 +1299,13 @@ service cloud.firestore {
       }
     }
 
+    // Each month's champion: the community on top when the month turned,
+    // crowned by the worker (worker/src/champion.js). Read by everyone.
+    match /champions/{month} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
     // One claim per name, like usernames, so no two communities share one.
     match /communityNames/{name} {
       allow read: if isSignedIn();
