@@ -79,6 +79,7 @@ void main() {
     ValueChanged<ChatMessage>? onOpenSender,
     ValueChanged<String>? onOpenPost,
     List<MessageAction> Function(ChatMessage m)? extraActions,
+    ConversationController? controller,
   }) async {
     SharedPreferences.setMockInitialValues({});
     final session = SessionController(
@@ -102,6 +103,7 @@ void main() {
               onOpenSender: onOpenSender,
               onOpenPost: onOpenPost,
               extraActions: extraActions,
+              controller: controller,
             ),
           ),
         ),
@@ -477,6 +479,26 @@ void main() {
     ]);
     await tester.pumpAndSettle();
     expect(find.textContaining('Removed by the admin'), findsOneWidget);
+  });
+
+  testWidgets('the screen around it can send it to a message far up', (
+    tester,
+  ) async {
+    final controller = ConversationController();
+    final source = await pump(tester, controller: controller);
+    source.latest.add([
+      for (var i = 59; i >= 0; i--) msg('m$i', i, text: 'message number $i'),
+    ]);
+    await tester.pumpAndSettle();
+    expect(find.text('message number 0'), findsNothing, reason: 'far up');
+
+    // The jump waits on frames, which only pumping makes in a test.
+    final jumping = controller.jumpTo('m0');
+    await tester.pumpAndSettle();
+    await jumping;
+    final shown = tester.getRect(find.textContaining('message number 0'));
+    final screen = tester.getRect(find.byType(Scaffold));
+    expect(screen.contains(shown.center), isTrue);
   });
 
   testWidgets('every action on a message fits a small phone', (tester) async {

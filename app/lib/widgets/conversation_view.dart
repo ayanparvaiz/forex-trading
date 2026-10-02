@@ -52,6 +52,16 @@ abstract class MessageSource {
   Future<void> vote(ChatMessage m, int? option);
 }
 
+/// Lets the screen around a conversation move it — to a message found by a
+/// search, say.
+class ConversationController {
+  _ConversationViewState? _view;
+
+  /// Scrolls to the message [id], loading older pages until it is there,
+  /// and lights it up.
+  Future<void> jumpTo(String id) async => _view?._jumpTo(id);
+}
+
 /// One more thing a long-press on a message can do — reporting, which each
 /// kind of conversation files differently.
 class MessageAction {
@@ -98,6 +108,7 @@ class ConversationView extends StatefulWidget {
     this.onMessages,
     this.onOpenPost,
     this.onOpenSender,
+    this.controller,
   });
 
   final MessageSource source;
@@ -150,6 +161,9 @@ class ConversationView extends StatefulWidget {
   /// Someone was tapped — their name in a room, or a rank they shared.
   final ValueChanged<ChatMessage>? onOpenSender;
 
+  /// For the screen around it to move it.
+  final ConversationController? controller;
+
   @override
   State<ConversationView> createState() => _ConversationViewState();
 }
@@ -194,6 +208,7 @@ class _ConversationViewState extends State<ConversationView> {
   @override
   void initState() {
     super.initState();
+    widget.controller?._view = this;
     _scroll.addListener(_onScroll);
     _input.addListener(() => widget.onDraftChanged?.call(_input.text));
     _input.addListener(_suggestPeople);
@@ -212,7 +227,17 @@ class _ConversationViewState extends State<ConversationView> {
   }
 
   @override
+  void didUpdateWidget(ConversationView old) {
+    super.didUpdateWidget(old);
+    if (old.controller != widget.controller) {
+      if (old.controller?._view == this) old.controller?._view = null;
+      widget.controller?._view = this;
+    }
+  }
+
+  @override
   void dispose() {
+    if (widget.controller?._view == this) widget.controller?._view = null;
     _latestSub?.cancel();
     _flashTimer?.cancel();
     _input.dispose();
@@ -425,7 +450,8 @@ class _ConversationViewState extends State<ConversationView> {
       // Deleted for me: there is nothing on screen to go to.
       if (m.id == id && !_shows(m, _prefs)) return;
     }
-    for (var i = 0; i < 60 && mounted; i++) {
+    // Far enough for one a search found a few hundred messages back.
+    for (var i = 0; i < 300 && mounted; i++) {
       final target = _bubbleKeys[id]?.currentContext;
       if (target != null && target.mounted) {
         await Scrollable.ensureVisible(
