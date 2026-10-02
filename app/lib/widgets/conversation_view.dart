@@ -52,6 +52,15 @@ abstract class MessageSource {
   Future<void> vote(ChatMessage m, int? option);
 }
 
+/// Messages starred in one conversation, by the person reading it.
+abstract class MessageStars {
+  /// The ids starred here, live.
+  Stream<Set<String>> watch();
+
+  Future<void> star(ChatMessage m);
+  Future<void> unstar(ChatMessage m);
+}
+
 /// Lets the screen around a conversation move it — to a message found by a
 /// search, say.
 class ConversationController {
@@ -109,6 +118,7 @@ class ConversationView extends StatefulWidget {
     this.onOpenPost,
     this.onOpenSender,
     this.controller,
+    this.stars,
   });
 
   final MessageSource source;
@@ -164,6 +174,9 @@ class ConversationView extends StatefulWidget {
   /// For the screen around it to move it.
   final ConversationController? controller;
 
+  /// Starring messages here, to find again; none where there is no server.
+  final MessageStars? stars;
+
   @override
   State<ConversationView> createState() => _ConversationViewState();
 }
@@ -202,6 +215,10 @@ class _ConversationViewState extends State<ConversationView> {
   final Set<String> _fetchingPosts = {};
   CommunityRepository? _community;
 
+  /// Messages I starred here.
+  Set<String> _starred = const {};
+  StreamSubscription<Set<String>>? _starsSub;
+
   String get _me => widget.me;
   MessageSource get _source => widget.source;
 
@@ -209,6 +226,10 @@ class _ConversationViewState extends State<ConversationView> {
   void initState() {
     super.initState();
     widget.controller?._view = this;
+    _starsSub = widget.stars?.watch().listen(
+      (ids) => setState(() => _starred = ids),
+      onError: (Object e) => debugPrint('stars failed: $e'),
+    );
     _scroll.addListener(_onScroll);
     _input.addListener(() => widget.onDraftChanged?.call(_input.text));
     _input.addListener(_suggestPeople);
@@ -238,6 +259,7 @@ class _ConversationViewState extends State<ConversationView> {
   @override
   void dispose() {
     if (widget.controller?._view == this) widget.controller?._view = null;
+    _starsSub?.cancel();
     _latestSub?.cancel();
     _flashTimer?.cancel();
     _input.dispose();
@@ -690,6 +712,18 @@ class _ConversationViewState extends State<ConversationView> {
                   tile(Icons.reply_rounded, s.reply, () => pick('reply')),
                 if (!m.unsent && m.text.isNotEmpty)
                   tile(Icons.copy_rounded, s.copy, () => pick('copy')),
+                if (widget.stars != null && !m.unsent && !m.pending)
+                  _starred.contains(m.id)
+                      ? tile(
+                          Icons.star_rounded,
+                          s.unstarMessage,
+                          () => pick('unstar'),
+                        )
+                      : tile(
+                          Icons.star_outline_rounded,
+                          s.starMessage,
+                          () => pick('star'),
+                        ),
                 // A poll belongs to the room it asks; its votes do not
                 // travel with it.
                 if (!m.unsent && _inbox != null && m.attachment is! Poll)
@@ -737,6 +771,10 @@ class _ConversationViewState extends State<ConversationView> {
         ).showSnackBar(SnackBar(content: Text(s.copied)));
       case 'forward':
         await _forward(m);
+      case 'star':
+        await _star(m, true);
+      case 'unstar':
+        await _star(m, false);
       case 'hide':
         _hide(m);
       case 'unsend':
@@ -761,6 +799,29 @@ class _ConversationViewState extends State<ConversationView> {
       debugPrint('react failed: $e');
       if (!mounted) return;
       show(before);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.s.couldNotSave)));
+    }
+  }
+
+  /// Stars [m], or takes the star off: at once, then written, and put back
+  /// if the write is refused.
+  Future<void> _star(ChatMessage m, bool on) async {
+    final stars = widget.stars;
+    if (stars == null) return;
+    final before = _starred;
+    setState(
+      () => _starred = on
+          ? {..._starred, m.id}
+          : {..._starred.where((id) => id != m.id)},
+    );
+    try {
+      on ? await stars.star(m) : await stars.unstar(m);
+    } catch (e) {
+      debugPrint('star failed: $e');
+      if (!mounted) return;
+      setState(() => _starred = before);
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(context.s.couldNotSave)));
@@ -1013,6 +1074,7 @@ class _ConversationViewState extends State<ConversationView> {
                   : () => widget.onOpenSender!(m),
               forwardedLabel: m.forwarded && !m.unsent ? s.forwarded : null,
               highlight: _flashId == m.id,
+              starred: !m.unsent && _starred.contains(m.id),
               onLongPress: () => _showActions(m),
               reactions: m.unsent ? const [] : m.reactionCounts,
               mineReacted: !m.unsent && m.reactions.containsKey(_me),
@@ -1147,9 +1209,13 @@ class _Bubble extends StatelessWidget {
     this.attachment,
     this.forwardedLabel,
     this.highlight = false,
+    this.starred = false,
     this.reactions = const [],
     this.mineReacted = false,
   });
+
+  /// Starred by me: a small star beside the time.
+  final bool starred;
 
   final ChatMessage message;
   final bool mine;
@@ -1191,6 +1257,16 @@ class _Bubble extends StatelessWidget {
     final meta = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (starred) ...[
+          Icon(
+            Icons.star_rounded,
+            size: 12,
+            color: mine
+                ? Colors.white.withValues(alpha: 0.62)
+                : AppColors.textMuted,
+          ),
+          const SizedBox(width: 2),
+        ],
         Text(
           time,
           style: TextStyle(
@@ -1206,7 +1282,7 @@ class _Bubble extends StatelessWidget {
         ],
       ],
     );
-    final metaWidth = status != null ? 78.0 : 58.0;
+    final metaWidth = (status != null ? 78.0 : 58.0) + (starred ? 14 : 0);
 
     final Widget body = message.unsent
         ? Text.rich(

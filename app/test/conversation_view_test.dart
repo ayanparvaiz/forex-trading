@@ -51,6 +51,21 @@ class FakeSource implements MessageSource {
       voted.add((m.id, option));
 }
 
+/// Stars kept in memory, as written.
+class FakeStars implements MessageStars {
+  final ids = StreamController<Set<String>>.broadcast();
+  final writes = <(String, bool)>[];
+
+  @override
+  Stream<Set<String>> watch() => ids.stream;
+
+  @override
+  Future<void> star(ChatMessage m) async => writes.add((m.id, true));
+
+  @override
+  Future<void> unstar(ChatMessage m) async => writes.add((m.id, false));
+}
+
 void main() {
   const me = 'me';
   final t0 = DateTime(2026, 9, 25, 10);
@@ -80,6 +95,7 @@ void main() {
     ValueChanged<String>? onOpenPost,
     List<MessageAction> Function(ChatMessage m)? extraActions,
     ConversationController? controller,
+    MessageStars? stars,
   }) async {
     SharedPreferences.setMockInitialValues({});
     final session = SessionController(
@@ -104,6 +120,7 @@ void main() {
               onOpenPost: onOpenPost,
               extraActions: extraActions,
               controller: controller,
+              stars: stars,
             ),
           ),
         ),
@@ -499,6 +516,35 @@ void main() {
     final shown = tester.getRect(find.textContaining('message number 0'));
     final screen = tester.getRect(find.byType(Scaffold));
     expect(screen.contains(shown.center), isTrue);
+  });
+
+  testWidgets('star a message, see the star, take it off', (tester) async {
+    final stars = FakeStars();
+    final source = await pump(tester, stars: stars);
+    source.latest.add([msg('m1', 0, from: 'ana', text: 'retest held')]);
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.star_rounded), findsNothing);
+
+    await tester.longPress(find.textContaining('retest held'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Star'));
+    await tester.pumpAndSettle();
+    expect(stars.writes, [('m1', true)]);
+    // On the bubble at once.
+    expect(find.byIcon(Icons.star_rounded), findsOneWidget);
+
+    await tester.longPress(find.textContaining('retest held'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Unstar'));
+    await tester.pumpAndSettle();
+    expect(stars.writes.last, ('m1', false));
+    expect(find.byIcon(Icons.star_rounded), findsNothing);
+
+    // What the server says wins.
+    stars.ids.add({'m1'});
+    await tester.pump();
+    await tester.pump();
+    expect(find.byIcon(Icons.star_rounded), findsOneWidget);
   });
 
   testWidgets('every action on a message fits a small phone', (tester) async {
