@@ -192,21 +192,26 @@ Future<bool> toggleModerator(
   Community community,
   CommunityMember member,
   String name, {
-  required int moderators,
+  required List<String> moderators,
 }) async {
   final s = context.s;
   final repo = buildCommunitiesRepository();
   if (repo == null) return false;
   final messenger = ScaffoldMessenger.of(context);
   final making = !member.isModerator;
-  if (making && moderators >= CommunityMember.maxModerators) {
+  if (making && moderators.length >= CommunityMember.maxModerators) {
     messenger.showSnackBar(
       SnackBar(content: Text(s.moderatorsFull(CommunityMember.maxModerators))),
     );
     return false;
   }
   try {
-    await repo.setModerator(community.id, member.uid, making);
+    await repo.setModerator(
+      community.id,
+      member.uid,
+      making,
+      moderators: moderators,
+    );
   } catch (e) {
     debugPrint('moderator failed: $e');
     messenger.showSnackBar(SnackBar(content: Text(s.couldNotSave)));
@@ -855,8 +860,11 @@ class _CommunityProfileScreenState extends State<CommunityProfileScreen> {
                           c,
                           m,
                           name,
-                          moderators:
-                              _members?.where((x) => x.isModerator).length ?? 0,
+                          moderators: [
+                            for (final x
+                                in _members ?? const <CommunityMember>[])
+                              if (x.isModerator) x.uid,
+                          ],
                         ).then((done) {
                           // The list is fetched, not followed: fetch it again.
                           if (done) _loadMembers(c);

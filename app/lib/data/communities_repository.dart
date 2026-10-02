@@ -170,9 +170,25 @@ class CommunitiesRepository {
   Stream<String?> watchRole(String id, String uid) =>
       _member(id, uid).snapshots().map((d) => d.data()?['role'] as String?);
 
-  /// The admin making [uid] a moderator, or a member again.
-  Future<void> setModerator(String id, String uid, bool moderator) =>
-      _member(id, uid).update({'role': moderator ? 'moderator' : 'member'});
+  /// The admin making [uid] a moderator, or a member again. [moderators] is
+  /// who the moderators are now; the community lists them with the change,
+  /// and the rules hold the list to three (firestore.rules, moderatorsOk).
+  Future<void> setModerator(
+    String id,
+    String uid,
+    bool moderator, {
+    required List<String> moderators,
+  }) {
+    final listed = [
+      for (final m in moderators)
+        if (m != uid) m,
+      if (moderator) uid,
+    ];
+    final batch = _db.batch()
+      ..update(_member(id, uid), {'role': moderator ? 'moderator' : 'member'})
+      ..update(_community(id), {'moderators': listed});
+    return batch.commit();
+  }
 
   /// The admin's own words about the community.
   Future<void> setDescription(String id, String description) =>
