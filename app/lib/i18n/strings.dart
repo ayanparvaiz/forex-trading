@@ -284,6 +284,22 @@ class Strings {
     'একসাথে ১০টার বেশি অ্যালার্ট রাখা যায় না।',
     'Ten alerts at most — remove one first.',
   );
+  // --- Searching a conversation -----------------------------------------
+
+  String get searchChat => _t('এই চ্যাটে খুঁজুন', 'Search this chat');
+  String get searchChatHint => _t(
+    'একটা শব্দ লিখুন — এই কথোপকথনে খুঁজে দেবো।',
+    'Type a word to find it in this conversation.',
+  );
+  String searchedLast(int n) => _t(
+    'শেষ $n টা মেসেজে খোঁজা হয়েছে',
+    n == 1 ? 'Searched the last message' : 'Searched the last $n messages',
+  );
+  String get searchedAll =>
+      _t('পুরো কথোপকথনে খোঁজা হয়েছে', 'Searched the whole conversation');
+  String get lookFurtherBack => _t('আরো পেছনে খুঁজুন', 'Look further back');
+  String get nothingFound => _t('কিছু পাওয়া যায়নি', 'Nothing found');
+
   // --- Moderators --------------------------------------------------------
 
   String get moderator => _t('মডারেটর', 'Moderator');
