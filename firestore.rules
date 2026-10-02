@@ -708,7 +708,40 @@ service cloud.firestore {
         || (a.keys().hasOnly(['type', 'question', 'options'])
           && a.keys().hasAll(['type', 'question', 'options'])
           && a.type == 'poll'
-          && pollOk(a)));
+          && pollOk(a))
+        // A closed trade, as its owner's journal has it.
+        || (a.keys().hasOnly(tradeCardKeys())
+          && a.keys().hasAll(tradeCardKeys())
+          && a.type == 'trade'
+          && tradeCardOk(a)));
+    }
+
+    function tradeCardKeys() {
+      return ['type', 'ownerUid', 'tradeId', 'symbol', 'direction', 'entryPrice',
+              'stopPrice', 'targetPrice', 'exitPrice', 'exitReason', 'r'];
+    }
+
+    /// A trade card says what the trade says: the same pair, side and
+    /// prices, closed, and a result in R no better than its prices made —
+    /// the spread and swap only ever take away. So a loss is never sent as a
+    /// win, by its owner or by anyone forwarding it.
+    function tradeCardOk(a) {
+      let t = get(/databases/$(database)/documents/users/$(a.ownerUid)/trades/$(a.tradeId)).data;
+      let sign = t.direction == 'buy' ? 1 : -1;
+      let gross = (t.exitPrice - t.entryPrice) * sign / math.abs(t.entryPrice - t.stopPrice);
+      return a.ownerUid is string
+        && a.tradeId is string
+        && t.symbol == a.symbol
+        && t.direction == a.direction
+        && t.entryPrice == a.entryPrice
+        && t.stopPrice == a.stopPrice
+        && t.targetPrice == a.targetPrice
+        && t.exitPrice is number
+        && t.exitPrice == a.exitPrice
+        && t.exitReason == a.exitReason
+        && a.r is number
+        && a.r <= gross + 0.001
+        && a.r >= gross - 3;
     }
 
     function pollOptionOk(o) {
