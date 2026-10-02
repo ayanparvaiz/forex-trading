@@ -325,7 +325,7 @@ class SettingsTile extends StatelessWidget {
                 ],
               ),
             ),
-            ?trailing,
+            if (trailing != null) Flexible(child: trailing!),
             if (trailing == null && onTap != null && !danger)
               const Icon(
                 Icons.chevron_right_rounded,

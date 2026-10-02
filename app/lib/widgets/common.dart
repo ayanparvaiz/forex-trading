@@ -41,7 +41,7 @@ class SectionCard extends StatelessWidget {
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                 ),
-                ?trailing,
+                if (trailing != null) Flexible(child: trailing!),
               ],
             ),
             Gap.h12,
@@ -135,12 +135,17 @@ class Pill extends StatelessWidget {
             Icon(icon, size: dense ? 11 : 13, color: color),
             const SizedBox(width: 4),
           ],
-          Text(
-            text,
-            style: TextStyle(
-              color: color,
-              fontSize: dense ? 10.5 : 11.5,
-              fontWeight: FontWeight.w600,
+          // Short of room, it ends in "…" rather than spill out of the pill.
+          Flexible(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: color,
+                fontSize: dense ? 10.5 : 11.5,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
