@@ -264,6 +264,26 @@ class Strings {
   String get sizeFromRisk => _t('রিস্ক থেকে সাইজ', 'Size from risk');
   String get positionSize => _t('পজিশন সাইজ', 'Position size');
   String get riskCalculator => _t('রিস্ক ক্যালকুলেটর', 'Risk calculator');
+  String get priceAlerts => _t('প্রাইস অ্যালার্ট', 'Price alerts');
+  String alertWhen(String pair) =>
+      _t('$pair কোন দামে গেলে জানাবো?', 'Alert me when $pair reaches');
+  String get alertMe => _t('অ্যালার্ট দিন', 'Alert me');
+  String get noAlerts => _t('কোনো অ্যালার্ট নেই।', 'No alerts set.');
+  String get alertsWhileOpen => _t(
+    'প্র্যাকটিস মার্কেট এই ফোনেই চলে, তাই অ্যাপ খোলা থাকলে অ্যালার্ট বাজে।',
+    'The practice market runs on this phone, so alerts ring while the app '
+        'is open.',
+  );
+  String alertSet(String pair, String price) => _t(
+    '$pair $price-এ গেলে জানাবো 🔔',
+    "You'll hear when $pair reaches $price 🔔",
+  );
+  String alertReached(String pair, String price) =>
+      _t('🔔 $pair $price ছুঁয়েছে', '🔔 $pair reached $price');
+  String get tooManyAlerts => _t(
+    'একসাথে ১০টার বেশি অ্যালার্ট রাখা যায় না।',
+    'Ten alerts at most — remove one first.',
+  );
   String get riskCalculatorIntro => _t(
     'ট্রেড নেওয়ার আগে হিসাব: কত হারাতে রাজি, স্টপ কত দূরে — সাইজ নিজে থেকেই বের হয়।',
     'Before the trade: how much you will lose if wrong, and how far the '
