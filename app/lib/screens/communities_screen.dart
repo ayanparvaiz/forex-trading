@@ -42,6 +42,23 @@ class _CommunitiesViewState extends State<CommunitiesView> {
   CommunitiesRepository? _repo;
   Stream<List<(Community, int)>>? _ranked;
 
+  /// Ranked on this week's board instead — opened the first time asked.
+  bool _weekly = false;
+  Stream<List<(Community, int)>>? _weeklyRanked;
+
+  void _showWeekly(bool weekly) => setState(() {
+    _weekly = weekly;
+    if (weekly && _weeklyRanked == null) {
+      final session = context.session;
+      _weeklyRanked = _repo?.watchRanked(
+        buildCommunityRepository(
+          session.language,
+          viewerUid: session.uid,
+        ).watchWeeklyLeaderboard(),
+      );
+    }
+  });
+
   /// Which community is joining, so only its button spins.
   String? _joining;
 
@@ -88,7 +105,7 @@ class _CommunitiesViewState extends State<CommunitiesView> {
     final mine = context.session.profile?.communityId;
 
     return StreamBuilder<List<(Community, int)>>(
-      stream: _ranked,
+      stream: _weekly ? _weeklyRanked : _ranked,
       builder: (context, snap) {
         if (snap.hasError) {
           return _Retry(onRetry: () => setState(_watch));
@@ -131,8 +148,38 @@ class _CommunitiesViewState extends State<CommunitiesView> {
             ),
             Gap.h24,
             _Heading(s.allCommunities),
+            // All time, or this week: who is ahead now.
+            Wrap(
+              children: [
+                for (final (weekly, label) in [
+                  (false, s.allTime),
+                  (true, s.thisWeek),
+                ])
+                  Padding(
+                    padding: const EdgeInsets.only(right: Gap.sm),
+                    child: ChoiceChip(
+                      label: Text(label),
+                      selected: _weekly == weekly,
+                      showCheckmark: false,
+                      onSelected: (_) => _showWeekly(weekly),
+                      backgroundColor: AppColors.elevated,
+                      selectedColor: AppColors.brandDim,
+                      side: BorderSide(
+                        color: _weekly == weekly
+                            ? AppColors.brand
+                            : AppColors.border,
+                      ),
+                      labelStyle: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            Gap.h8,
             Text(
-              s.pointsExplain,
+              _weekly ? s.weeklyPointsExplain : s.pointsExplain,
               style: const TextStyle(
                 fontSize: 12,
                 height: 1.4,
