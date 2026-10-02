@@ -289,13 +289,20 @@ class _Leaderboard extends StatefulWidget {
 class _LeaderboardState extends State<_Leaderboard> {
   late Stream<List<Trader>> _board = widget.repository.watchLeaderboard();
 
-  /// This week's board instead of all time's — opened the first time asked.
+  /// This week's board instead of all time's.
   bool _weekly = false;
   Stream<List<Trader>>? _weekBoard;
 
+  /// Each board is asked for afresh whenever it is switched to: one that was
+  /// left cannot always be listened to again.
   void _showWeekly(bool weekly) => setState(() {
+    if (weekly == _weekly) return;
     _weekly = weekly;
-    if (weekly) _weekBoard ??= widget.repository.watchWeeklyLeaderboard();
+    if (weekly) {
+      _weekBoard = widget.repository.watchWeeklyLeaderboard();
+    } else {
+      _board = widget.repository.watchLeaderboard();
+    }
   });
 
   /// Every community by id, for the badge beside each trader's name.
