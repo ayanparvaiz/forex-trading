@@ -3,7 +3,7 @@
 import { collection, doc, getDoc, getDocs, limit, query } from "firebase/firestore";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { useAction } from "@/components/feedback";
 import { Avatar, Badge, Button, Card, CommunityPicture, Empty, ErrorNote, Loading, PageHeader, Stat, Table, td } from "@/components/ui";
 import { adminCall } from "@/lib/admin-api";
@@ -12,6 +12,7 @@ import { db } from "@/lib/firebase";
 import { dateLabel, dateTime, timeAgo, toDate } from "@/lib/format";
 import { rows, type CommunityDoc, type When } from "@/lib/types";
 import { useLoad } from "@/lib/use-load";
+import { EditDialog } from "./edit-dialog";
 
 type Member = { id: string; role: string; username: string; joinedAt?: When };
 type Event = { id: string; title: string; description?: string; startsAt?: When; going?: string[] };
@@ -38,6 +39,7 @@ function CommunityView() {
   const router = useRouter();
   const act = useAction();
   const { data, error, loading, reload } = useLoad(() => load(id), id);
+  const [editing, setEditing] = useState(false);
 
   if (loading && !data) return <Loading />;
   if (error) return <ErrorNote error={error} />;
@@ -61,6 +63,13 @@ function CommunityView() {
       `@${m.username} removed.`,
     ).then((ok) => ok && reload());
 
+  const transfer = (m: Member) =>
+    act(
+      { title: `Make @${m.username} the admin of ${c.name}?`, body: `They run it from now on. @${admin?.username ?? "the old admin"} stays in it as a member.`, action: "Make admin" },
+      () => adminCall("community", { communityId: c.id, op: "transfer", uid: m.id }),
+      `@${m.username} runs ${c.name} now.`,
+    ).then((ok) => ok && reload());
+
   const destroy = () =>
     act(
       { title: `Delete ${c.name}?`, body: `All ${c.memberCount ?? 0} members leave it. Its chat, feed posts, events and name go too. This cannot be undone.`, action: "Delete community", danger: true },
@@ -70,6 +79,7 @@ function CommunityView() {
 
   return (
     <>
+      {editing && <EditDialog c={c} onClose={() => setEditing(false)} onDone={() => { setEditing(false); reload(); }} />}
       <Link href="/communities/" className="mb-4 inline-block text-sm text-muted hover:text-ink">← All communities</Link>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center">
         <CommunityPicture id={c.avatarId} name={c.name} size={64} />
@@ -86,6 +96,7 @@ function CommunityView() {
             actions={
               <>
                 <Link href={`/rooms/?room=c_${c.id}`}><Button>Open its chat</Button></Link>
+                <Button onClick={() => setEditing(true)}>Edit</Button>
                 {c.locked ? <Button onClick={() => lock(false)}>Unlock</Button> : <Button onClick={() => lock(true)}>Lock</Button>}
                 <Button variant="danger" onClick={destroy}>Delete community</Button>
               </>
@@ -123,7 +134,12 @@ function CommunityView() {
                     </td>
                     <td className={`${td} whitespace-nowrap text-muted`}>{dateLabel(m.joinedAt)}</td>
                     <td className={`${td} text-right`}>
-                      {m.role !== "admin" && <Button size="sm" variant="ghost" onClick={() => remove(m)}>Remove</Button>}
+                      {m.role !== "admin" && (
+                        <span className="flex justify-end gap-1">
+                          <Button size="sm" variant="ghost" onClick={() => transfer(m)}>Make admin</Button>
+                          <Button size="sm" variant="ghost" onClick={() => remove(m)}>Remove</Button>
+                        </span>
+                      )}
                     </td>
                   </tr>
                 );
