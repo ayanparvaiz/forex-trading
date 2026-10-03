@@ -1555,6 +1555,13 @@ service cloud.firestore {
       allow list, write: if false;
     }
 
+    // What the admins announced to every phone, kept by the worker when it
+    // sends one (worker/src/admin.js). For the admin panel only.
+    match /announcements/{id} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     // --- Lessons ------------------------------------------------------------
     //
     // Course content, published from the repo. Read-only to everyone.

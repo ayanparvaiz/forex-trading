@@ -53,7 +53,7 @@ export async function adminAction(store, { auth, push }, caller, body, now = new
     case 'community':
       return community(store, body);
     case 'broadcast':
-      return broadcast(push, body);
+      return broadcast(store, push, caller, body, now);
     default:
       throw bad('unknown action');
   }
@@ -188,20 +188,28 @@ async function community(store, { communityId, op, uid }) {
 /**
  * A notification to everyone who has them on: every phone is subscribed to
  * its language's topic (worker/src/notify.js, the morning reminder), so a
- * line in each language reaches all of them.
+ * line in each language reaches all of them. Kept under announcements/, for
+ * the panel to show what went out and who sent it.
  */
-async function broadcast(push, { bn, en }) {
+async function broadcast(store, push, caller, { bn, en }, now) {
   const ok = (m) => m && typeof m.title === 'string' && typeof m.body === 'string'
     && m.title.trim() && m.body.trim() && m.title.length <= 80 && m.body.length <= 300;
   if (!ok(bn) || !ok(en)) throw bad();
-  for (const [language, m] of [['bn', bn], ['en', en]]) {
+  const sent = {
+    bn: { title: bn.title.trim(), body: bn.body.trim() },
+    en: { title: en.title.trim(), body: en.body.trim() },
+  };
+  for (const language of ['bn', 'en']) {
     await push(pushMessage({
       topic: `daily_${language}`,
-      title: m.title.trim(),
-      body: m.body.trim(),
+      ...sent[language],
       data: { type: 'announcement' },
     }));
   }
+  await store.commit([{
+    create: `announcements/${crypto.randomUUID()}`,
+    fields: { ...sent, sentBy: caller, sentAt: now },
+  }]);
   return { sent: 2 };
 }
 

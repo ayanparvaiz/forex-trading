@@ -149,12 +149,17 @@ test('a community locked, someone removed, then the whole of it deleted', async 
 });
 
 test('a broadcast goes to every phone, in each language', async () => {
-  const { calls, result } = await run(world(), {
+  const docs = world();
+  const { calls, result } = await run(docs, {
     action: 'broadcast',
     bn: { title: 'নতুন আপডেট', body: 'নতুন ফিচার এসেছে' },
     en: { title: 'New update', body: 'New features are here' },
   });
   assert.deepEqual(result, { sent: 2 });
   assert.deepEqual(calls, [['push', 'daily_bn', 'নতুন আপডেট'], ['push', 'daily_en', 'New update']]);
+  const kept = [...docs.keys()].filter((k) => k.startsWith('announcements/'));
+  assert.equal(kept.length, 1, 'kept for the panel');
+  assert.deepEqual(docs.get(kept[0]).en, { title: 'New update', body: 'New features are here' });
+  assert.equal(docs.get(kept[0]).sentBy, ADMIN);
   await assert.rejects(run(world(), { action: 'broadcast', bn: { title: '', body: 'x' }, en: { title: 'x', body: 'x' } }), (e) => e.status === 400);
 });
