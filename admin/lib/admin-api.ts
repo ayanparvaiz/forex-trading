@@ -1,0 +1,44 @@
+import { auth, WORKER } from "./firebase";
+
+/**
+ * Asks the worker to do [action] as the signed-in admin. Long jobs —
+ * deleting an account or a community — answer {done: false} until they are
+ * finished, so this calls again until they are.
+ */
+export async function adminCall<T = Record<string, unknown>>(
+  action: string,
+  body: Record<string, unknown> = {},
+): Promise<T> {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Sign in first.");
+  for (let round = 0; round < 25; round++) {
+    const token = await user.getIdToken();
+    const res = await fetch(`${WORKER}/admin`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ action, ...body }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(describe(data.error, res.status));
+    if (data.done === false) continue;
+    return data as T;
+  }
+  throw new Error("This is taking a while. Try again in a minute; it picks up where it stopped.");
+}
+
+function describe(error: unknown, status: number): string {
+  switch (error) {
+    case "not an admin":
+      return "This account is not an admin.";
+    case "not yourself":
+      return "You can't do that to your own account.";
+    case "not another admin":
+      return "That account is an admin. Remove its admin access first.";
+    case "no such account":
+      return "That account no longer exists.";
+    case "no such message":
+      return "That message no longer exists.";
+    default:
+      return typeof error === "string" && error ? error : `The server said no (${status}).`;
+  }
+}
