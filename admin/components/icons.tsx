@@ -48,4 +48,19 @@ export const Icons = {
   search: () => (
     <svg {...base}><circle cx="11" cy="11" r="6.5" /><path d="M20 20l-4.2-4.2" /></svg>
   ),
+  history: () => (
+    <svg {...base}><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6" /><path d="M3 4v4h4" /><path d="M12 8v4.5l3 2" /></svg>
+  ),
+  shield: () => (
+    <svg {...base}><path d="M12 3l7.5 3v5.5c0 4.5-3.2 8-7.5 9.5-4.3-1.5-7.5-5-7.5-9.5V6z" /><path d="M9 12l2 2 4-4" /></svg>
+  ),
+  settings: () => (
+    <svg {...base}><circle cx="12" cy="12" r="3" /><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" /></svg>
+  ),
+  block: () => (
+    <svg {...base}><circle cx="12" cy="12" r="8.5" /><path d="M6 6l12 12" /></svg>
+  ),
+  download: () => (
+    <svg {...base}><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19h14" /></svg>
+  ),
 };

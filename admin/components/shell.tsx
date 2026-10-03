@@ -7,15 +7,32 @@ import { useSession } from "@/lib/session";
 import { Icons } from "./icons";
 import { cx } from "./ui";
 
-const NAV = [
-  { href: "/", label: "Dashboard", icon: Icons.dashboard },
-  { href: "/users/", label: "Users", icon: Icons.users },
-  { href: "/reports/", label: "Reports", icon: Icons.flag },
-  { href: "/feed/", label: "Feed", icon: Icons.feed },
-  { href: "/communities/", label: "Communities", icon: Icons.community },
-  { href: "/rooms/", label: "Chat rooms", icon: Icons.chat },
-  { href: "/leaderboard/", label: "Leaderboard", icon: Icons.trophy },
-  { href: "/announcements/", label: "Announcements", icon: Icons.megaphone },
+const NAV: { group?: string; items: { href: string; label: string; icon: () => React.ReactElement }[] }[] = [
+  { items: [{ href: "/", label: "Dashboard", icon: Icons.dashboard }] },
+  {
+    group: "Moderation",
+    items: [
+      { href: "/users/", label: "Users", icon: Icons.users },
+      { href: "/reports/", label: "Reports", icon: Icons.flag },
+      { href: "/feed/", label: "Feed", icon: Icons.feed },
+      { href: "/rooms/", label: "Chat rooms", icon: Icons.chat },
+    ],
+  },
+  {
+    group: "Community",
+    items: [
+      { href: "/communities/", label: "Communities", icon: Icons.community },
+      { href: "/leaderboard/", label: "Leaderboard", icon: Icons.trophy },
+    ],
+  },
+  {
+    group: "App",
+    items: [{ href: "/announcements/", label: "Announcements", icon: Icons.megaphone }],
+  },
+  {
+    group: "Admin",
+    items: [{ href: "/activity/", label: "Activity", icon: Icons.history }],
+  },
 ];
 
 function active(path: string, href: string) {
@@ -38,20 +55,25 @@ function Mark() {
 function Nav({ onPick }: { onPick?: () => void }) {
   const path = usePathname();
   return (
-    <nav className="flex flex-col gap-0.5">
-      {NAV.map(({ href, label, icon: Icon }) => (
-        <Link
-          key={href}
-          href={href}
-          onClick={onPick}
-          className={cx(
-            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-            active(path, href) ? "bg-sunken text-ink-strong" : "text-muted hover:bg-sunken/70 hover:text-ink",
-          )}
-        >
-          <Icon />
-          {label}
-        </Link>
+    <nav className="flex flex-col gap-4">
+      {NAV.map(({ group, items }, i) => (
+        <div key={group ?? i} className="flex flex-col gap-0.5">
+          {group && <div className="px-3 pb-1 text-[11px] font-medium tracking-[0.08em] text-faint uppercase">{group}</div>}
+          {items.map(({ href, label, icon: Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              onClick={onPick}
+              className={cx(
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                active(path, href) ? "bg-sunken text-ink-strong" : "text-muted hover:bg-sunken/70 hover:text-ink",
+              )}
+            >
+              <Icon />
+              {label}
+            </Link>
+          ))}
+        </div>
       ))}
     </nav>
   );

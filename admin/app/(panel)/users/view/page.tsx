@@ -4,8 +4,10 @@ import { collection, getDoc, getDocs, doc, limit, query, where } from "firebase/
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { ActivityList } from "@/components/activity";
 import { useAction } from "@/components/feedback";
 import { Avatar, Badge, Button, Card, CommunityPicture, Empty, ErrorNote, Loading, PageHeader, Stat } from "@/components/ui";
+import { activityAbout } from "@/lib/activity";
 import { adminCall } from "@/lib/admin-api";
 import { db } from "@/lib/firebase";
 import { dateLabel, rText, timeAgo, toDate } from "@/lib/format";
@@ -17,10 +19,11 @@ async function load(uid: string) {
   const snap = await getDoc(doc(db, "users", uid));
   if (!snap.exists()) return null;
   const user = { id: snap.id, ...snap.data() } as UserDoc;
-  const [posts, reports, community] = await Promise.all([
+  const [posts, reports, community, history] = await Promise.all([
     getDocs(query(collection(db, "posts"), where("authorUid", "==", uid), limit(50))),
     getDocs(query(collection(db, "reports"), where("targetUid", "==", uid), limit(50))),
     user.communityId ? getDoc(doc(db, "communities", user.communityId)) : Promise.resolve(null),
+    activityAbout(uid),
   ]);
   const by = (v: unknown) => toDate(v)?.getTime() ?? 0;
   return {
@@ -28,6 +31,7 @@ async function load(uid: string) {
     posts: rows<PostDoc>(posts).sort((a, b) => by(b.postedAt) - by(a.postedAt)),
     reports: rows<ReportDoc>(reports).sort((a, b) => by(b.createdAt) - by(a.createdAt)),
     community: community?.exists() ? ({ id: community.id, ...community.data() } as CommunityDoc) : null,
+    history,
   };
 }
 
@@ -40,7 +44,7 @@ function UserView() {
   if (loading && !data) return <Loading />;
   if (error) return <ErrorNote error={error} />;
   if (!data) return <Empty title="No such account" hint="It may have been deleted." />;
-  const { user: u, posts, reports, community } = data;
+  const { user: u, posts, reports, community, history } = data;
 
   const ban = (banned: boolean) =>
     act(
@@ -54,7 +58,7 @@ function UserView() {
   const remove = () =>
     act(
       { title: `Delete @${u.username}'s account?`, body: "Their profile, trades, posts, comments, likes, messages and memberships are erased, then their sign-in. This cannot be undone.", action: "Delete account", danger: true },
-      () => adminCall("deleteUser", { uid: u.id }),
+      () => adminCall("deleteUser", { uid: u.id, username: u.username }),
       `@${u.username}'s account is deleted.`,
     ).then((done) => done && router.replace("/users/"));
 
@@ -144,6 +148,9 @@ function UserView() {
                 ))}
               </ul>
             )}
+          </Card>
+          <Card title={`What admins did · ${history.length}`} flush>
+            <ActivityList entries={history} empty="No admin has done anything to this account" />
           </Card>
         </div>
         <div className="flex min-w-0 flex-col gap-6">
