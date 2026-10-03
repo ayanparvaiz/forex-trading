@@ -20,6 +20,7 @@ import '../models/community.dart';
 import '../models/post_comment.dart';
 import '../models/trader.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_config_host.dart';
 import '../widgets/avatar_image.dart';
 import '../widgets/common.dart';
 import '../widgets/community_badge.dart';
@@ -1167,37 +1168,49 @@ class _FeedState extends State<_Feed> {
           ),
           padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.xxl),
           pageSize: 6,
-          header: Padding(
-            padding: const EdgeInsets.only(bottom: Gap.sm),
-            child: Wrap(
-              children: [
-                for (final (only, label) in [
-                  (false, s.feedEveryone),
-                  (true, s.feedConnections),
-                ])
-                  Padding(
-                    padding: const EdgeInsets.only(right: Gap.sm),
-                    child: ChoiceChip(
-                      label: Text(label),
-                      selected: _connectionsOnly == only,
-                      showCheckmark: false,
-                      onSelected: (_) =>
-                          setState(() => _connectionsOnly = only),
-                      backgroundColor: AppColors.elevated,
-                      selectedColor: AppColors.brandDim,
-                      side: BorderSide(
-                        color: _connectionsOnly == only
-                            ? AppColors.brand
-                            : AppColors.border,
+          header: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Above everything in Global: the post the admins pinned.
+              if (widget.scope == FeedScope.global && !_connectionsOnly)
+                _PinnedPost(
+                  postId: AppConfigScope.configOf(context).pinnedPostId,
+                  s: s,
+                  repository: widget.repository,
+                ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: Gap.sm),
+                child: Wrap(
+                  children: [
+                    for (final (only, label) in [
+                      (false, s.feedEveryone),
+                      (true, s.feedConnections),
+                    ])
+                      Padding(
+                        padding: const EdgeInsets.only(right: Gap.sm),
+                        child: ChoiceChip(
+                          label: Text(label),
+                          selected: _connectionsOnly == only,
+                          showCheckmark: false,
+                          onSelected: (_) =>
+                              setState(() => _connectionsOnly = only),
+                          backgroundColor: AppColors.elevated,
+                          selectedColor: AppColors.brandDim,
+                          side: BorderSide(
+                            color: _connectionsOnly == only
+                                ? AppColors.brand
+                                : AppColors.border,
+                          ),
+                          labelStyle: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
-                      labelStyle: const TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+                  ],
+                ),
+              ),
+            ],
           ),
           emptyLabel: _connectionsOnly ? s.noConnectionPosts : null,
           // Posts by anyone you have blocked are left out. Filtered here
@@ -1223,7 +1236,12 @@ class _FeedState extends State<_Feed> {
               hasMore: page.hasMore,
             );
           },
-          itemBuilder: (context, post, _) => _deleted.contains(post.id)
+          // The pinned post is shown above the list, not again in it.
+          itemBuilder: (context, post, _) =>
+              _deleted.contains(post.id) ||
+                  (widget.scope == FeedScope.global &&
+                      !_connectionsOnly &&
+                      post.id == AppConfigScope.configOf(context).pinnedPostId)
               ? const SizedBox.shrink()
               : Padding(
                   padding: const EdgeInsets.only(bottom: Gap.xs),
@@ -1260,6 +1278,96 @@ class _FeedState extends State<_Feed> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The post the admins pinned to Global, loaded once per pin, with a line
+/// saying so. Nothing while there is none, or once it is gone.
+class _PinnedPost extends StatefulWidget {
+  const _PinnedPost({
+    required this.postId,
+    required this.s,
+    required this.repository,
+  });
+
+  final String postId;
+  final Strings s;
+  final CommunityRepository repository;
+
+  @override
+  State<_PinnedPost> createState() => _PinnedPostState();
+}
+
+class _PinnedPostState extends State<_PinnedPost> {
+  Future<FeedPost?>? _post;
+  bool _gone = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(_PinnedPost old) {
+    super.didUpdateWidget(old);
+    // The feed above rebuilds every second; only a new pin is a new read.
+    if (old.postId != widget.postId) _load();
+  }
+
+  void _load() {
+    _gone = false;
+    _post = widget.postId.isEmpty
+        ? null
+        : widget.repository.post(widget.postId).catchError((Object e) {
+            debugPrint('pinned post failed: $e');
+            return null;
+          });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_post == null || _gone) return const SizedBox.shrink();
+    return FutureBuilder<FeedPost?>(
+      future: _post,
+      builder: (context, snapshot) {
+        final post = snapshot.data;
+        if (post == null) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(bottom: Gap.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.push_pin_rounded,
+                    size: 15,
+                    color: AppColors.brand,
+                  ),
+                  Gap.w4,
+                  Text(
+                    widget.s.pinnedByAdmins,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.brand,
+                    ),
+                  ),
+                ],
+              ),
+              Gap.h4,
+              FeedCard(
+                post: post,
+                s: widget.s,
+                repository: widget.repository,
+                onDeleted: (_) => setState(() => _gone = true),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
