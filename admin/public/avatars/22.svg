@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="bg22" cx="0.35" cy="0.3" r="0.85">
+<stop offset="0" stop-color="#6f7e8c"/><stop offset="1" stop-color="#1f2a33"/>
+</radialGradient>
+<clipPath id="c22"><circle cx="64" cy="64" r="64"/></clipPath>
+
+</defs>
+<g clip-path="url(#c22)">
+<rect width="128" height="128" fill="url(#bg22)"/>
+<circle cx="40" cy="30" r="34" fill="#ffffff" fill-opacity="0.10"/>
+
+<path d="M64 22 L64 10" stroke="#9aa5b1" stroke-width="3" stroke-linecap="round"/>
+<circle cx="64" cy="9" r="5" fill="#ff4d4f"/>
+<rect x="16" y="54" width="12" height="30" rx="5" fill="#7a8591"/><rect x="100" y="54" width="12" height="30" rx="5" fill="#7a8591"/>
+<rect x="24" y="22" width="80" height="84" rx="26" fill="#c9d1d9"/>
+<rect x="24" y="22" width="80" height="30" rx="26" fill="#dde3e9"/>
+<rect x="34" y="44" width="60" height="44" rx="14" fill="#10223d"/>
+<rect x="44" y="58" width="12" height="16" rx="6" fill="#40e0ff"/><rect x="72" y="58" width="12" height="16" rx="6" fill="#40e0ff"/>
+<rect x="46" y="60" width="4" height="5" rx="2" fill="#ffffff"/><rect x="74" y="60" width="4" height="5" rx="2" fill="#ffffff"/>
+<path d="M54 80 Q64 86 74 80" stroke="#40e0ff" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+<path d="M14 136 Q18 110 64 108 Q110 110 114 136 Z" fill="#8a96a3"/>
+<circle cx="64" cy="122" r="6" fill="#40e0ff" fill-opacity="0.9"/>
+
+</g>
+</svg>

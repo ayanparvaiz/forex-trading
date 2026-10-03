@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="g5" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#6c4ce0"/><stop offset="1" stop-color="#241356"/>
+</linearGradient>
+<radialGradient id="l5" cx="0.2" cy="0.1" r="0.9">
+<stop offset="0" stop-color="#ffffff" stop-opacity="0.28"/><stop offset="0.6" stop-color="#ffffff" stop-opacity="0"/>
+</radialGradient>
+<clipPath id="k5"><rect width="128" height="128" rx="34" ry="34"/></clipPath>
+
+</defs>
+<g clip-path="url(#k5)">
+<rect width="128" height="128" fill="url(#g5)"/>
+<rect width="128" height="128" fill="url(#l5)"/>
+<g opacity="0.22" transform="translate(0 4)">
+<path d="M22 96 L22 103 Q44 113 66 103 L66 96 Z" fill="#000000"/><ellipse cx="44" cy="96" rx="22" ry="8" fill="#000000"/><path d="M22 85 L22 92 Q44 102 66 92 L66 85 Z" fill="#000000"/><ellipse cx="44" cy="85" rx="22" ry="8" fill="#000000"/><path d="M22 74 L22 81 Q44 91 66 81 L66 74 Z" fill="#000000"/><ellipse cx="44" cy="74" rx="22" ry="8" fill="#000000"/><path d="M22 63 L22 70 Q44 80 66 70 L66 63 Z" fill="#000000"/><ellipse cx="44" cy="63" rx="22" ry="8" fill="#000000"/>
+<circle cx="82" cy="56" r="28" fill="#000000"/>
+<circle cx="82" cy="53" r="28" fill="#000000"/>
+<circle cx="82" cy="53" r="20" fill="none" stroke="#000000" stroke-width="3" opacity="0.8"/>
+<path d="M82 66 L82 42 M72 51 L82 40 L92 51" stroke="#000000" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+</g>
+<path d="M22 96 L22 103 Q44 113 66 103 L66 96 Z" fill="#c98a0c"/><ellipse cx="44" cy="96" rx="22" ry="8" fill="#ffc83d"/><path d="M22 85 L22 92 Q44 102 66 92 L66 85 Z" fill="#c98a0c"/><ellipse cx="44" cy="85" rx="22" ry="8" fill="#ffc83d"/><path d="M22 74 L22 81 Q44 91 66 81 L66 74 Z" fill="#c98a0c"/><ellipse cx="44" cy="74" rx="22" ry="8" fill="#ffc83d"/><path d="M22 63 L22 70 Q44 80 66 70 L66 63 Z" fill="#c98a0c"/><ellipse cx="44" cy="63" rx="22" ry="8" fill="#ffc83d"/>
+<circle cx="82" cy="56" r="28" fill="#c98a0c"/>
+<circle cx="82" cy="53" r="28" fill="#ffc83d"/>
+<circle cx="82" cy="53" r="20" fill="none" stroke="#fffaf0" stroke-width="3" opacity="0.8"/>
+<path d="M82 66 L82 42 M72 51 L82 40 L92 51" stroke="#fffaf0" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+</g>
+</svg>
