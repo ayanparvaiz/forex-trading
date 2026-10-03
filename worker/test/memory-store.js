@@ -74,7 +74,7 @@ export function memoryStore(docs, { budget = Infinity } = {}) {
       assert.ok(writes.length <= 500, 'more than 500 writes in one commit');
       // All or nothing, like Firestore: check every precondition first.
       for (const w of writes) {
-        const target = w.increment ?? w.set ?? w.pull;
+        const target = w.increment ?? w.set ?? w.pull ?? w.patch;
         if (target && !docs.has(target)) throw new TryAgain('precondition');
         if (w.create && docs.has(w.create)) throw new TryAgain('already exists');
       }
@@ -87,6 +87,11 @@ export function memoryStore(docs, { budget = Infinity } = {}) {
         else if (w.pull) {
           const d = docs.get(w.pull);
           d[w.field] = (d[w.field] ?? []).filter((x) => x !== w.value);
+        }
+        else if (w.patch) {
+          const d = docs.get(w.patch);
+          Object.assign(d, structuredClone(w.fields ?? {}));
+          for (const k of w.remove ?? []) delete d[k];
         }
         else if (w.replace) docs.set(w.replace, { [w.serverTime]: 'SERVER_TIME' });
         else if (w.create) docs.set(w.create, { ...w.fields });

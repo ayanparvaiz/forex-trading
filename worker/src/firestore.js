@@ -271,6 +271,8 @@ export function restStore(projectId, token, { budget = 40 } = {}) {
      *   { set: path, field, value }      the document must still exist
      *   { replace: path, serverTime }    the whole document becomes one timestamp
      *   { create: path, fields }         only if nothing is there yet
+     *   { patch: path, fields, remove }  these fields set, those removed;
+     *                                    the document must still exist
      */
     async commit(writes) {
       const rest = writes.map((w) => {
@@ -312,6 +314,19 @@ export function restStore(projectId, token, { budget = 40 } = {}) {
               ),
             },
             currentDocument: { exists: false },
+          };
+        }
+        if (w.patch) {
+          const remove = w.remove ?? [];
+          return {
+            update: {
+              name: full(w.patch),
+              fields: Object.fromEntries(
+                Object.entries(w.fields ?? {}).map(([k, v]) => [k, encodeValue(v)]),
+              ),
+            },
+            updateMask: { fieldPaths: [...Object.keys(w.fields ?? {}), ...remove] },
+            currentDocument: { exists: true },
           };
         }
         if (w.replace) {
