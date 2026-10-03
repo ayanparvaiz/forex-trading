@@ -22,9 +22,9 @@ type AppConfig = {
   updatedAt?: When;
 };
 
-// The build the app in this repository is (app/pubspec.yaml, version 1.0.0+N;
-// app/lib/core/build_info.dart).
-const CURRENT_BUILD = 1;
+// The build the app in this repository is: read from app/pubspec.yaml as the
+// panel is built (next.config.ts).
+const CURRENT_BUILD = Number(process.env.NEXT_PUBLIC_APP_BUILD ?? 0);
 
 async function load() {
   const snap = await getDoc(doc(db, "config", "app"));
