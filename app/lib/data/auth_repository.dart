@@ -20,6 +20,10 @@ enum AuthError {
   /// Firebase refuses further attempts for a while after several wrong
   /// passwords in a row.
   tooManyAttempts,
+
+  /// The admins have suspended the account (admin panel → Ban), for a while
+  /// or until they lift it.
+  suspended,
   unknown,
 }
 
@@ -43,7 +47,8 @@ class AuthFailure extends AuthResult {
 /// Deliberately username-and-password only: no email, no phone, no recovery.
 /// Nothing here can be reset, because nothing here can identify a person — and
 /// on a demo account with no real money, a forgotten password costs a signup,
-/// not a savings account.
+/// not a savings account. An admin can set a new one from the admin panel,
+/// once they are sure who is asking.
 abstract class AuthRepository {
   Future<UserProfile?> currentUser();
 

@@ -195,7 +195,12 @@ class FirebaseAuthRepository implements AuthRepository {
         return const AuthFailure(AuthError.unknown);
       }
       return AuthSuccess(UserProfile.fromJson(data));
-    } on fb.FirebaseAuthException {
+    } on fb.FirebaseAuthException catch (error) {
+      // A suspended account is told so: being banned is not something to
+      // keep from the person it happened to, and usernames are public anyway.
+      if (error.code == 'user-disabled') {
+        return const AuthFailure(AuthError.suspended);
+      }
       // Unknown user and wrong password collapse to one error on purpose, so
       // the login screen cannot be used to enumerate who exists.
       return const AuthFailure(AuthError.wrongCredentials);

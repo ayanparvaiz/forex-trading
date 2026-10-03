@@ -45,7 +45,11 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
     setState(() {
       _busy = false;
-      _error = result is AuthFailure ? s.wrongLogin : null;
+      _error = switch (result) {
+        AuthFailure(error: AuthError.suspended) => s.accountSuspended,
+        AuthFailure() => s.wrongLogin,
+        _ => null,
+      };
     });
   }
 
