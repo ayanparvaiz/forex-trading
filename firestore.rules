@@ -17,6 +17,14 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == uid;
     }
 
+    /// Whether the person asking runs the app: listed under admins/, which
+    /// only the server writes. Admins read what moderation needs; every
+    /// change they make goes through the worker (worker/src/admin.js).
+    function isAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
     function unchanged(field) {
       return !(field in request.resource.data)
         || (field in resource.data && request.resource.data[field] == resource.data[field]);
@@ -363,7 +371,7 @@ service cloud.firestore {
     }
 
     match /posts/{postId} {
-      allow read: if isSignedIn() && canSee(resource.data);
+      allow read: if isSignedIn() && (canSee(resource.data) || isAdmin());
 
       function thePost() {
         return get(/databases/$(database)/documents/posts/$(postId)).data;
@@ -479,7 +487,7 @@ service cloud.firestore {
       }
 
       match /comments/{commentId} {
-        allow read: if isSignedIn() && canSee(thePost());
+        allow read: if isSignedIn() && (canSee(thePost()) || isAdmin());
         allow create: if isSignedIn()
           && canSee(thePost())
           && request.resource.data.authorUid == request.auth.uid
@@ -508,7 +516,7 @@ service cloud.firestore {
       // cannot be queried across posts, so deleting an account finds its
       // likes by this field.
       match /claps/{uid} {
-        allow read: if isSignedIn() && canSee(thePost());
+        allow read: if isSignedIn() && (canSee(thePost()) || isAdmin());
         allow create: if isOwner(uid)
           && canSee(thePost())
           && request.resource.data.keys().hasOnly(['uid', 'at'])
@@ -521,7 +529,7 @@ service cloud.firestore {
       // people, not scrolls. Views are never removed — a post that was seen
       // stays seen.
       match /views/{uid} {
-        allow read: if isSignedIn() && canSee(thePost());
+        allow read: if isSignedIn() && (canSee(thePost()) || isAdmin());
         allow create: if isOwner(uid) && canSee(thePost());
         allow update: if false;
         // Only with the post itself.
@@ -1069,7 +1077,7 @@ service cloud.firestore {
     }
 
     match /rooms/{roomId} {
-      allow read: if isSignedIn() && canUseRoom(roomId);
+      allow read: if isSignedIn() && (canUseRoom(roomId) || isAdmin());
       allow delete: if false;
 
       // A community's room, made with the community, by its founder.
@@ -1114,7 +1122,7 @@ service cloud.firestore {
       }
 
       match /messages/{messageId} {
-        allow read: if isSignedIn() && canUseRoom(roomId);
+        allow read: if isSignedIn() && (canUseRoom(roomId) || isAdmin());
         allow create: if isSignedIn()
           && isMember(roomId)
           && canUseRoom(roomId)
@@ -1285,7 +1293,7 @@ service cloud.firestore {
       // Its events: the admin plans them, members say they are going. For
       // its members to see, like its feed and its chat.
       match /events/{eventId} {
-        allow read: if isSignedIn() && myCommunity() == cid;
+        allow read: if isSignedIn() && (myCommunity() == cid || isAdmin());
         allow create: if isSignedIn()
           && get(communityPath(cid)).data.createdBy == request.auth.uid
           && request.resource.data.keys()
@@ -1410,7 +1418,9 @@ service cloud.firestore {
     }
 
     match /reports/{reportId} {
-      allow read, update, delete: if false;
+      // Read by the admins who act on them; changed only by the worker.
+      allow read: if isAdmin();
+      allow update, delete: if false;
       allow create: if isSignedIn()
         && request.resource.data.keys().hasOnly([
              'reporterUid', 'kind', 'targetUid', 'targetUsername', 'reason', 'note',
@@ -1534,6 +1544,15 @@ service cloud.firestore {
         && !(request.auth.uid in request.resource.data.bulls
              && request.auth.uid in request.resource.data.bears);
       allow delete: if false;
+    }
+
+    // --- Admins -------------------------------------------------------------
+    //
+    // Who runs the app. Written only by the server (tool/make_admin.py); each
+    // admin may see their own entry, which is how the admin panel lets them in.
+    match /admins/{uid} {
+      allow get: if isOwner(uid);
+      allow list, write: if false;
     }
 
     // --- Lessons ------------------------------------------------------------
