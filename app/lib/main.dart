@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'data/account_scope.dart';
+import 'data/app_config_repository.dart';
 import 'data/account_store.dart';
 import 'data/auth_repository.dart';
 import 'data/firebase_auth_repository.dart';
@@ -14,6 +15,8 @@ import 'firebase/firebase_bootstrap.dart';
 import 'screens/auth/auth_gate.dart';
 import 'screens/splash_screen.dart';
 import 'theme/app_theme.dart';
+import 'widgets/app_config_host.dart';
+import 'widgets/app_gate.dart';
 import 'widgets/inbox_host.dart';
 import 'widgets/price_alert_host.dart';
 import 'widgets/push_host.dart';
@@ -59,6 +62,10 @@ class _ForexTradingAppState extends State<ForexTradingApp> {
     ),
   );
   final _navigator = GlobalKey<NavigatorState>();
+
+  /// What the admins set — maintenance, a banner, the pinned post, blocked
+  /// words — followed for as long as the app runs.
+  late final AppConfigRepository? _config = buildAppConfig();
 
   @override
   void initState() {
@@ -125,22 +132,32 @@ class _ForexTradingAppState extends State<ForexTradingApp> {
       controller: _session,
       child: AccountScope(
         store: _store,
-        child: MaterialApp(
-          title: 'Forex Social',
-          debugShowCheckedModeBanner: false,
-          theme: buildAppTheme(),
-          navigatorKey: _navigator,
-          // Above the Navigator, so every route — tabs, conversations,
-          // profiles — can reach the inbox, and a new-message banner draws
-          // over whichever one is showing.
-          builder: (context, child) => InboxHost(
+        child: AppConfigHost(
+          app: _config?.watchApp(),
+          blocked: _config?.watchBlocked(),
+          child: MaterialApp(
+            title: 'Forex Social',
+            debugShowCheckedModeBanner: false,
+            theme: buildAppTheme(),
             navigatorKey: _navigator,
-            child: PushHost(
-              navigatorKey: _navigator,
-              child: PriceAlertHost(child: child!),
+            // Above the Navigator, so every route — tabs, conversations,
+            // profiles — can reach the inbox, and a new-message banner draws
+            // over whichever one is showing.
+            // Above the Navigator, so every route — tabs, conversations,
+            // profiles — can reach the inbox, and a new-message banner draws
+            // over whichever one is showing. The gate is above all of it: a
+            // closed app is closed whatever screen it was on.
+            builder: (context, child) => AppGate(
+              child: InboxHost(
+                navigatorKey: _navigator,
+                child: PushHost(
+                  navigatorKey: _navigator,
+                  child: PriceAlertHost(child: child!),
+                ),
+              ),
             ),
+            home: _booting ? const SplashScreen() : const AuthGate(),
           ),
-          home: _booting ? const SplashScreen() : const AuthGate(),
         ),
       ),
     );

@@ -82,6 +82,11 @@ class Strings {
   String get haveAccount => _t('অ্যাকাউন্ট আছে?', 'Already have one?');
   String get wrongLogin =>
       _t('ইউজারনেম বা পাসওয়ার্ড ভুল।', 'Wrong username or password.');
+  String get accountSuspended => _t(
+    'অ্যাডমিনরা এই অ্যাকাউন্টটা বন্ধ রেখেছেন। কিছুদিনের জন্য বন্ধ হলে সময় শেষে আবার খুলবে।',
+    'The admins have suspended this account. If it was for a while, it opens '
+        'again when the time is up.',
+  );
 
   /// Shown instead of a password-reset flow, because there isn't one.
 
@@ -1573,8 +1578,9 @@ class Strings {
   String get passwordChanged =>
       _t('পাসওয়ার্ড বদলানো হয়েছে', 'Password changed');
   String get rememberPassword => _t(
-    'নতুন পাসওয়ার্ড মনে রাখুন — এই অ্যাপে পাসওয়ার্ড রিসেটের কোনো উপায় নেই।',
-    'Remember the new one — this app has no password reset.',
+    'নতুন পাসওয়ার্ড মনে রাখুন — ভুলে গেলে শুধু অ্যাডমিনরাই নতুন একটা দিতে পারেন।',
+    'Remember the new one — if you forget it, only the admins can set you a '
+        'new one.',
   );
   String get nameVisibleTo => _t(
     'লিডারবোর্ড, ফিড আর মেসেজে সবাই এই নামটাই দেখবে।',
@@ -1741,4 +1747,29 @@ class Strings {
     final months = (diff.inDays / 30).floor();
     return _t('$months মাস আগে', '${months}mo ago');
   }
+
+  // --- What the admins set (admin panel → App settings) -------------------
+
+  String get maintenanceTitle => _t('একটু কাজ চলছে', 'Back soon');
+  String get maintenanceDefault => _t(
+    'সার্ভারের কাজ চলছে। একটু পরে আবার আসুন।',
+    "We're doing some work on the app. Please come back in a little while.",
+  );
+  String get updateTitle => _t('নতুন ভার্সন নিন', 'Update the app');
+  String get updateBody => _t(
+    'এই ভার্সনটা আর চলবে না। নতুন ভার্সন ইনস্টল করে আবার খুলুন।',
+    'This version no longer works. Install the new one, then open the app '
+        'again.',
+  );
+  String get copyLink => _t('লিংক কপি করুন', 'Copy link');
+  String get linkCopied => _t('কপি হয়েছে', 'Copied');
+  String get closeNotice => _t('বন্ধ করুন', 'Close');
+  String get pinnedByAdmins =>
+      _t('অ্যাডমিনদের পিন করা', 'Pinned by the admins');
+  String get cantSendThis => _t('এটা পাঠানো যাবে না', "This can't be sent");
+  String blockedWord(String word) => _t(
+    '“$word” এখানে লেখা যায় না — স্ক্যাম আর স্প্যাম ঠেকাতে অ্যাডমিনরা এটা বন্ধ রেখেছেন।',
+    '“$word” isn\'t allowed here — the admins have blocked it to keep out '
+        'scams and spam.',
+  );
 }

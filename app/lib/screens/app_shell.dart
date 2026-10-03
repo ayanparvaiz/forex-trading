@@ -9,6 +9,7 @@ import '../screens/messages_screen.dart';
 import '../screens/onboarding_screen.dart';
 import '../screens/portfolio_screen.dart';
 import '../screens/trade_screen.dart';
+import '../widgets/app_banner.dart';
 import '../theme/app_theme.dart';
 
 /// Bottom navigation host.
@@ -55,15 +56,17 @@ class _AppShellState extends State<AppShell> {
     final unread = InboxScope.of(context)?.unreadChats ?? 0;
 
     return Scaffold(
-      body: IndexedStack(
-        index: _index,
-        children: const [
-          PortfolioScreen(),
-          TradeScreen(),
-          JournalScreen(),
-          CommunityScreen(),
-          MessagesScreen(),
-        ],
+      body: AppBannerFrame(
+        child: IndexedStack(
+          index: _index,
+          children: const [
+            PortfolioScreen(),
+            TradeScreen(),
+            JournalScreen(),
+            CommunityScreen(),
+            MessagesScreen(),
+          ],
+        ),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
