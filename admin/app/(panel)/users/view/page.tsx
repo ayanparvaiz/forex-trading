@@ -20,11 +20,12 @@ async function load(uid: string) {
   const snap = await getDoc(doc(db, "users", uid));
   if (!snap.exists()) return null;
   const user = { id: snap.id, ...snap.data() } as UserDoc;
-  const [posts, reports, community, history] = await Promise.all([
+  const [posts, reports, community, history, presence] = await Promise.all([
     getDocs(query(collection(db, "posts"), where("authorUid", "==", uid), limit(50))),
     getDocs(query(collection(db, "reports"), where("targetUid", "==", uid), limit(50))),
     user.communityId ? getDoc(doc(db, "communities", user.communityId)) : Promise.resolve(null),
     activityAbout(uid),
+    getDoc(doc(db, "presence", uid)),
   ]);
   const by = (v: unknown) => toDate(v)?.getTime() ?? 0;
   return {
@@ -33,6 +34,7 @@ async function load(uid: string) {
     reports: rows<ReportDoc>(reports).sort((a, b) => by(b.createdAt) - by(a.createdAt)),
     community: community?.exists() ? ({ id: community.id, ...community.data() } as CommunityDoc) : null,
     history,
+    lastActive: presence.data()?.lastActiveAt,
   };
 }
 
@@ -46,7 +48,7 @@ function UserView() {
   if (loading && !data) return <Loading />;
   if (error) return <ErrorNote error={error} />;
   if (!data) return <Empty title="No such account" hint="It may have been deleted." />;
-  const { user: u, posts, reports, community, history } = data;
+  const { user: u, posts, reports, community, history, lastActive } = data;
 
   const lift = () =>
     act(
@@ -191,6 +193,8 @@ function UserView() {
               <dd className="truncate font-mono text-xs leading-5 text-ink">{u.id}</dd>
               <dt className="text-muted">Gender</dt>
               <dd className="text-ink capitalize">{u.gender ?? "—"}</dd>
+              <dt className="text-muted">Last active</dt>
+              <dd className="text-ink">{lastActive ? timeAgo(lastActive) : "—"}</dd>
               <dt className="text-muted">Scores updated</dt>
               <dd className="text-ink">{timeAgo(u.statsUpdatedAt)}</dd>
             </dl>

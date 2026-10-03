@@ -13,6 +13,16 @@ async function load() {
   const now = Timestamp.now();
   const since = Timestamp.fromMillis(Date.now() - 14 * 86400000);
   const n = async (q: Parameters<typeof getCountFromServer>[0]) => (await getCountFromServer(q)).data().count;
+  // Who used the app lately: the app stamps presence/{uid} once a minute
+  // while it is open (app/lib/data/chat_inbox.dart).
+  const activeSince = (ms: number) =>
+    n(query(collection(db, "presence"), where("lastActiveAt", ">=", Timestamp.fromMillis(Date.now() - ms))));
+  const [online, today, week, month] = await Promise.all([
+    activeSince(5 * 60_000),
+    activeSince(86_400_000),
+    activeSince(7 * 86_400_000),
+    activeSince(30 * 86_400_000),
+  ]);
   const [users, livePosts, openReports, communities, globalMessages, userDocs, postDocs, reportDocs] = await Promise.all([
     n(collection(db, "users")),
     n(query(collection(db, "posts"), where("expiresAt", ">", now))),
@@ -29,6 +39,7 @@ async function load() {
     .sort((a, b) => (toDate(b.createdAt)?.getTime() ?? 0) - (toDate(a.createdAt)?.getTime() ?? 0))
     .slice(0, 6);
   return {
+    active: { online, today, week, month },
     users,
     ranked: people.filter((p) => p.ranked).length,
     banned: people.filter((p) => p.banned).length,
@@ -60,6 +71,26 @@ export default function Dashboard() {
             <Stat label="Communities" value={count(data.communities)} href="/communities/" />
             <Stat label="Global chat messages" value={count(data.globalMessages)} href="/rooms/" />
           </div>
+
+          <Card title="People using the app" actions={<span className="text-xs text-muted">Counted while the app is open; not those who hide when they were last active</span>}>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-4">
+              {[
+                ["Right now", data.active.online],
+                ["Last 24 hours", data.active.today],
+                ["Last 7 days", data.active.week],
+                ["Last 30 days", data.active.month],
+              ].map(([label, value]) => (
+                <div key={label as string} className="min-w-0">
+                  <div className="text-xs text-muted">{label}</div>
+                  <div className="tabular mt-1 flex items-center gap-2 text-2xl font-semibold text-ink-strong">
+                    {label === "Right now" && (value as number) > 0 && <span className="size-2 rounded-full bg-good" aria-hidden />}
+                    {count(value)}
+                  </div>
+                  <div className="text-xs text-faint">{data.users ? Math.round(((value as number) / data.users) * 100) : 0}% of accounts</div>
+                </div>
+              ))}
+            </div>
+          </Card>
 
           <div className="grid gap-6 lg:grid-cols-2">
             <Card title="New accounts"><DailyBars days={data.signups} label="Last 14 days" /></Card>
