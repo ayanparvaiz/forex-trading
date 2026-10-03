@@ -20,6 +20,18 @@ service cloud.firestore {
     /// Whether the person asking runs the app: listed under admins/, which
     /// only the server writes. Admins read what moderation needs; every
     /// change they make goes through the worker (worker/src/admin.js).
+    // The words and links nobody may post — in a post, a comment, or the
+    // Global and community chats — as the admins list them (the admin panel;
+    // config/moderation, written by the worker): one pattern, matched against
+    // the whole text in lower case. With no list, nothing is blocked.
+    // Private chats are not checked.
+    function wordsOk(text) {
+      let path = /databases/$(database)/documents/config/moderation;
+      return !exists(path)
+        || get(path).data.get('pattern', '') == ''
+        || !text.lower().matches(get(path).data.pattern);
+    }
+
     function isAdmin() {
       return isSignedIn()
         && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
@@ -398,6 +410,11 @@ service cloud.firestore {
           && request.resource.data.disciplineScore <= 100;
       }
 
+      // What a post says, in words: its lesson and its reason.
+      function postWordsOk() {
+        return wordsOk(request.resource.data.get('lesson', '') + ' ' + request.resource.data.get('reason', ''));
+      }
+
       allow create: if isSignedIn()
         && request.resource.data.authorUid == request.auth.uid
         && request.resource.data.lesson is string
@@ -412,6 +429,7 @@ service cloud.firestore {
                 && communityOpenTo(request.resource.data.community)))
         && postKind() in ['trade', 'rank', 'question']
         && (postKind() != 'rank' || rankShapeOk())
+        && postWordsOk()
         // A question: its words, and no answer picked before anyone answers.
         && (postKind() != 'question' || request.resource.data.lesson.size() <= 500)
         && !('answerId' in request.resource.data);
@@ -427,6 +445,7 @@ service cloud.firestore {
       allow update: if isSignedIn()
         && (
           (resource.data.authorUid == request.auth.uid
+            && (unchanged('lesson') && unchanged('reason') || postWordsOk())
             && unchanged('claps')
             && unchanged('commentCount')
             && unchanged('rMultiple')
@@ -494,6 +513,7 @@ service cloud.firestore {
           && request.resource.data.body is string
           && request.resource.data.body.size() > 0
           && request.resource.data.body.size() <= 1000
+          && wordsOk(request.resource.data.body)
           // Born with no likes, and a reply only to a real comment.
           && !('likedBy' in request.resource.data)
           && (!('replyTo' in request.resource.data)
@@ -503,7 +523,8 @@ service cloud.firestore {
         allow update: if isSignedIn()
           && ((resource.data.authorUid == request.auth.uid
                && !request.resource.data.diff(resource.data).affectedKeys()
-                     .hasAny(['likedBy', 'replyTo', 'authorUid']))
+                     .hasAny(['likedBy', 'replyTo', 'authorUid'])
+               && (unchanged('body') || wordsOk(request.resource.data.body)))
               || (canSee(thePost()) && commentLikeOk()));
         allow delete: if isSignedIn()
           && (resource.data.authorUid == request.auth.uid || isPostAuthor());
@@ -1138,6 +1159,7 @@ service cloud.firestore {
           && request.resource.data.senderName
                == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.displayName
           && messageBodyOk(request.resource.data)
+          && wordsOk(request.resource.data.get('text', ''))
           && request.resource.data.sentAt == request.time
           && request.resource.data.unsent == false
           && (!('replyTo' in request.resource.data)
@@ -1561,6 +1583,16 @@ service cloud.firestore {
     // sends one (worker/src/admin.js). For the admin panel only.
     match /announcements/{id} {
       allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // The app's settings, as the admins set them in the panel and the worker
+    // writes them: config/app (maintenance, the oldest build allowed, a
+    // banner, the post pinned to Global) and config/moderation (the blocked
+    // words). Readable by everyone — the app checks for maintenance before
+    // anyone has signed in.
+    match /config/{id} {
+      allow read: if true;
       allow write: if false;
     }
 

@@ -65,6 +65,9 @@ const ACTIONS = {
   warn: ({ store, push, caller, body }) => warn(store, push, caller, body),
   resetProfile: ({ store, caller, body }) => resetProfile(store, caller, body),
   addAdmin: ({ store, caller, body, now }) => addAdmin(store, caller, body, now),
+  config: ({ store, caller, body, now }) => setConfig(store, caller, body, now),
+  pin: ({ store, caller, body, now }) => pin(store, caller, body, now),
+  blockedWords: ({ store, caller, body, now }) => blockedWords(store, caller, body, now),
   removeAdmin: ({ store, caller, body }) => removeAdmin(store, caller, body),
   deleteUser: ({ store, auth, caller, body }) => deleteUser(store, auth, caller, body),
   deletePost: ({ store, body }) => deletePost(store, body),
@@ -243,6 +246,89 @@ async function resetProfile(store, caller, { uid, name, avatar }) {
   if (avatar) fields.avatarId = 1;
   await store.commit([{ patch: `users/${uid}`, fields }]);
   return { done: true, what: name && avatar ? 'name and picture' : name ? 'name' : 'picture' };
+}
+
+// --- The app's settings ----------------------------------------------------
+//
+// config/app, which every phone reads as the app starts and keeps following
+// (app/lib/data/app_config_repository.dart): maintenance, the oldest build
+// still allowed, a banner, the post pinned to Global. And config/moderation,
+// the words nobody may post (firestore.rules, wordsOk).
+
+const text = (v, max) => typeof v === 'string' && v.length <= max;
+const line = (m, title, body) => m && text(m.title ?? '', title) && text(m.body ?? '', body);
+
+/** Maintenance, the oldest build allowed, where to update, and a banner. */
+async function setConfig(store, caller, { maintenance, minBuild, updateUrl, banner }, now) {
+  const fields = {};
+  const what = [];
+  if (maintenance !== undefined) {
+    if (typeof maintenance?.on !== 'boolean' || !text(maintenance.bn ?? '', 300) || !text(maintenance.en ?? '', 300)) throw bad();
+    fields.maintenance = { on: maintenance.on, bn: (maintenance.bn ?? '').trim(), en: (maintenance.en ?? '').trim() };
+    what.push(maintenance.on ? 'maintenance on' : 'maintenance off');
+  }
+  if (minBuild !== undefined) {
+    if (!Number.isInteger(minBuild) || minBuild < 0 || minBuild > 1_000_000) throw bad();
+    fields.minBuild = minBuild;
+    what.push(`oldest build allowed ${minBuild}`);
+  }
+  if (updateUrl !== undefined) {
+    if (!text(updateUrl, 300) || (updateUrl && !/^https:\/\/\S+$/.test(updateUrl))) throw bad('the update link must start with https://');
+    fields.updateUrl = updateUrl;
+    what.push('update link');
+  }
+  if (banner !== undefined) {
+    if (typeof banner?.on !== 'boolean' || !['info', 'warn'].includes(banner.tone ?? 'info')
+      || !line(banner.bn, 80, 300) || !line(banner.en, 80, 300)) throw bad();
+    if (banner.on && !(banner.bn.title?.trim() && banner.en.title?.trim())) throw bad('a banner needs a title in both languages');
+    const clean = (m) => ({ title: (m.title ?? '').trim(), body: (m.body ?? '').trim() });
+    // A new id each time it is put up, so people who closed the last one see this.
+    fields.banner = {
+      on: banner.on,
+      id: banner.on ? crypto.randomUUID() : '',
+      tone: banner.tone ?? 'info',
+      bn: clean(banner.bn),
+      en: clean(banner.en),
+    };
+    what.push(banner.on ? 'banner up' : 'banner down');
+  }
+  if (!what.length) throw bad('nothing to change');
+  await store.commit([{ upsert: 'config/app', fields: { ...fields, updatedAt: now, updatedBy: caller } }]);
+  return { done: true, what: what.join(', ') };
+}
+
+/** A post in Global pinned above everything there, or none ([postId] ''). */
+async function pin(store, caller, { postId }, now) {
+  if (postId !== '' && !isId(postId)) throw bad();
+  if (postId) {
+    const post = await store.get(`posts/${postId}`, ['community']);
+    if (!post) throw new AdminError(404, 'no such post');
+    if (post.community !== 'global') throw bad('only a post in Global can be pinned');
+  }
+  await store.commit([{ upsert: 'config/app', fields: { pinnedPostId: postId, updatedAt: now, updatedBy: caller } }]);
+  return { done: true };
+}
+
+const BLOCKED_MAX = 100;
+
+/** RE2, as the rules match with: every character that means something, escaped. */
+const literal = (w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * The words and links nobody may post, as a list for the panel and the app,
+ * and as one pattern for the rules: any of them, anywhere, any case.
+ */
+async function blockedWords(store, caller, { words }, now) {
+  if (!Array.isArray(words) || words.length > BLOCKED_MAX) throw bad();
+  const clean = [...new Set(words.map((w) => (typeof w === 'string' ? w.trim().toLowerCase().replace(/\s+/g, ' ') : '')))]
+    .filter(Boolean);
+  if (clean.some((w) => w.length < 2 || w.length > 40)) throw bad('each word needs 2 to 40 letters');
+  const pattern = clean.length ? `(?s).*(${clean.map(literal).join('|')}).*` : '';
+  await store.commit([{
+    upsert: 'config/moderation',
+    fields: { words: clean, pattern, updatedAt: now, updatedBy: caller },
+  }]);
+  return { done: true, what: `${clean.length} blocked word${clean.length === 1 ? '' : 's'}` };
 }
 
 // --- Admins ----------------------------------------------------------------

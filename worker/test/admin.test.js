@@ -25,7 +25,8 @@ function world() {
     'posts/p1/comments/c2': { authorUid: 'uAna', body: 'thanks' },
     'posts/p1/claps/uBo': { uid: 'uBo' },
     'posts/p1/views/uBo': { at: 1 },
-    'posts/p2': { authorUid: 'uBo' },
+    'posts/p2': { authorUid: 'uBo', community: 'global' },
+    'posts/p3': { authorUid: 'uBo', community: 'bulls1' },
 
     'rooms/global': { lastMessage: { id: 'm2', senderUid: 'uAna', text: 'buy now!!' } },
     'rooms/global/messages/m1': { senderUid: 'uBo', senderName: 'Bo', text: 'hi', unsent: false },
@@ -349,4 +350,62 @@ test("an announcement to one community reaches its members' phones, in rounds wh
   assert.deepEqual(second.result, { done: true, sent: 7, phones: 32 });
   assert.equal([...docs.keys()].filter((k) => k.startsWith('announcements/')).length, 2, 'kept once per announcement');
   assert.equal(logOf(docs).length, 2, 'logged once per announcement');
+});
+
+test("the app's settings: maintenance, the oldest build, the update link, a banner", async () => {
+  const docs = world();
+  await run(docs, { action: 'config', maintenance: { on: true, bn: ' সার্ভারের কাজ চলছে ', en: 'Back soon' } });
+  assert.deepEqual(docs.get('config/app').maintenance, { on: true, bn: 'সার্ভারের কাজ চলছে', en: 'Back soon' });
+  await run(docs, { action: 'config', minBuild: 3, updateUrl: 'https://example.com/app' });
+  const app = docs.get('config/app');
+  assert.deepEqual([app.maintenance.on, app.minBuild, app.updateUrl, app.updatedBy], [true, 3, 'https://example.com/app', ADMIN]);
+
+  const banner = { on: true, tone: 'warn', bn: { title: 'হালনাগাদ', body: '' }, en: { title: 'Update', body: '' } };
+  await run(docs, { action: 'config', banner });
+  const first = docs.get('config/app').banner.id;
+  await run(docs, { action: 'config', banner });
+  assert.notEqual(docs.get('config/app').banner.id, first, 'a banner put up again shows again');
+  await run(docs, { action: 'config', banner: { ...banner, on: false } });
+  assert.equal(docs.get('config/app').banner.on, false);
+  assert.deepEqual(logOf(docs).map((e) => e.what), [
+    'maintenance on', 'oldest build allowed 3, update link', 'banner up', 'banner up', 'banner down',
+  ]);
+
+  for (const body of [{}, { minBuild: -1 }, { minBuild: 1.5 }, { updateUrl: 'http://x.com' }, { updateUrl: 'javascript:alert(1)' },
+    { maintenance: { on: 'yes' } }, { banner: { ...banner, en: { title: '' } } }, { banner: { ...banner, tone: 'red' } }]) {
+    await assert.rejects(run(docs, { action: 'config', ...body }), (e) => e.status === 400, JSON.stringify(body));
+  }
+});
+
+test('a post pinned to Global, then none; never one from a community', async () => {
+  const docs = world();
+  await run(docs, { action: 'pin', postId: 'p2' });
+  assert.equal(docs.get('config/app').pinnedPostId, 'p2');
+  assert.equal(logOf(docs)[0].author, undefined, 'p2 names no author username in this world');
+  await assert.rejects(run(docs, { action: 'pin', postId: 'p3' }), (e) => e.status === 400);
+  await assert.rejects(run(docs, { action: 'pin', postId: 'gone' }), (e) => e.status === 404);
+  await run(docs, { action: 'pin', postId: '' });
+  assert.equal(docs.get('config/app').pinnedPostId, '');
+});
+
+test('blocked words: a clean list, and one pattern that finds any of them anywhere', async () => {
+  const docs = world();
+  const { result } = await run(docs, { action: 'blockedWords', words: [' VIP  Signal ', 't.me/', 'vip signal', 'টেলিগ্রাম', '(free)'] });
+  assert.equal(result.what, '4 blocked words');
+  const { words, pattern } = docs.get('config/moderation');
+  assert.deepEqual(words, ['vip signal', 't.me/', 'টেলিগ্রাম', '(free)']);
+  // What the rules do with it: lower-case the text, match the whole of it.
+  const re = new RegExp(`^${pattern.replace('(?s)', '')}$`, 's');
+  const blocked = (t) => re.test(t.toLowerCase());
+  assert.equal(blocked('Join our VIP Signal group'), true);
+  assert.equal(blocked('line one\nmore at t.me/xyz'), true, 'across lines');
+  assert.equal(blocked('আমাদের টেলিগ্রাম গ্রুপে আসুন'), true);
+  assert.equal(blocked('this is (free)'), true);
+  assert.equal(blocked('tame trade, free of fear'), false, 'dots and brackets are literal');
+  assert.equal(blocked('EUR/USD long, stop below 1.0850'), false);
+
+  await run(docs, { action: 'blockedWords', words: [] });
+  assert.deepEqual([docs.get('config/moderation').words, docs.get('config/moderation').pattern], [[], '']);
+  await assert.rejects(run(docs, { action: 'blockedWords', words: ['x'] }), (e) => e.status === 400);
+  await assert.rejects(run(docs, { action: 'blockedWords', words: Array.from({ length: 101 }, (_, i) => `word${i}`) }), (e) => e.status === 400);
 });

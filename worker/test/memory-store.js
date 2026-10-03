@@ -95,6 +95,7 @@ export function memoryStore(docs, { budget = Infinity } = {}) {
         }
         else if (w.replace) docs.set(w.replace, { [w.serverTime]: 'SERVER_TIME' });
         else if (w.create) docs.set(w.create, { ...w.fields });
+        else if (w.upsert) docs.set(w.upsert, { ...(docs.get(w.upsert) ?? {}), ...structuredClone(w.fields) });
       }
     },
   };
