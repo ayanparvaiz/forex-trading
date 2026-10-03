@@ -8,7 +8,7 @@
 import { deleteCommunity, isCommunityId, removeMember } from './community.js';
 import { eraseAccount } from './erase.js';
 import { pushMessage } from './fcm.js';
-import { deliver, devicesOf } from './notify.js';
+import { MAX_PUSHES, deliver, devicesOf } from './notify.js';
 import { WriteQueue, eraseBelow } from './writes.js';
 
 const isId = (v) => typeof v === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(v);
@@ -53,7 +53,8 @@ export async function adminAction(store, { auth, push, journal = store }, caller
   // left to say what it was.
   const about = await describe(journal, caller, body);
   const result = await run(job);
-  await record(journal, caller, body, about, result, now);
+  // A job done in rounds is logged once, when its last round is.
+  if (result?.done !== false) await record(journal, caller, body, about, result, now);
   return result;
 }
 
@@ -364,12 +365,20 @@ async function resolveReport(store, caller, { reportId, status }, now) {
   return { status };
 }
 
-/** Lock, unlock, delete a community, or remove someone from it. */
-async function community(store, { communityId, op, uid }) {
+/**
+ * Lock, unlock, delete a community, remove someone from it, edit it, or
+ * hand it to another member.
+ */
+async function community(store, body) {
+  const { communityId, op, uid } = body;
   if (!isCommunityId(communityId)) throw bad();
-  const c = await store.get(`communities/${communityId}`, ['createdBy']);
+  const c = await store.get(`communities/${communityId}`, ['createdBy', 'name', 'nameLower', 'moderators']);
   if (!c) return { done: true };
   switch (op) {
+    case 'edit':
+      return editCommunity(store, communityId, c, body);
+    case 'transfer':
+      return transferCommunity(store, communityId, c, uid);
     case 'lock':
     case 'unlock':
       await store.commit([{ patch: `communities/${communityId}`, fields: { locked: op === 'lock' } }]);
@@ -388,20 +397,103 @@ async function community(store, { communityId, op, uid }) {
   }
 }
 
+// As the app and the rules hold them (firestore.rules, communities).
+const SLOW_SECONDS = [0, 10, 30, 60, 300];
+
+/**
+ * What the community's own admin may change, and its name, which they may
+ * not: a new name frees the old one and claims the new, as creating it did,
+ * and its chat carries the name too.
+ */
+async function editCommunity(store, cid, c, { name, description, rules, slowSeconds }) {
+  const path = `communities/${cid}`;
+  const fields = {};
+  const writes = [];
+  const changed = [];
+  if (name !== undefined) {
+    if (typeof name !== 'string' || name !== name.trim() || name.length < 3 || name.length > 60 || name.includes('/')) {
+      throw bad('a name needs 3 to 60 letters');
+    }
+    const lower = name.toLowerCase();
+    if (name !== c.name) {
+      if (lower !== c.nameLower) {
+        const taken = await store.get(`communityNames/${lower}`, ['communityId']);
+        if (taken && taken.communityId !== cid) throw bad('that name is taken');
+        if (!taken) writes.push({ create: `communityNames/${lower}`, fields: { communityId: cid } });
+        if (c.nameLower) writes.push({ delete: `communityNames/${c.nameLower}` });
+      }
+      Object.assign(fields, { name, nameLower: lower });
+      writes.push({ patch: `rooms/c_${cid}`, fields: { name } });
+      changed.push('name');
+    }
+  }
+  if (description !== undefined) {
+    if (typeof description !== 'string' || description.length > 200) throw bad();
+    fields.description = description;
+    changed.push('description');
+  }
+  if (rules !== undefined) {
+    if (!Array.isArray(rules) || rules.length > 5
+      || !rules.every((r) => typeof r === 'string' && r.trim() && r.length <= 120)) throw bad();
+    fields.rules = rules.map((r) => r.trim());
+    changed.push('rules');
+  }
+  if (slowSeconds !== undefined) {
+    if (!SLOW_SECONDS.includes(slowSeconds)) throw bad();
+    fields.slowSeconds = slowSeconds;
+    changed.push('slow mode');
+  }
+  if (!changed.length) throw bad('nothing to change');
+  await store.commit([{ patch: path, fields }, ...writes]);
+  return { done: true, what: changed.join(', ') };
+}
+
+/**
+ * Hands the community to [to], already a member: they become its admin, the
+ * old one a member — as the app's own hand-over writes it.
+ */
+async function transferCommunity(store, cid, c, to) {
+  if (!isUid(to) || to === c.createdBy) throw bad();
+  const members = `communities/${cid}/members`;
+  const found = await store.getAll([`${members}/${to}`, `${members}/${c.createdBy}`, `users/${to}`], ['role', 'username']);
+  if (!found.get(`${members}/${to}`)) throw bad('they are not in the community');
+  const writes = [
+    { patch: `communities/${cid}`, fields: { createdBy: to } },
+    { patch: `${members}/${to}`, fields: { role: 'admin' } },
+  ];
+  if (found.get(`${members}/${c.createdBy}`)) writes.push({ patch: `${members}/${c.createdBy}`, fields: { role: 'member' } });
+  // A moderator made admin is no longer on the moderators' list.
+  if (Array.isArray(c.moderators) && c.moderators.includes(to)) {
+    writes.push({ pull: `communities/${cid}`, field: 'moderators', value: to });
+  }
+  await store.commit(writes);
+  return { done: true, uid: to, username: found.get(`users/${to}`)?.username };
+}
+
 /**
  * A notification to everyone who has them on: every phone is subscribed to
  * its language's topic (worker/src/notify.js, the morning reminder), so a
  * line in each language reaches all of them. Kept under announcements/, for
  * the panel to show what went out and who sent it.
  */
-async function broadcast(store, push, caller, { bn, en }, now) {
+async function broadcast(store, push, caller, { bn, en, communityId, from = 0 }, now) {
   const ok = (m) => m && typeof m.title === 'string' && typeof m.body === 'string'
     && m.title.trim() && m.body.trim() && m.title.length <= 80 && m.body.length <= 300;
   if (!ok(bn) || !ok(en)) throw bad();
+  if (communityId !== undefined && !isCommunityId(communityId)) throw bad();
+  if (!Number.isInteger(from) || from < 0) throw bad();
   const sent = {
     bn: { title: bn.title.trim(), body: bn.body.trim() },
     en: { title: en.title.trim(), body: en.body.trim() },
   };
+  // Kept once, as it starts.
+  const keep = () => store.commit([{
+    create: `announcements/${crypto.randomUUID()}`,
+    fields: { ...sent, sentBy: caller, sentAt: now, ...(communityId ? { communityId } : {}) },
+  }]);
+
+  if (communityId) return toCommunity(store, push, communityId, sent, from, keep);
+
   for (const language of ['bn', 'en']) {
     await push(pushMessage({
       topic: `daily_${language}`,
@@ -409,11 +501,30 @@ async function broadcast(store, push, caller, { bn, en }, now) {
       data: { type: 'announcement' },
     }));
   }
-  await store.commit([{
-    create: `announcements/${crypto.randomUUID()}`,
-    fields: { ...sent, sentBy: caller, sentAt: now },
-  }]);
+  await keep();
   return { sent: 2 };
+}
+
+/**
+ * The same, to one community's members only, each phone in its language;
+ * tapping it opens the community's chat. A big community takes more than
+ * one call: {done: false, next} says where the next one starts.
+ */
+async function toCommunity(store, push, cid, sent, from, keep) {
+  if (!(await store.get(`communities/${cid}`, ['name']))) throw new AdminError(404, 'no such community');
+  const uids = (await store.find({ parent: `rooms/c_${cid}`, collection: 'members', limit: 300 }))
+    .map((r) => r.path.split('/').pop());
+  const devices = await devicesOf(store, uids);
+  if (from === 0) await keep();
+  const { sent: reached } = await deliver(store, push, devices.slice(from), (d) => pushMessage({
+    token: d.token,
+    ...(sent[d.language] ?? sent.bn),
+    data: { type: 'room', roomId: `c_${cid}` },
+  }));
+  const next = from + MAX_PUSHES;
+  return next < devices.length
+    ? { done: false, next, sent: reached }
+    : { done: true, sent: reached, phones: devices.length };
 }
 
 /** Disabling, re-passwording and deleting sign-ins, with the service account's token. */

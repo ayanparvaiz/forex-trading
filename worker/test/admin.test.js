@@ -36,10 +36,10 @@ function world() {
 
     'reports/r1': { status: 'open', targetUid: 'uAna' },
 
-    'communities/bulls1': { createdBy: 'uAna', memberCount: 2, name: 'Bulls' },
+    'communities/bulls1': { createdBy: 'uAna', memberCount: 2, name: 'Bulls', nameLower: 'bulls' },
     'communities/bulls1/members/uAna': { role: 'admin' },
     'communities/bulls1/members/uBo': { role: 'member' },
-    'rooms/c_bulls1': { memberCount: 2 },
+    'rooms/c_bulls1': { memberCount: 2, name: 'Bulls' },
     'rooms/c_bulls1/members/uAna': {},
     'rooms/c_bulls1/members/uBo': {},
     'communityNames/bulls': { communityId: 'bulls1' },
@@ -288,4 +288,65 @@ test('admins are made by username, and taken away by anyone but themselves', asy
 
   docs.set('users/uAna', { ...docs.get('users/uAna'), banned: true });
   await assert.rejects(run(docs, { action: 'addAdmin', username: 'ana' }), (e) => e.status === 400 && /ban/.test(e.message));
+});
+
+test("a community's name, words, rules and slow mode changed; its name freed and claimed", async () => {
+  const docs = world();
+  docs.set('communityNames/bears', { communityId: 'other1' });
+  const { result } = await run(docs, {
+    action: 'community', communityId: 'bulls1', op: 'edit',
+    name: 'Bulls of Dhaka', description: 'Patient', rules: [' One trade a day '], slowSeconds: 30,
+  });
+  assert.equal(result.what, 'name, description, rules, slow mode');
+  const c = docs.get('communities/bulls1');
+  assert.deepEqual([c.name, c.nameLower, c.description, c.rules, c.slowSeconds], ['Bulls of Dhaka', 'bulls of dhaka', 'Patient', ['One trade a day'], 30]);
+  assert.equal(docs.get('rooms/c_bulls1').name, 'Bulls of Dhaka', 'its chat too');
+  assert.equal(docs.has('communityNames/bulls'), false, 'the old name is free');
+  assert.equal(docs.get('communityNames/bulls of dhaka').communityId, 'bulls1');
+
+  await assert.rejects(run(docs, { action: 'community', communityId: 'bulls1', op: 'edit', name: 'Bears' }), (e) => /taken/.test(e.message));
+  for (const bad of [{ name: 'ab' }, { name: ' Bulls' }, { name: 'a/b c' }, { slowSeconds: 15 }, { rules: ['a', 'b', 'c', 'd', 'e', 'f'] }, { rules: [''] }, {}]) {
+    await assert.rejects(run(docs, { action: 'community', communityId: 'bulls1', op: 'edit', ...bad }), (e) => e.status === 400, JSON.stringify(bad));
+  }
+  // Only the case: the same name kept.
+  await run(docs, { action: 'community', communityId: 'bulls1', op: 'edit', name: 'BULLS OF DHAKA' });
+  assert.equal(docs.get('communityNames/bulls of dhaka').communityId, 'bulls1');
+  assert.equal(docs.get('communities/bulls1').name, 'BULLS OF DHAKA');
+});
+
+test('a community handed to a member: they its admin, the old one a member', async () => {
+  const docs = world();
+  docs.set('communities/bulls1', { ...docs.get('communities/bulls1'), moderators: ['uBo'] });
+  docs.set('communities/bulls1/members/uBo', { role: 'moderator' });
+  await run(docs, { action: 'community', communityId: 'bulls1', op: 'transfer', uid: 'uBo' });
+  assert.equal(docs.get('communities/bulls1').createdBy, 'uBo');
+  assert.deepEqual(docs.get('communities/bulls1').moderators, []);
+  assert.equal(docs.get('communities/bulls1/members/uBo').role, 'admin');
+  assert.equal(docs.get('communities/bulls1/members/uAna').role, 'member');
+  const entry = logOf(docs).at(-1);
+  assert.deepEqual([entry.op, entry.username, entry.communityName], ['transfer', 'bo', 'Bulls']);
+  // Not to someone outside it, nor to whoever has it.
+  await assert.rejects(run(docs, { action: 'community', communityId: 'bulls1', op: 'transfer', uid: 'uAdmin' }), (e) => e.status === 400);
+  await assert.rejects(run(docs, { action: 'community', communityId: 'bulls1', op: 'transfer', uid: 'uBo' }), (e) => e.status === 400);
+});
+
+test("an announcement to one community reaches its members' phones, in rounds when there are many", async () => {
+  const docs = world();
+  const msg = { bn: { title: 'আজ লাইভ', body: 'রাত ৯টায়' }, en: { title: 'Live today', body: 'At 9 pm' } };
+  docs.set('users/uBo/devices/tokBo', { uid: 'uBo', language: 'bn' });
+  const { calls, result } = await run(docs, { action: 'broadcast', communityId: 'bulls1', ...msg });
+  assert.deepEqual(result, { done: true, sent: 2, phones: 2 });
+  assert.deepEqual(calls.map((c) => c.slice(1, 3)).sort(), [['tokAna', 'Live today'], ['tokBo', 'আজ লাইভ']]);
+  const kept = [...docs.entries()].filter(([k]) => k.startsWith('announcements/')).map(([, v]) => v);
+  assert.deepEqual([kept.length, kept[0].communityId], [1, 'bulls1']);
+  assert.equal(logOf(docs)[0].communityName, 'Bulls');
+
+  // Thirty phones: twenty-five now, the rest on the next call.
+  for (let i = 0; i < 30; i++) docs.set(`users/uBo/devices/t${String(i).padStart(2, '0')}`, { uid: 'uBo', language: 'en' });
+  const first = await run(docs, { action: 'broadcast', communityId: 'bulls1', ...msg });
+  assert.deepEqual(first.result, { done: false, next: 25, sent: 25 });
+  const second = await run(docs, { action: 'broadcast', communityId: 'bulls1', from: 25, ...msg });
+  assert.deepEqual(second.result, { done: true, sent: 7, phones: 32 });
+  assert.equal([...docs.keys()].filter((k) => k.startsWith('announcements/')).length, 2, 'kept once per announcement');
+  assert.equal(logOf(docs).length, 2, 'logged once per announcement');
 });
