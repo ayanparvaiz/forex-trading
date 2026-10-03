@@ -51,6 +51,10 @@ function describe(error: unknown, status: number): string {
       return "Another community already has that name.";
     case "they are not in the community":
       return "They need to be in the community first.";
+    case "no such post":
+      return "That post no longer exists.";
+    case "only a post in Global can be pinned":
+      return "Only a post in Global can be pinned.";
     case "lift their ban first":
       return "That account is banned. Lift the ban first.";
     default:

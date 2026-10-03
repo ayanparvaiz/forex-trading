@@ -1,6 +1,6 @@
 "use client";
 
-import { collection, getDocs, limit, orderBy, query } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, limit, orderBy, query } from "firebase/firestore";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useAction } from "@/components/feedback";
@@ -13,13 +13,20 @@ import { rows, type CommentDoc, type PostDoc } from "@/lib/types";
 import { useLoad } from "@/lib/use-load";
 
 async function load() {
-  const [posts, users, communities] = await Promise.all([
+  const [posts, users, communities, config] = await Promise.all([
     getDocs(query(collection(db, "posts"), orderBy("postedAt", "desc"), limit(400))),
     allUsers(),
     communityNames(),
+    getDoc(doc(db, "config", "app")),
   ]);
   // When it was read: what counts as still showing is measured from then.
-  return { posts: rows<PostDoc>(posts), users: new Map(users.map((u) => [u.id, u])), communities, at: Date.now() };
+  return {
+    posts: rows<PostDoc>(posts),
+    users: new Map(users.map((u) => [u.id, u])),
+    communities,
+    pinned: (config.data()?.pinnedPostId as string | undefined) ?? "",
+    at: Date.now(),
+  };
 }
 
 const KIND = [
@@ -94,9 +101,18 @@ export default function FeedPage() {
       "Post deleted.",
     ).then((ok) => ok && reload());
 
+  const pin = (p: PostDoc | null) =>
+    act(
+      p
+        ? { title: "Pin this post to Global?", body: "It shows above every other post in Global, for everyone, until you unpin it — and stays even after its 7 days. Only one post is pinned at a time.", action: "Pin" }
+        : null,
+      () => adminCall("pin", { postId: p?.id ?? "" }),
+      p ? "Pinned to the top of Global." : "Unpinned.",
+    ).then((ok) => ok && reload());
+
   return (
     <>
-      <PageHeader title="Feed" subtitle="Every post, in Global and in each community." />
+      <PageHeader title="Feed" subtitle="Every post, in Global and in each community. A post in Global can be pinned above the rest." />
       <Card flush className="mb-5">
         <div className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center">
           <select id="feed-where" className={cx(inputClass, "lg:w-72")} value={where} onChange={(e) => setWhere(e.target.value)}>
@@ -151,6 +167,7 @@ export default function FeedPage() {
                         </>
                       )}
                       {p.kind === "question" && <Badge tone={p.answerId ? "good" : "warn"}>{p.answerId ? "Answered" : "Open"}</Badge>}
+                      {data?.pinned === p.id && <Badge tone="good">📌 Pinned to Global</Badge>}
                     </div>
                     {p.reason && <p className="mt-3 text-sm break-words text-muted">Why: {p.reason}</p>}
                     <p className="mt-2 text-[15px] leading-relaxed break-words text-ink">{p.lesson}</p>
@@ -160,7 +177,15 @@ export default function FeedPage() {
                         {p.commentCount ?? 0} comments {open === p.id ? "▴" : "▾"}
                       </button>
                       <span className="tabular">seen by {p.reach ?? 0}</span>
-                      <span className="ml-auto"><Button size="sm" variant="danger" onClick={() => remove(p)}>Delete post</Button></span>
+                      <span className="ml-auto flex gap-2">
+                        {p.community === "global" &&
+                          (data?.pinned === p.id ? (
+                            <Button size="sm" onClick={() => pin(null)}>Unpin</Button>
+                          ) : (
+                            <Button size="sm" onClick={() => pin(p)}>Pin to Global</Button>
+                          ))}
+                        <Button size="sm" variant="danger" onClick={() => remove(p)}>Delete post</Button>
+                      </span>
                     </div>
                     {open === p.id && (
                       <div className="mt-4 border-t border-line-soft pt-4">

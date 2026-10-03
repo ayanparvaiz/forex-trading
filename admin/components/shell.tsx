@@ -28,7 +28,11 @@ const NAV: { group?: string; items: { href: string; label: string; icon: () => R
   },
   {
     group: "App",
-    items: [{ href: "/announcements/", label: "Announcements", icon: Icons.megaphone }],
+    items: [
+      { href: "/announcements/", label: "Announcements", icon: Icons.megaphone },
+      { href: "/settings/", label: "App settings", icon: Icons.settings },
+      { href: "/blocked-words/", label: "Blocked words", icon: Icons.block },
+    ],
   },
   {
     group: "Admin",
