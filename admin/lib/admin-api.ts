@@ -38,6 +38,12 @@ function describe(error: unknown, status: number): string {
       return "That account no longer exists.";
     case "no such message":
       return "That message no longer exists.";
+    case "no such username":
+      return "No account has that username.";
+    case "an owner, removed only with tool/make_admin.py":
+      return "That admin is an owner. Owners are removed only with tool/make_admin.py.";
+    case "lift their ban first":
+      return "That account is banned. Lift the ban first.";
     default:
       return typeof error === "string" && error ? error : `The server said no (${status}).`;
   }

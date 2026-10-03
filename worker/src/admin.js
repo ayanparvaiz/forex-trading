@@ -264,11 +264,18 @@ async function addAdmin(store, caller, { username }, now) {
   return { done: true, uid: claim.uid, username: profile.username ?? name };
 }
 
-/** Takes [uid]'s admin access away — anyone's but your own. */
+/**
+ * Takes [uid]'s admin access away — anyone's but your own, and never an
+ * owner's: one set up by hand with tool/make_admin.py is removed only that
+ * way, so nobody made an admin in the panel can lock out who made them.
+ */
 async function removeAdmin(store, caller, { uid }) {
   if (!isUid(uid)) throw bad();
   // So there is always someone left: you cannot be the one to go.
   if (uid === caller) throw bad('not yourself');
+  const entry = await store.get(`admins/${uid}`, ['addedBy']);
+  if (!entry) return { done: true };
+  if (!entry.addedBy) throw bad('an owner, removed only with tool/make_admin.py');
   await store.commit([{ delete: `admins/${uid}` }]);
   return { done: true };
 }

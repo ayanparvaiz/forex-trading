@@ -279,6 +279,9 @@ test('admins are made by username, and taken away by anyone but themselves', asy
   await assert.rejects(run(docs, { action: 'addAdmin', username: 'nobody' }), (e) => e.status === 404);
   await assert.rejects(run(docs, { action: 'addAdmin', username: 'x' }), (e) => e.status === 400);
   await assert.rejects(run(docs, { action: 'removeAdmin', uid: ADMIN }), (e) => e.status === 400);
+  // Set up by hand: an owner, out of the panel's reach.
+  await assert.rejects(run(docs, { action: 'removeAdmin', uid: 'uOther' }), (e) => e.status === 400 && /owner/.test(e.message));
+  assert.ok(docs.has('admins/uOther'));
   await run(docs, { action: 'removeAdmin', uid: 'uAna' });
   assert.equal(docs.has('admins/uAna'), false);
   assert.deepEqual(logOf(docs).map((e) => [e.action, e.username]), [['addAdmin', 'ana'], ['addAdmin', 'ana'], ['removeAdmin', 'ana']]);

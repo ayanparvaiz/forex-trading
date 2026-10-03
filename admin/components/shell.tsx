@@ -31,7 +31,10 @@ const NAV: { group?: string; items: { href: string; label: string; icon: () => R
   },
   {
     group: "Admin",
-    items: [{ href: "/activity/", label: "Activity", icon: Icons.history }],
+    items: [
+      { href: "/admins/", label: "Admins", icon: Icons.shield },
+      { href: "/activity/", label: "Activity", icon: Icons.history },
+    ],
   },
 ];
 
