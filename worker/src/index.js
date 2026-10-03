@@ -44,7 +44,7 @@ import { eraseAccount } from './erase.js';
 import { sendPush } from './fcm.js';
 import { dailyReminder, eventReminders, forgetOldAnnouncements, notify } from './notify.js';
 import { referenceRates } from './rates.js';
-import { AdminError, adminAction, identityToolkit } from './admin.js';
+import { AdminError, adminAction, identityToolkit, liftExpiredBans } from './admin.js';
 
 // The quarter-hourly trigger in wrangler.toml, for event reminders. The
 // other, daily, is the morning one.
@@ -52,6 +52,10 @@ const EVENT_CRON = '*/15 * * * *';
 
 // 8 pm in Dhaka: streaks that end at midnight.
 const STREAK_CRON = '0 14 * * *';
+
+// Between the event reminders, so each run keeps the free plan's requests to
+// itself: bans an admin gave for some days, lifted when the days are up.
+const BANS_CRON = '5,20,35,50 * * * *';
 
 // How often one account may trigger a recompute.
 //
@@ -187,6 +191,13 @@ export default {
         // Every quarter hour: events about to start remind those going.
         if (event.cron === EVENT_CRON) {
           await eventReminders(restStore(env.FIREBASE_PROJECT_ID, token, { budget: 15 }), push);
+          return;
+        }
+        if (event.cron === BANS_CRON) {
+          await liftExpiredBans(
+            restStore(env.FIREBASE_PROJECT_ID, token, { budget: 12 }),
+            identityToolkit(env.FIREBASE_PROJECT_ID, token),
+          );
           return;
         }
         if (event.cron === STREAK_CRON) {

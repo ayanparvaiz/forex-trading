@@ -1548,11 +1548,13 @@ service cloud.firestore {
 
     // --- Admins -------------------------------------------------------------
     //
-    // Who runs the app. Written only by the server (tool/make_admin.py); each
-    // admin may see their own entry, which is how the admin panel lets them in.
+    // Who runs the app. Written only by the server (tool/make_admin.py, or
+    // the worker for an admin in the panel); each person may see their own
+    // entry, which is how the panel lets them in, and admins see them all.
     match /admins/{uid} {
-      allow get: if isOwner(uid);
-      allow list, write: if false;
+      allow get: if isOwner(uid) || isAdmin();
+      allow list: if isAdmin();
+      allow write: if false;
     }
 
     // What the admins announced to every phone, kept by the worker when it

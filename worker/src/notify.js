@@ -103,7 +103,7 @@ async function firstTime(store, key, now) {
 }
 
 /** The phones of [uids], thirty accounts to a query. */
-async function devicesOf(store, uids) {
+export async function devicesOf(store, uids) {
   const out = [];
   for (let i = 0; i < uids.length; i += 30) {
     const rows = await store.find({
@@ -126,7 +126,7 @@ async function devicesOf(store, uids) {
  * Sends one push per phone, built by [build], up to [MAX_PUSHES]. Phones
  * FCM no longer knows are forgotten.
  */
-async function deliver(store, push, devices, build) {
+export async function deliver(store, push, devices, build) {
   let sent = 0;
   let failed = 0;
   const gone = [];

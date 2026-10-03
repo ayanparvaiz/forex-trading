@@ -13,6 +13,8 @@ FIREBASE_PROJECT_ID = "forex-9f21b"
 # nothing else. They are never committed.
 
 # 03:00 UTC is 09:00 in Dhaka: the morning reminder that today's points are
-# in (the allowance itself resets at midnight on each phone).
+# in (the allowance itself resets at midnight on each phone). Every quarter
+# hour, event reminders; at 14:00 UTC, streaks about to end; and between the
+# quarter hours, bans an admin gave for some days, lifted once they are up.
 [triggers]
-crons = ["0 3 * * *", "*/15 * * * *", "0 14 * * *"]
+crons = ["0 3 * * *", "*/15 * * * *", "0 14 * * *", "5,20,35,50 * * * *"]

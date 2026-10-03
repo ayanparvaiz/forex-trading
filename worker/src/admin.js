@@ -8,11 +8,19 @@
 import { deleteCommunity, isCommunityId, removeMember } from './community.js';
 import { eraseAccount } from './erase.js';
 import { pushMessage } from './fcm.js';
+import { deliver, devicesOf } from './notify.js';
 import { WriteQueue, eraseBelow } from './writes.js';
 
 const isId = (v) => typeof v === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(v);
 const isUid = (v) => typeof v === 'string' && /^[A-Za-z0-9]{1,128}$/.test(v);
 const isRoom = (v) => v === 'global' || (typeof v === 'string' && /^c_[A-Za-z0-9]{6,40}$/.test(v));
+// As the app takes them (app/lib/data/auth_repository.dart).
+const isUsername = (v) => typeof v === 'string' && /^[a-z0-9_]{3,20}$/.test(v);
+const MIN_PASSWORD = 6;
+
+const DAY_MS = 24 * 3600 * 1000;
+// How long a ban may last when it is not for good.
+const BAN_DAYS = [1, 3, 7, 30];
 
 export class AdminError extends Error {
   constructor(status, message) {
@@ -51,7 +59,12 @@ export async function adminAction(store, { auth, push, journal = store }, caller
 
 const ACTIONS = {
   whoami: () => ({ admin: true }),
-  ban: ({ store, auth, caller, body }) => ban(store, auth, caller, body),
+  ban: ({ store, auth, caller, body, now }) => ban(store, auth, caller, body, now),
+  setPassword: ({ store, auth, caller, body }) => setPassword(store, auth, caller, body),
+  warn: ({ store, push, caller, body }) => warn(store, push, caller, body),
+  resetProfile: ({ store, caller, body }) => resetProfile(store, caller, body),
+  addAdmin: ({ store, caller, body, now }) => addAdmin(store, caller, body, now),
+  removeAdmin: ({ store, caller, body }) => removeAdmin(store, caller, body),
   deleteUser: ({ store, auth, caller, body }) => deleteUser(store, auth, caller, body),
   deletePost: ({ store, body }) => deletePost(store, body),
   deleteComment: ({ store, body }) => deleteComment(store, body),
@@ -107,10 +120,15 @@ async function record(store, caller, body, about, result, now) {
     if (typeof body[k] === 'string') fields[k] = body[k];
   }
   if (typeof body.banned === 'boolean') fields.banned = body.banned;
+  if (typeof body.days === 'number') fields.days = body.days;
   if (body.action === 'broadcast') fields.title = clip(body.bn?.title, 80);
   for (const [k, v] of Object.entries(about)) if (v !== undefined && v !== null) fields[k] = v;
+  // The admin's own words: why they banned, what they warned about.
+  if (typeof body.reason === 'string' && body.reason.trim()) fields.reason = clip(body.reason, 200);
+  if (typeof body.message === 'string') fields.snippet = clip(body.message, 300);
   if (result && typeof result === 'object') {
     for (const k of ['sent', 'phones']) if (typeof result[k] === 'number') fields[k] = result[k];
+    for (const k of ['uid', 'username', 'what']) if (typeof result[k] === 'string' && !fields[k]) fields[k] = result[k];
   }
   try {
     await store.commit([{ create: `adminLog/${crypto.randomUUID()}`, fields }]);
@@ -126,15 +144,133 @@ async function guardTarget(store, caller, uid) {
   if (await isAdmin(store, uid)) throw bad('not another admin');
 }
 
-/** Stops [uid] signing in — or lets them again — and marks the profile. */
-async function ban(store, auth, caller, { uid, banned }) {
+/**
+ * Stops [uid] signing in — or lets them again — and marks the profile. With
+ * [days], only for that long: the worker lifts it when the time is up
+ * (liftExpiredBans). [reason] is for the activity log, not the profile.
+ */
+async function ban(store, auth, caller, { uid, banned, days, reason }, now) {
   if (typeof banned !== 'boolean') throw bad();
+  if (days !== undefined && !(banned && BAN_DAYS.includes(days))) throw bad();
+  if (reason !== undefined && (typeof reason !== 'string' || reason.length > 200)) throw bad();
   await guardTarget(store, caller, uid);
   const profile = await store.get(`users/${uid}`, ['username']);
   if (!profile) throw new AdminError(404, 'no such account');
   await auth.setDisabled(uid, banned);
-  await store.commit([{ patch: `users/${uid}`, fields: { banned } }]);
-  return { banned };
+  const until = banned && days ? new Date(now.getTime() + days * DAY_MS) : null;
+  await store.commit([{
+    patch: `users/${uid}`,
+    fields: until ? { banned, bannedUntil: until } : { banned },
+    remove: until ? [] : ['bannedUntil'],
+  }]);
+  return until ? { banned, until: until.toISOString() } : { banned };
+}
+
+/**
+ * Lifts the bans whose time is up — a few each run, so a run stays inside
+ * the free plan's requests; any left over go on the next.
+ */
+export async function liftExpiredBans(store, auth, now = new Date(), most = 5) {
+  const due = await store.find({
+    collection: 'users',
+    field: 'bannedUntil',
+    op: '<',
+    value: now,
+    limit: most,
+    fields: ['username'],
+  });
+  for (const { path, data } of due) {
+    const uid = path.split('/')[1];
+    await auth.setDisabled(uid, false);
+    await store.commit([
+      { patch: path, fields: { banned: false }, remove: ['bannedUntil'] },
+      {
+        create: `adminLog/${crypto.randomUUID()}`,
+        fields: { action: 'liftBan', by: 'system', at: now, uid, username: data.username ?? '' },
+      },
+    ]);
+  }
+  return due.length;
+}
+
+/**
+ * A new password for [uid], who has forgotten theirs: the app has no other
+ * way back in. They are signed out everywhere, too.
+ */
+async function setPassword(store, auth, caller, { uid, password }) {
+  if (typeof password !== 'string' || password.length < MIN_PASSWORD || password.length > 64) {
+    throw bad('the password needs 6 to 64 characters');
+  }
+  await guardTarget(store, caller, uid);
+  if (!(await store.get(`users/${uid}`, ['username']))) throw new AdminError(404, 'no such account');
+  await auth.setPassword(uid, password);
+  return { done: true };
+}
+
+const WARNING_TITLE = { bn: 'অ্যাডমিনের সতর্কবার্তা', en: 'A warning from the admins' };
+
+/**
+ * A warning, to [uid]'s phones only, in the admin's words. How many phones
+ * it reached comes back: none, when they have notifications off.
+ */
+async function warn(store, push, caller, { uid, message }) {
+  if (typeof message !== 'string' || !message.trim() || message.length > 300) throw bad();
+  await guardTarget(store, caller, uid);
+  if (!(await store.get(`users/${uid}`, ['username']))) throw new AdminError(404, 'no such account');
+  const devices = await devicesOf(store, [uid]);
+  const { sent } = await deliver(store, push, devices, (d) => pushMessage({
+    token: d.token,
+    title: WARNING_TITLE[d.language] ?? WARNING_TITLE.bn,
+    body: message.trim(),
+    data: { type: 'warning' },
+  }));
+  return { done: true, phones: sent };
+}
+
+/**
+ * A name or picture nobody should have to see, put back to plain: the name
+ * becomes their username, the picture the first one. What is already
+ * written under the old name — comments, messages — keeps it.
+ */
+async function resetProfile(store, caller, { uid, name, avatar }) {
+  if (name !== true && avatar !== true) throw bad();
+  await guardTarget(store, caller, uid);
+  const profile = await store.get(`users/${uid}`, ['username']);
+  if (!profile?.username) throw new AdminError(404, 'no such account');
+  const fields = {};
+  if (name) Object.assign(fields, { displayName: profile.username, nameLower: profile.username.toLowerCase() });
+  if (avatar) fields.avatarId = 1;
+  await store.commit([{ patch: `users/${uid}`, fields }]);
+  return { done: true, what: name && avatar ? 'name and picture' : name ? 'name' : 'picture' };
+}
+
+// --- Admins ----------------------------------------------------------------
+
+/** Makes the account named [username] an admin. */
+async function addAdmin(store, caller, { username }, now) {
+  const name = typeof username === 'string' ? username.trim().toLowerCase().replace(/^@/, '') : '';
+  if (!isUsername(name)) throw bad('no such username');
+  const claim = await store.get(`usernames/${name}`, ['uid']);
+  if (!isUid(claim?.uid)) throw new AdminError(404, 'no such username');
+  const profile = await store.get(`users/${claim.uid}`, ['username', 'banned']);
+  if (!profile) throw new AdminError(404, 'no such username');
+  if (profile.banned) throw bad('lift their ban first');
+  if (!(await isAdmin(store, claim.uid))) {
+    await store.commit([{
+      create: `admins/${claim.uid}`,
+      fields: { username: profile.username ?? name, addedAt: now, addedBy: caller },
+    }]);
+  }
+  return { done: true, uid: claim.uid, username: profile.username ?? name };
+}
+
+/** Takes [uid]'s admin access away — anyone's but your own. */
+async function removeAdmin(store, caller, { uid }) {
+  if (!isUid(uid)) throw bad();
+  // So there is always someone left: you cannot be the one to go.
+  if (uid === caller) throw bad('not yourself');
+  await store.commit([{ delete: `admins/${uid}` }]);
+  return { done: true };
 }
 
 /**
@@ -273,7 +409,7 @@ async function broadcast(store, push, caller, { bn, en }, now) {
   return { sent: 2 };
 }
 
-/** Disabling and deleting sign-ins, with the service account's token. */
+/** Disabling, re-passwording and deleting sign-ins, with the service account's token. */
 export function identityToolkit(projectId, token) {
   const base = `https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts`;
   const call = async (verb, body) => {
@@ -294,6 +430,12 @@ export function identityToolkit(projectId, token) {
       disableUser: disabled,
       // Signed out everywhere, too: their refresh tokens stop working.
       ...(disabled ? { validSince: String(Math.floor(Date.now() / 1000)) } : {}),
+    }),
+    // Signed out everywhere with it: whoever had the account loses it.
+    setPassword: (uid, password) => call('update', {
+      localId: uid,
+      password,
+      validSince: String(Math.floor(Date.now() / 1000)),
     }),
     remove: (uid) => call('delete', { localId: uid }),
   };
