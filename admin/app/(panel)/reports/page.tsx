@@ -4,7 +4,8 @@ import { collection, getDocs, limit, query, where } from "firebase/firestore";
 import Link from "next/link";
 import { useState } from "react";
 import { useAction } from "@/components/feedback";
-import { Badge, Button, Card, cx, Empty, ErrorNote, Loading, PageHeader } from "@/components/ui";
+import { Badge, Button, Card, cx, Empty, ErrorNote, ExportButton, Loading, PageHeader } from "@/components/ui";
+import { csvDate, downloadCsv } from "@/lib/csv";
 import { adminCall } from "@/lib/admin-api";
 import { allUsers } from "@/lib/data";
 import { db } from "@/lib/firebase";
@@ -87,7 +88,26 @@ export default function ReportsPage() {
 
   return (
     <>
-      <PageHeader title="Reports" subtitle="What people flagged in the app, newest first." />
+      <PageHeader
+        title="Reports"
+        subtitle="What people flagged in the app, newest first."
+        actions={
+          <ExportButton
+            disabled={!data?.reports.length}
+            onClick={() =>
+              data &&
+              downloadCsv(
+                `reports-${status}`,
+                ["reported", "about", "kind", "reason", "quote", "note", "by", "status", "settled", "settled by"],
+                data.reports.map((r) => [
+                  csvDate(r.createdAt), r.targetUsername, KINDS[r.kind] ?? r.kind, REPORT_REASONS[r.reason] ?? r.reason, r.quote, r.note,
+                  data.names.get(r.reporterUid) ?? "", r.status, csvDate(r.resolvedAt), r.resolvedBy ? (data.names.get(r.resolvedBy) ?? "") : "",
+                ]),
+              )
+            }
+          />
+        }
+      />
       <div className="mb-4 flex gap-1.5">
         {TABS.map((t) => (
           <button

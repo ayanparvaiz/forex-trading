@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { ActivityList } from "@/components/activity";
-import { Card, ErrorNote, Loading, PageHeader, cx, inputClass } from "@/components/ui";
+import { Card, ErrorNote, ExportButton, Loading, PageHeader, cx, inputClass } from "@/components/ui";
+import { csvDate, downloadCsv } from "@/lib/csv";
 import { AREAS, area, recentActivity, sentence } from "@/lib/activity";
 import { useLoad } from "@/lib/use-load";
 
@@ -23,7 +24,19 @@ export default function ActivityPage() {
 
   return (
     <>
-      <PageHeader title="Activity" subtitle="Every change an admin made, newest first. Nobody can edit or delete this record." />
+      <PageHeader
+        title="Activity"
+        subtitle="Every change an admin made, newest first. Nobody can edit or delete this record."
+        actions={
+          <ExportButton
+            disabled={!shown.length}
+            onClick={() =>
+              downloadCsv("admin-activity", ["when", "admin", "what", "about", "words", "reason"],
+                shown.map((e) => [csvDate(e.at), e.by === "system" ? "automatic" : (e.byUsername ?? e.by), sentence(e), e.username ?? e.author ?? e.communityName ?? "", e.snippet, e.reason]))
+            }
+          />
+        }
+      />
       <Card className="mb-4">
         <div className="grid gap-3 sm:grid-cols-3">
           <input className={inputClass} placeholder="Search names and words" value={search} onChange={(e) => setSearch(e.target.value)} />

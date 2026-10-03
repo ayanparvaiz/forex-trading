@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Icons } from "@/components/icons";
-import { Avatar, Badge, Button, Card, cx, Empty, ErrorNote, inputClass, Loading, PageHeader, Table, td } from "@/components/ui";
+import { Avatar, Badge, Button, Card, cx, Empty, ErrorNote, ExportButton, inputClass, Loading, PageHeader, Table, td } from "@/components/ui";
+import { csvDate, downloadCsv } from "@/lib/csv";
 import { allUsers, communityNames } from "@/lib/data";
 import { dateLabel, rText, toDate } from "@/lib/format";
 import type { UserDoc } from "@/lib/types";
@@ -67,6 +68,23 @@ export default function UsersPage() {
       <PageHeader
         title="Users"
         subtitle={data ? `${data.users.length.toLocaleString("en-US")} accounts` : "Everyone with an account"}
+        actions={
+          <ExportButton
+            disabled={!list.length}
+            onClick={() =>
+              downloadCsv(
+                "users",
+                ["username", "name", "joined", "community", "language", "ranked", "banned", "discipline", "trades", "win rate %", "total R", "journal streak"],
+                list.map((u) => [
+                  u.username, u.displayName, csvDate(u.createdAt), u.communityId ? (data?.communities.get(u.communityId)?.name ?? "") : "",
+                  u.language ?? "bn", u.ranked ? "yes" : "no", u.banned ? "yes" : "no",
+                  u.ranked ? Math.round(u.disciplineScore ?? 0) : "", u.tradeCount ?? 0, Math.round((u.winRate ?? 0) * 100),
+                  (u.totalR ?? 0).toFixed(2), u.journalStreak ?? 0,
+                ]),
+              )
+            }
+          />
+        }
       />
       <ErrorNote error={error} />
       <Card flush>

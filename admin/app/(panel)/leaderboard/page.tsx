@@ -3,7 +3,8 @@
 import { collection, getDocs, limit, query } from "firebase/firestore";
 import Link from "next/link";
 import { useState } from "react";
-import { Avatar, Badge, Card, CommunityPicture, Empty, ErrorNote, Loading, PageHeader, Table, cx, td } from "@/components/ui";
+import { Avatar, Badge, Card, CommunityPicture, Empty, ErrorNote, ExportButton, Loading, PageHeader, Table, cx, td } from "@/components/ui";
+import { downloadCsv } from "@/lib/csv";
 import { allCommunities, allUsers } from "@/lib/data";
 import { db } from "@/lib/firebase";
 import { rText } from "@/lib/format";
@@ -89,6 +90,23 @@ function Trader({ u }: { u: UserDoc }) {
 
 const rClass = (r: number) => cx(td, "tabular", r < 0 ? "text-bad" : r > 0 ? "text-good" : "");
 
+type Loaded = Awaited<ReturnType<typeof load>>;
+
+/** The tab on screen, as a spreadsheet. */
+function exportTab(tab: Tab, data: Loaded, named: (id?: string) => string) {
+  const community = (id?: string) => (id ? named(id) : "");
+  if (tab === "all") {
+    downloadCsv("leaderboard", ["#", "username", "name", "community", "discipline", "trades", "win rate %", "total R"],
+      data.board.map((u, i) => [i + 1, u.username, u.displayName, community(u.communityId), Math.round(u.disciplineScore ?? 0), u.tradeCount ?? 0, Math.round((u.winRate ?? 0) * 100), (u.totalR ?? 0).toFixed(2)]));
+  } else if (tab === "week") {
+    downloadCsv(`leaderboard-${data.week}`, ["#", "username", "name", "community", "week score", "trades", "R this week"],
+      data.weekly.map((u, i) => [i + 1, u.username, u.displayName, community(u.communityId), Math.round(u.weekScore ?? 0), u.weekTrades ?? 0, (u.weekR ?? 0).toFixed(2)]));
+  } else {
+    downloadCsv("community-ranking", ["#", "community", "points", "members", "titles"],
+      data.ranked.map((c, i) => [i + 1, c.name, c.points, c.memberCount ?? 0, (c.titles ?? []).join(" ")]));
+  }
+}
+
 export default function LeaderboardPage() {
   const [tab, setTab] = useState<Tab>("all");
   const { data, error, loading } = useLoad(load);
@@ -96,7 +114,11 @@ export default function LeaderboardPage() {
 
   return (
     <>
-      <PageHeader title="Leaderboard" subtitle="The rankings as the app shows them. Scores come from each trader's journal and can't be edited here." />
+      <PageHeader
+        title="Leaderboard"
+        subtitle="The rankings as the app shows them. Scores come from each trader's journal and can't be edited here."
+        actions={<ExportButton disabled={!data} onClick={() => data && exportTab(tab, data, community)} />}
+      />
       <div className="mb-4 flex gap-1.5 overflow-x-auto">
         {TABS.map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}

@@ -191,3 +191,15 @@ export function Table({ head, children }: Children & { head: React.ReactNode[] }
 }
 
 export const td = "px-5 py-3 align-middle";
+
+/** "Export CSV": the rows on screen, as a spreadsheet. */
+export function ExportButton({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
+  return (
+    <Button size="sm" onClick={onClick} disabled={disabled} title="Download what is shown as a spreadsheet">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19h14" />
+      </svg>
+      Export CSV
+    </Button>
+  );
+}
