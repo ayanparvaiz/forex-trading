@@ -21,8 +21,10 @@ export type UserDoc = {
   ranked?: boolean;
   banned?: boolean;
   achievements?: string[];
+  weekBoard?: string;
   weekScore?: number;
   weekTrades?: number;
+  weekR?: number;
   statsUpdatedAt?: When;
 };
 
