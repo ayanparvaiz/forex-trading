@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { useOpenReports } from "@/lib/live";
 import { useSession } from "@/lib/session";
 import { Icons } from "./icons";
 import { cx } from "./ui";
@@ -57,6 +58,7 @@ function Mark() {
 
 function Nav({ onPick }: { onPick?: () => void }) {
   const path = usePathname();
+  const openReports = useOpenReports();
   return (
     <nav className="flex flex-col gap-4">
       {NAV.map(({ group, items }, i) => (
@@ -73,7 +75,12 @@ function Nav({ onPick }: { onPick?: () => void }) {
               )}
             >
               <Icon />
-              {label}
+              <span className="flex-1">{label}</span>
+              {href === "/reports/" && openReports ? (
+                <span className="tabular min-w-5 rounded-full bg-bad px-1.5 text-center text-[11px] leading-5 font-semibold text-white" aria-label={`${openReports} open`}>
+                  {openReports}
+                </span>
+              ) : null}
             </Link>
           ))}
         </div>
