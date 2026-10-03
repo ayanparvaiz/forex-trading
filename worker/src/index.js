@@ -364,6 +364,8 @@ async function adminRoute(claims, env, request) {
     const result = await adminAction(store, {
       auth: identityToolkit(env.FIREBASE_PROJECT_ID, token),
       push: (m) => sendPush(env.FIREBASE_PROJECT_ID, token, m),
+      // The activity log's two calls, kept apart from the job's own.
+      journal: restStore(env.FIREBASE_PROJECT_ID, token, { budget: 2 }),
     }, claims.sub, body);
     return json(result);
   } catch (error) {

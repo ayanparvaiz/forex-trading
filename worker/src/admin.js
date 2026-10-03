@@ -29,33 +29,93 @@ export async function isAdmin(store, uid) {
 
 /**
  * Does [body.action] for admin [caller]. [auth] disables and deletes
- * sign-ins; [push] sends one message. Throws AdminError for a request that
- * cannot be done, TryAgain when a long job needs another call.
+ * sign-ins; [push] sends one message; [journal], when given, is where the
+ * activity log is written — its own budget, so a long delete cannot leave
+ * nothing to log with. Throws AdminError for a request that cannot be done,
+ * TryAgain when a long job needs another call.
  */
-export async function adminAction(store, { auth, push }, caller, body, now = new Date()) {
+export async function adminAction(store, { auth, push, journal = store }, caller, body, now = new Date()) {
   if (!(await isAdmin(store, caller))) throw new AdminError(403, 'not an admin');
   const action = body?.action;
-  switch (action) {
-    case 'whoami':
-      return { admin: true };
-    case 'ban':
-      return ban(store, auth, caller, body);
-    case 'deleteUser':
-      return deleteUser(store, auth, caller, body);
-    case 'deletePost':
-      return deletePost(store, body);
-    case 'deleteComment':
-      return deleteComment(store, body);
-    case 'removeMessage':
-      return removeMessage(store, body);
-    case 'resolveReport':
-      return resolveReport(store, caller, body, now);
-    case 'community':
-      return community(store, body);
-    case 'broadcast':
-      return broadcast(store, push, caller, body, now);
-    default:
-      throw bad('unknown action');
+  if (typeof action !== 'string' || !Object.hasOwn(ACTIONS, action)) throw bad('unknown action');
+  const run = ACTIONS[action];
+  const job = { store, auth, push, caller, body, now };
+  if (!RECORDED.has(action)) return run(job);
+  // Looked up first: once a post or an account is deleted there is nothing
+  // left to say what it was.
+  const about = await describe(journal, caller, body);
+  const result = await run(job);
+  await record(journal, caller, body, about, result, now);
+  return result;
+}
+
+const ACTIONS = {
+  whoami: () => ({ admin: true }),
+  ban: ({ store, auth, caller, body }) => ban(store, auth, caller, body),
+  deleteUser: ({ store, auth, caller, body }) => deleteUser(store, auth, caller, body),
+  deletePost: ({ store, body }) => deletePost(store, body),
+  deleteComment: ({ store, body }) => deleteComment(store, body),
+  removeMessage: ({ store, body }) => removeMessage(store, body),
+  resolveReport: ({ store, caller, body, now }) => resolveReport(store, caller, body, now),
+  community: ({ store, body }) => community(store, body),
+  broadcast: ({ store, push, caller, body, now }) => broadcast(store, push, caller, body, now),
+};
+
+/** Every action that changes something, and so goes in the activity log. */
+const RECORDED = new Set(Object.keys(ACTIONS).filter((a) => a !== 'whoami'));
+
+// --- The activity log -------------------------------------------------------
+
+const clip = (v, n = 120) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, n) : undefined);
+
+/**
+ * Names and words for what [body] is about: the admin, the person, the post,
+ * comment, message, community or report. One read.
+ */
+async function describe(store, caller, body) {
+  const paths = { by: `users/${caller}` };
+  if (isUid(body.uid)) paths.user = `users/${body.uid}`;
+  if (isId(body.postId)) paths.post = `posts/${body.postId}`;
+  if (isId(body.postId) && isId(body.commentId)) paths.comment = `posts/${body.postId}/comments/${body.commentId}`;
+  if (isRoom(body.roomId) && isId(body.messageId)) paths.message = `rooms/${body.roomId}/messages/${body.messageId}`;
+  if (isCommunityId(body.communityId)) paths.community = `communities/${body.communityId}`;
+  if (isId(body.reportId)) paths.report = `reports/${body.reportId}`;
+  const found = await store.getAll(Object.values(paths), [
+    'username', 'name', 'authorUsername', 'senderUsername', 'targetUsername',
+    'body', 'text', 'lesson', 'reason', 'quote',
+  ]);
+  const doc = (k) => (paths[k] ? found.get(paths[k]) : null) ?? null;
+  const post = doc('post');
+  const comment = doc('comment');
+  const message = doc('message');
+  const report = doc('report');
+  return {
+    byUsername: doc('by')?.username,
+    // A deleted account has no profile left; the panel says who it was.
+    username: doc('user')?.username ?? (body.uid ? clip(body.username, 40) : undefined),
+    communityName: doc('community')?.name,
+    author: comment?.authorUsername ?? message?.senderUsername ?? post?.authorUsername ?? report?.targetUsername,
+    snippet: clip(comment?.body ?? message?.text ?? post?.lesson ?? post?.reason ?? report?.quote),
+    reason: report?.reason,
+  };
+}
+
+/** One line of the activity log. Never fails the action it records. */
+async function record(store, caller, body, about, result, now) {
+  const fields = { action: body.action, by: caller, at: now };
+  for (const k of ['uid', 'postId', 'commentId', 'roomId', 'messageId', 'reportId', 'communityId', 'op', 'status']) {
+    if (typeof body[k] === 'string') fields[k] = body[k];
+  }
+  if (typeof body.banned === 'boolean') fields.banned = body.banned;
+  if (body.action === 'broadcast') fields.title = clip(body.bn?.title, 80);
+  for (const [k, v] of Object.entries(about)) if (v !== undefined && v !== null) fields[k] = v;
+  if (result && typeof result === 'object') {
+    for (const k of ['sent', 'phones']) if (typeof result[k] === 'number') fields[k] = result[k];
+  }
+  try {
+    await store.commit([{ create: `adminLog/${crypto.randomUUID()}`, fields }]);
+  } catch (error) {
+    console.warn('activity log failed:', error.message);
   }
 }
 

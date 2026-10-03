@@ -19,7 +19,7 @@ function world() {
     'usernames/ana': { uid: 'uAna' },
 
     'posts/p1': { authorUid: 'uAna', commentCount: 2, claps: 1 },
-    'posts/p1/comments/c1': { authorUid: 'uBo', body: 'nice' },
+    'posts/p1/comments/c1': { authorUid: 'uBo', authorUsername: 'bo', body: 'nice' },
     'posts/p1/comments/c2': { authorUid: 'uAna', body: 'thanks' },
     'posts/p1/claps/uBo': { uid: 'uBo' },
     'posts/p1/views/uBo': { at: 1 },
@@ -162,4 +162,39 @@ test('a broadcast goes to every phone, in each language', async () => {
   assert.deepEqual(docs.get(kept[0]).en, { title: 'New update', body: 'New features are here' });
   assert.equal(docs.get(kept[0]).sentBy, ADMIN);
   await assert.rejects(run(world(), { action: 'broadcast', bn: { title: '', body: 'x' }, en: { title: 'x', body: 'x' } }), (e) => e.status === 400);
+});
+
+test('every change goes in the activity log, saying who did what to whom', async () => {
+  const docs = world();
+  const log = () => [...docs.entries()].filter(([k]) => k.startsWith('adminLog/')).map(([, v]) => v);
+
+  await run(docs, { action: 'whoami' });
+  assert.equal(log().length, 0, 'asking is not a change');
+
+  await run(docs, { action: 'deleteComment', postId: 'p1', commentId: 'c1' });
+  await run(docs, { action: 'ban', uid: 'uAna', banned: true });
+  const [comment, ban] = log();
+  assert.deepEqual(
+    [comment.action, comment.by, comment.byUsername, comment.author, comment.snippet],
+    ['deleteComment', ADMIN, 'boss', 'bo', 'nice'],
+  );
+  assert.deepEqual([ban.action, ban.uid, ban.username, ban.banned], ['ban', 'uAna', 'ana', true]);
+  assert.ok(ban.at instanceof Date);
+
+  // Refused: nothing done, nothing logged.
+  await assert.rejects(run(docs, { action: 'ban', uid: ADMIN, banned: true }));
+  assert.equal(log().length, 2);
+});
+
+test('an account deleted is still named in the log', async () => {
+  const docs = world();
+  await run(docs, { action: 'deleteUser', uid: 'uBo', username: 'bo' });
+  const [entry] = [...docs.entries()].filter(([k]) => k.startsWith('adminLog/')).map(([, v]) => v);
+  assert.equal(entry.username, 'bo');
+});
+
+test('no action by a name that is not one', async () => {
+  for (const action of ['constructor', '__proto__', 'toString']) {
+    await assert.rejects(run(world(), { action }), (e) => e.status === 400);
+  }
 });

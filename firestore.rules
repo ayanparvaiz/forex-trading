@@ -1562,6 +1562,13 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Every change an admin made, written by the worker as it makes it: who,
+    // what, to whom, when. Nobody edits the record, admins included.
+    match /adminLog/{id} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     // --- Lessons ------------------------------------------------------------
     //
     // Course content, published from the repo. Read-only to everyone.
