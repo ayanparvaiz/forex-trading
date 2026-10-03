@@ -20,6 +20,7 @@ export type UserDoc = {
   badgePoints?: number;
   ranked?: boolean;
   banned?: boolean;
+  bannedUntil?: When;
   achievements?: string[];
   weekBoard?: string;
   weekScore?: number;

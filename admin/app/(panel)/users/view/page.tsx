@@ -3,17 +3,18 @@
 import { collection, getDoc, getDocs, doc, limit, query, where } from "firebase/firestore";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { ActivityList } from "@/components/activity";
 import { useAction } from "@/components/feedback";
 import { Avatar, Badge, Button, Card, CommunityPicture, Empty, ErrorNote, Loading, PageHeader, Stat } from "@/components/ui";
 import { activityAbout } from "@/lib/activity";
 import { adminCall } from "@/lib/admin-api";
 import { db } from "@/lib/firebase";
-import { dateLabel, rText, timeAgo, toDate } from "@/lib/format";
+import { dateLabel, dateTime, rText, timeAgo, toDate } from "@/lib/format";
 import { ACHIEVEMENTS, KINDS, REPORT_REASONS } from "@/lib/labels";
 import { rows, type CommunityDoc, type PostDoc, type ReportDoc, type UserDoc } from "@/lib/types";
 import { useLoad } from "@/lib/use-load";
+import { BanDialog, PasswordDialog, ResetDialog, WarnDialog } from "./people-dialogs";
 
 async function load(uid: string) {
   const snap = await getDoc(doc(db, "users", uid));
@@ -40,20 +41,20 @@ function UserView() {
   const router = useRouter();
   const act = useAction();
   const { data, error, loading, reload } = useLoad(() => load(uid), uid);
+  const [dialog, setDialog] = useState<null | "ban" | "password" | "warn" | "reset">(null);
 
   if (loading && !data) return <Loading />;
   if (error) return <ErrorNote error={error} />;
   if (!data) return <Empty title="No such account" hint="It may have been deleted." />;
   const { user: u, posts, reports, community, history } = data;
 
-  const ban = (banned: boolean) =>
+  const lift = () =>
     act(
-      banned
-        ? { title: `Ban @${u.username}?`, body: "They are signed out on every phone and cannot sign in again until you lift the ban. Their posts and messages stay.", action: "Ban", danger: true }
-        : { title: `Lift the ban on @${u.username}?`, body: "They can sign in again.", action: "Lift ban" },
-      () => adminCall("ban", { uid: u.id, banned }),
-      banned ? `@${u.username} is banned.` : `@${u.username} can sign in again.`,
+      { title: `Lift the ban on @${u.username}?`, body: "They can sign in again.", action: "Lift ban" },
+      () => adminCall("ban", { uid: u.id, banned: false }),
+      `@${u.username} can sign in again.`,
     ).then((done) => done && reload());
+  const dialogProps = { user: u, onClose: () => setDialog(null), onDone: () => { setDialog(null); reload(); } };
 
   const remove = () =>
     act(
@@ -79,6 +80,10 @@ function UserView() {
 
   return (
     <>
+      {dialog === "ban" && <BanDialog {...dialogProps} />}
+      {dialog === "password" && <PasswordDialog {...dialogProps} />}
+      {dialog === "warn" && <WarnDialog {...dialogProps} />}
+      {dialog === "reset" && <ResetDialog {...dialogProps} />}
       <Link href="/users/" className="mb-4 inline-block text-sm text-muted hover:text-ink">← All users</Link>
       <div className="mb-6 flex flex-wrap items-center gap-4">
         <Avatar id={u.avatarId} size={64} />
@@ -88,13 +93,16 @@ function UserView() {
             subtitle={
               <span className="flex flex-wrap items-center gap-2">
                 @{u.username} · joined {dateLabel(u.createdAt)} · {u.language === "en" ? "English" : "Bangla"}
-                {u.banned && <Badge tone="bad">Banned</Badge>}
+                {u.banned && <Badge tone="bad">{u.bannedUntil ? `Banned until ${dateTime(u.bannedUntil)}` : "Banned"}</Badge>}
                 {u.ranked && <Badge tone="good">Ranked</Badge>}
               </span>
             }
             actions={
               <>
-                {u.banned ? <Button onClick={() => ban(false)}>Lift ban</Button> : <Button variant="danger" onClick={() => ban(true)}>Ban</Button>}
+                <Button onClick={() => setDialog("warn")}>Warn</Button>
+                <Button onClick={() => setDialog("password")}>Reset password</Button>
+                <Button onClick={() => setDialog("reset")}>Fix name or picture</Button>
+                {u.banned ? <Button onClick={lift}>Lift ban</Button> : <Button variant="danger" onClick={() => setDialog("ban")}>Ban</Button>}
                 <Button variant="danger" onClick={remove}>Delete account</Button>
               </>
             }
