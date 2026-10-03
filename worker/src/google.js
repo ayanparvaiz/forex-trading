@@ -12,6 +12,8 @@ const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const SCOPE = [
   'https://www.googleapis.com/auth/datastore',
   'https://www.googleapis.com/auth/firebase.messaging',
+  // The admin panel bans and deletes sign-ins (worker/src/admin.js).
+  'https://www.googleapis.com/auth/identitytoolkit',
 ].join(' ');
 
 // Clocks disagree by a few seconds; five minutes is what Google's own

@@ -44,6 +44,7 @@ import { eraseAccount } from './erase.js';
 import { sendPush } from './fcm.js';
 import { dailyReminder, eventReminders, forgetOldAnnouncements, notify } from './notify.js';
 import { referenceRates } from './rates.js';
+import { AdminError, adminAction, identityToolkit } from './admin.js';
 
 // The quarter-hourly trigger in wrangler.toml, for event reminders. The
 // other, daily, is the morning one.
@@ -80,6 +81,26 @@ const json = (body, status = 200) =>
     headers: { 'content-type': 'application/json' },
   });
 
+// Where the admin panel is served from; its browser calls /admin from there.
+const ADMIN_ORIGINS = new Set([
+  'https://forex-social-admin.web.app',
+  'https://forex-social-admin.firebaseapp.com',
+  'http://localhost:3000',
+]);
+
+/** [response], readable by the admin panel when it is the one asking. */
+function withCors(request, response) {
+  const origin = request.headers.get('origin');
+  if (!ADMIN_ORIGINS.has(origin)) return response;
+  const headers = new Headers(response.headers);
+  headers.set('access-control-allow-origin', origin);
+  headers.set('access-control-allow-methods', 'POST, OPTIONS');
+  headers.set('access-control-allow-headers', 'authorization, content-type');
+  headers.set('access-control-max-age', '86400');
+  headers.set('vary', 'origin');
+  return new Response(response.body, { status: response.status, headers });
+}
+
 function bearer(request) {
   const header = request.headers.get('authorization') ?? '';
   return header.startsWith('Bearer ') ? header.slice(7).trim() : null;
@@ -115,32 +136,45 @@ const routes = {
   '/delete-account': deleteAccount,
   '/notify': notifyRoute,
   '/community': communityRoute,
+  '/admin': adminRoute,
 };
+
+/** Every route but the admin panel's preflight. */
+async function serve(request, env, ctx) {
+  const url = new URL(request.url);
+
+  if (url.pathname === '/health') return json({ ok: true });
+  if (url.pathname === '/rates' && request.method === 'GET') return rates(ctx);
+  const route = routes[url.pathname];
+  if (!route) return json({ error: 'not found' }, 404);
+  if (request.method !== 'POST') return json({ error: 'method not allowed' }, 405);
+
+  const idToken = bearer(request);
+  if (!idToken) return json({ error: 'sign in first' }, 401);
+
+  let claims;
+  try {
+    claims = await verifyIdTokenClaims(idToken, env.FIREBASE_PROJECT_ID);
+  } catch (error) {
+    // Never echo why: telling a caller which check their forged token
+    // failed is help they should not get.
+    console.warn('rejected token:', error.message);
+    return json({ error: 'sign in first' }, 401);
+  }
+
+  return route(claims, env, request);
+}
 
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-
-    if (url.pathname === '/health') return json({ ok: true });
-    if (url.pathname === '/rates' && request.method === 'GET') return rates(ctx);
-    const route = routes[url.pathname];
-    if (!route) return json({ error: 'not found' }, 404);
-    if (request.method !== 'POST') return json({ error: 'method not allowed' }, 405);
-
-    const idToken = bearer(request);
-    if (!idToken) return json({ error: 'sign in first' }, 401);
-
-    let claims;
-    try {
-      claims = await verifyIdTokenClaims(idToken, env.FIREBASE_PROJECT_ID);
-    } catch (error) {
-      // Never echo why: telling a caller which check their forged token
-      // failed is help they should not get.
-      console.warn('rejected token:', error.message);
-      return json({ error: 'sign in first' }, 401);
+    // The admin panel's browser asks first, then reads the answer: both
+    // need its origin allowed.
+    if (url.pathname === '/admin') {
+      if (request.method === 'OPTIONS') return withCors(request, new Response(null, { status: 204 }));
+      return withCors(request, await serve(request, env, ctx));
     }
-
-    return route(claims, env, request);
+    return serve(request, env, ctx);
   },
 
   // Every morning (wrangler.toml): the day's points are in; and what was
@@ -310,5 +344,32 @@ async function recompute(uid, env) {
     if (error.message === 'no such user') return json({ error: 'no profile' }, 404);
     console.error('recompute failed for', uid, error);
     return json({ error: 'could not update scores' }, 500);
+  }
+}
+
+/**
+ * The admin panel's requests (worker/src/admin.js). {done: false} means call
+ * again, as with deleting an account.
+ */
+async function adminRoute(claims, env, request) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: 'bad request' }, 400);
+  }
+  try {
+    const token = await serviceAccountToken(env);
+    const store = restStore(env.FIREBASE_PROJECT_ID, token, { budget: ERASE_BUDGET });
+    const result = await adminAction(store, {
+      auth: identityToolkit(env.FIREBASE_PROJECT_ID, token),
+      push: (m) => sendPush(env.FIREBASE_PROJECT_ID, token, m),
+    }, claims.sub, body);
+    return json(result);
+  } catch (error) {
+    if (error instanceof TryAgain) return json({ done: false });
+    if (error instanceof AdminError) return json({ error: error.message }, error.status);
+    console.error('admin action failed for', claims.sub, body?.action, error);
+    return json({ error: 'could not do that' }, 500);
   }
 }
