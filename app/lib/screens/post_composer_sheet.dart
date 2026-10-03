@@ -10,6 +10,7 @@ import '../models/community.dart';
 import '../models/instrument.dart';
 import '../models/trade.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_config_host.dart';
 import '../widgets/common.dart';
 import '../widgets/feed_picker.dart';
 
@@ -171,6 +172,8 @@ class _ComposerState extends State<_Composer> {
     final me = session.profile;
     final uid = session.uid;
     if (me == null || uid == null) return;
+    // Refused by the rules anyway; said here first, with the words kept.
+    if (!wordsAllowed(context, '${_lesson.text} ${_reason.text}')) return;
 
     setState(() => _posting = true);
 

@@ -502,6 +502,7 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
               controller: _conversation,
               stars: _stars,
               canSend: canSend,
+              checksWords: true,
               nameOf: (uid, m) {
                 if (uid == _me) return s.you;
                 final name = m?.senderName ?? '';

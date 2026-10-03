@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/session_controller.dart';
 import '../models/trader.dart';
+import 'app_config_host.dart';
 import '../theme/app_theme.dart';
 
 /// What the New post button opens: a post, or a question. The choice, or
@@ -108,7 +109,12 @@ class _QuestionSheetState extends State<QuestionSheet> {
               Gap.h8,
               FilledButton(
                 onPressed: _ready
-                    ? () => Navigator.of(context).pop(_text.text.trim())
+                    ? () {
+                        final question = _text.text.trim();
+                        if (wordsAllowed(context, question)) {
+                          Navigator.of(context).pop(question);
+                        }
+                      }
                     : null,
                 child: Text(s.askQuestion),
               ),

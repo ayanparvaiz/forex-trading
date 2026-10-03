@@ -13,6 +13,7 @@ import 'package:forex_trading/theme/app_theme.dart';
 import 'package:forex_trading/widgets/app_banner.dart';
 import 'package:forex_trading/widgets/app_config_host.dart';
 import 'package:forex_trading/widgets/app_gate.dart';
+import 'package:forex_trading/widgets/question_sheet.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -226,6 +227,27 @@ void main() {
       config.add(AppConfig.fromJson(banner('b2')));
       await tester.pumpAndSettle();
       expect(find.text('News for you'), findsOneWidget);
+    });
+
+    testWidgets('a question with a blocked word is not asked; the app says '
+        'which word', (tester) async {
+      await pump(tester, const Scaffold(body: QuestionSheet()));
+      words.add(const BlockedWords(['t.me/']));
+      await tester.pump();
+      await tester.enterText(
+        find.byType(TextField),
+        'Which group is best? t.me/freesignals',
+      );
+      await tester.pump();
+      await tester.tap(find.widgetWithText(FilledButton, 'Ask a question'));
+      await tester.pumpAndSettle();
+      expect(find.text("This can't be sent"), findsOneWidget);
+      expect(find.textContaining('“t.me/”'), findsOneWidget);
+      // Still here, words and all.
+      expect(
+        find.text('Which group is best? t.me/freesignals'),
+        findsOneWidget,
+      );
     });
   });
 }
