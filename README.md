@@ -71,6 +71,7 @@
 | Backend | Firebase — Auth, Firestore, Cloud Functions |
 | Market data | [Twelve Data](https://twelvedata.com/forex) free tier (forex OHLC) |
 | Charts | Custom `CustomPainter` — no chart dependency |
+| Admin panel | Next.js, static export on Firebase Hosting — [`admin/`](admin/) |
 
 ### চালাতে
 
@@ -81,6 +82,11 @@ flutter run
 ```
 
 বর্তমানে UI প্রোটোটাইপ মক ডেটা দিয়ে চলে — Firebase বা API key ছাড়াই রান করবে।
+
+### অ্যাডমিন প্যানেল
+
+ইউজার, রিপোর্ট, ফিড, কমিউনিটি, চ্যাট রুম, লিডারবোর্ড আর ঘোষণা — সব এক জায়গা থেকে:
+https://forex-social-admin.web.app । কীভাবে চালাবেন আর কাকে অ্যাডমিন করবেন, [`admin/README.md`](admin/README.md) এ আছে।
 
 ---
 
