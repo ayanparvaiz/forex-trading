@@ -2,8 +2,8 @@ import '../i18n/strings.dart';
 
 /// When these documents last changed. Shown at the top of each, and stored
 /// on a new account as the version it agreed to.
-const legalUpdated = '26 September 2026';
-const legalUpdatedBn = '২৬ সেপ্টেম্বর ২০২৬';
+const legalUpdated = '4 October 2026';
+const legalUpdatedBn = '৪ অক্টোবর ২০২৬';
 const termsVersion = '2026-09-26';
 
 /// A document is a title, an introduction and numbered sections. A line
@@ -54,14 +54,19 @@ const _privacyEn = LegalDocument(
           'gender (or "prefer not to say"), language and the avatar you pick.',
       'We do not ask for your email address, phone number, date of birth, '
           'location, contacts or photos. Your password is handled by Firebase '
-          'Authentication and stored only as a secure hash — we never see it.',
+          'Authentication and stored only as a secure hash — we never see it. '
+          'The one exception is yours to choose: if you are locked out and ask '
+          'the admins for a new password, you give them a way to reach you — a '
+          'phone number, email or social profile — which is removed once your '
+          'request is dealt with.',
       'What you do in the app:',
       '• Demo trades — the pair, direction, size, prices, times, your reason '
           'and your lesson — and the rule checks recorded on them.',
       '• Scores worked out from those trades: discipline score, badge points, '
           'trade count, total R, win rate and journal streak.',
       '• What you share: posts, comments, likes, connection requests and '
-          'connections, messages, reports and blocks.',
+          'connections, messages, reports and blocks, and what you write to '
+          'the admins.',
       '• Activity: when you were last active, whether you are typing in a '
           'conversation, when you last opened a conversation (for read '
           'ticks), and whose profiles you viewed.',
@@ -94,6 +99,8 @@ const _privacyEn = LegalDocument(
           'description, members and points, and which community you are in. '
           "Its feed and its chat can be read only by its members.",
       '• Reports: the people who moderate the app.',
+      '• What you write to the admins, and a request for a new password: '
+          'the admins.',
     ]),
     LegalSection('4. Where it is stored', [
       'Your data is stored with Google Firebase (Authentication and Cloud '
@@ -122,8 +129,8 @@ const _privacyEn = LegalDocument(
           'deletes your profile, trades and scores, posts, comments and likes, '
           'connections, notifications, profile-view records, your '
           'conversations — for both people in them — your messages in the '
-          'Global chat and in community chats, and your place in your '
-          'community. A community you started is deleted too — its chat and '
+          'Global chat and in community chats, what you wrote to the admins, '
+          'any request for a new password, and your place in your community. A community you started is deleted too — its chat and '
           'posts with it — and everyone in it leaves. It cannot be undone. '
           'Your '
           'username is retired: it is linked to nothing any more, and nobody, '
@@ -156,14 +163,17 @@ const _privacyBn = LegalDocument(
           '"বলতে চাই না"), ভাষা আর আপনার বেছে নেওয়া অ্যাভাটার।',
       'আমরা ইমেইল, ফোন নম্বর, জন্মতারিখ, লোকেশন, কন্টাক্ট বা ছবি চাই না। '
           'পাসওয়ার্ড Firebase Authentication সামলায় এবং শুধু নিরাপদ হ্যাশ '
-          'হিসেবে রাখে — আমরা কখনো সেটা দেখি না।',
+          'হিসেবে রাখে — আমরা কখনো সেটা দেখি না। একমাত্র ব্যতিক্রম আপনার '
+          'ইচ্ছায়: অ্যাকাউন্টে ঢুকতে না পেরে অ্যাডমিনদের কাছে নতুন পাসওয়ার্ড '
+          'চাইলে যোগাযোগের একটা উপায় দেন — ফোন নম্বর, ইমেইল বা সোশ্যাল '
+          'প্রোফাইল — যা অনুরোধের কাজ শেষ হলে মুছে ফেলা হয়।',
       'অ্যাপে আপনি যা করেন:',
       '• ডেমো ট্রেড — পেয়ার, দিক, সাইজ, দাম, সময়, আপনার কারণ আর শিক্ষা — '
           'এবং সেগুলোর ওপর নিয়ম-ভাঙার হিসাব।',
       '• সেই ট্রেড থেকে হিসাব করা স্কোর: ডিসিপ্লিন স্কোর, ব্যাজ পয়েন্ট, '
           'ট্রেডের সংখ্যা, মোট R, জেতার হার আর জার্নাল স্ট্রিক।',
       '• আপনি যা শেয়ার করেন: পোস্ট, কমেন্ট, লাইক, কানেকশন রিকোয়েস্ট ও '
-          'কানেকশন, মেসেজ, রিপোর্ট আর ব্লক।',
+          'কানেকশন, মেসেজ, রিপোর্ট আর ব্লক, আর অ্যাডমিনদের যা লেখেন।',
       '• অ্যাক্টিভিটি: শেষ কখন অ্যাক্টিভ ছিলেন, চ্যাটে লিখছেন কি না, শেষ কখন '
           'চ্যাট খুলেছেন (রিড টিকের জন্য), আর কার প্রোফাইল দেখেছেন।',
       'কিছু পছন্দ — কোন পোস্ট আগে দেখেছেন, কোন নোটিশ বন্ধ করেছেন — আপনার '
@@ -194,6 +204,7 @@ const _privacyBn = LegalDocument(
           'আর আপনি কোন কমিউনিটিতে আছেন তা দেখতে পারেন। এর ফিড আর চ্যাট শুধু '
           'সদস্যরাই পড়তে পারেন।',
       '• রিপোর্ট: যাঁরা অ্যাপটা মডারেট করেন।',
+      '• অ্যাডমিনদের যা লেখেন, আর নতুন পাসওয়ার্ডের অনুরোধ: অ্যাডমিনরা।',
     ]),
     LegalSection('৪. কোথায় রাখা হয়', [
       'আপনার তথ্য Google Firebase-এ (Authentication আর Cloud Firestore) '
@@ -221,8 +232,9 @@ const _privacyBn = LegalDocument(
       '• সেটিংস → অ্যাকাউন্ট ডিলিট থেকে অ্যাকাউন্ট মুছতে পারেন। এতে আপনার '
           'প্রোফাইল, ট্রেড ও স্কোর, পোস্ট, কমেন্ট ও লাইক, কানেকশন, '
           'নোটিফিকেশন, প্রোফাইল-ভিজিটের রেকর্ড, আপনার চ্যাটগুলো — দুজনের '
-          'জন্যই — গ্লোবাল চ্যাট আর কমিউনিটি চ্যাটে আপনার মেসেজ, আর আপনার '
-          'কমিউনিটির সদস্যপদ চিরতরে মুছে যায়। আপনার খোলা কমিউনিটিও এর চ্যাট আর '
+          'জন্যই — গ্লোবাল চ্যাট আর কমিউনিটি চ্যাটে আপনার মেসেজ, অ্যাডমিনদের '
+          'যা লিখেছেন, নতুন পাসওয়ার্ডের কোনো অনুরোধ, আর আপনার কমিউনিটির '
+          'সদস্যপদ চিরতরে মুছে যায়। আপনার খোলা কমিউনিটিও এর চ্যাট আর '
           'পোস্টসহ মুছে যায়, আর এর সবাই বের হয়ে যান। এটা আর ফেরানো যায় না। '
           'আপনার ইউজারনেম '
           'অবসরে যায়: এটা আর কিছুর সাথে যুক্ত থাকে না, আর আপনিসহ কেউ এটা আবার '
@@ -270,9 +282,10 @@ const _termsEn = LegalDocument(
     ]),
     LegalSection('3. Your account', [
       'Keep your password safe and do not share it. The app does not collect '
-          'an email address or phone number, so there is no password '
-          'recovery: if you forget your password, the account cannot be '
-          'recovered. Your username cannot be changed.',
+          'an email address or phone number, so it cannot reset a password by '
+          'itself: if you forget yours, ask the admins from the sign-in '
+          'screen, and they set a new one only once they are sure it is you. '
+          'Your username cannot be changed.',
     ]),
     LegalSection('4. Community rules', [
       'There is no tolerance for objectionable content or abusive users. Do '
@@ -345,8 +358,9 @@ const _termsBn = LegalDocument(
     ]),
     LegalSection('৩. আপনার অ্যাকাউন্ট', [
       'পাসওয়ার্ড নিরাপদে রাখুন, কাউকে দেবেন না। অ্যাপ কোনো ইমেইল বা ফোন '
-          'নম্বর নেয় না, তাই পাসওয়ার্ড রিকভারির উপায় নেই: পাসওয়ার্ড ভুলে গেলে '
-          'অ্যাকাউন্ট আর ফেরানো যাবে না। ইউজারনেম বদলানো যায় না।',
+          'নম্বর নেয় না, তাই নিজে থেকে পাসওয়ার্ড রিসেট করতে পারে না: ভুলে গেলে '
+          'লগইন স্ক্রিন থেকে অ্যাডমিনদের জানান — আপনিই যে চাইছেন তা নিশ্চিত '
+          'হয়ে তাঁরা নতুন একটা দেবেন। ইউজারনেম বদলানো যায় না।',
     ]),
     LegalSection('৪. কমিউনিটির নিয়ম', [
       'আপত্তিকর কনটেন্ট বা হয়রানিকারী ইউজারের প্রতি কোনো ছাড় নেই। এমন কিছু '
