@@ -14,6 +14,7 @@ import { rows, type CommunityDoc, type When } from "@/lib/types";
 import { useSession } from "@/lib/session";
 import { useLoad } from "@/lib/use-load";
 import { EditDialog } from "./edit-dialog";
+import { EventDialog } from "./event-dialog";
 
 type Member = { id: string; role: string; username: string; joinedAt?: When };
 type Event = { id: string; title: string; description?: string; startsAt?: When; going?: string[] };
@@ -41,6 +42,7 @@ function CommunityView() {
   const act = useAction();
   const { data, error, loading, reload } = useLoad(() => load(id), id);
   const [editing, setEditing] = useState(false);
+  const [planning, setPlanning] = useState(false);
   const { can } = useSession();
 
   if (loading && !data) return <Loading />;
@@ -72,6 +74,13 @@ function CommunityView() {
       `@${m.username} runs ${c.name} now.`,
     ).then((ok) => ok && reload());
 
+  const dropEvent = (e: Event) =>
+    act(
+      { title: `Take down “${e.title}”?`, body: "It goes from the community, with who said they were going.", action: "Take down", danger: true },
+      () => adminCall("event", { communityId: c.id, op: "delete", eventId: e.id }),
+      "Event taken down.",
+    ).then((ok) => ok && reload());
+
   const destroy = () =>
     act(
       { title: `Delete ${c.name}?`, body: `All ${c.memberCount ?? 0} members leave it. Its chat, feed posts, events and name go too. This cannot be undone.`, action: "Delete community", danger: true },
@@ -81,6 +90,7 @@ function CommunityView() {
 
   return (
     <>
+      {planning && <EventDialog c={c} onClose={() => setPlanning(false)} onDone={() => { setPlanning(false); reload(); }} />}
       {editing && <EditDialog c={c} onClose={() => setEditing(false)} onDone={() => { setEditing(false); reload(); }} />}
       <Link href="/communities/" className="mb-4 inline-block text-sm text-muted hover:text-ink">← All communities</Link>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -166,15 +176,18 @@ function CommunityView() {
               <p className="text-sm text-muted">No rules written.</p>
             )}
           </Card>
-          <Card title="Events" flush>
+          <Card title="Events" flush actions={can("event") && <Button size="sm" onClick={() => setPlanning(true)}>New event</Button>}>
             {events.length === 0 ? (
               <Empty title="No events" />
             ) : (
               <ul className="divide-y divide-line-soft">
                 {events.map((e) => (
-                  <li key={e.id} className="px-5 py-3">
-                    <div className="text-sm font-medium text-ink-strong">{e.title}</div>
-                    <div className="text-xs text-muted">{dateTime(e.startsAt)} · {(e.going ?? []).length} going · {timeAgo(e.startsAt)}</div>
+                  <li key={e.id} className="flex items-start gap-3 px-5 py-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium break-words text-ink-strong">{e.title}</div>
+                      <div className="text-xs text-muted">{dateTime(e.startsAt)} · {(e.going ?? []).length} going · {timeAgo(e.startsAt)}</div>
+                    </div>
+                    {can("event") && <Button size="sm" variant="ghost" onClick={() => dropEvent(e)}>Take down</Button>}
                   </li>
                 ))}
               </ul>

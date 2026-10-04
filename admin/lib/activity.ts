@@ -109,6 +109,10 @@ export function sentence(e: LogEntry): string {
       return "cancelled a scheduled announcement";
     case "alerts":
       return `turned ${e.what ?? "report alerts"}`;
+    case "event":
+      return e.op === "delete"
+        ? `took down an event in ${e.communityName ?? "a community"}`
+        : `planned “${e.title ?? ""}” in ${e.communityName ?? "a community"}`;
     case "purge":
       return `removed everything ${who(e.username)} posted`;
     case "removeAdmin":
@@ -129,7 +133,7 @@ export function area(action: string): string {
   if (["ban", "liftBan", "deleteUser", "setPassword", "warn", "resetProfile", "purge"].includes(action)) return "People";
   if (["deletePost", "deleteComment", "removeMessage", "pin", "autoHide", "unhide"].includes(action)) return "Content";
   if (action === "resolveReport") return "Reports";
-  if (action === "community") return "Communities";
+  if (action === "community" || action === "event") return "Communities";
   if (["broadcast", "schedule", "cancelScheduled"].includes(action)) return "Announcements";
   return "Admins & settings";
 }
