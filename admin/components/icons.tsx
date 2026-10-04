@@ -63,4 +63,7 @@ export const Icons = {
   download: () => (
     <svg {...base}><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19h14" /></svg>
   ),
+  inbox: () => (
+    <svg {...base}><path d="M3 13l2.5-8h13L21 13v6H3z" /><path d="M3 13h5l1.5 2.5h5L16 13h5" /></svg>
+  ),
 };

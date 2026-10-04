@@ -113,6 +113,14 @@ export function sentence(e: LogEntry): string {
       return e.op === "delete"
         ? `took down an event in ${e.communityName ?? "a community"}`
         : `planned “${e.title ?? ""}” in ${e.communityName ?? "a community"}`;
+    case "reply":
+      return `answered ${who(e.username)}'s message`;
+    case "closeSupport":
+      return `put away ${who(e.username)}'s message`;
+    case "help":
+      return `${e.what === "dismissed" ? "dismissed" : "dealt with"} ${who(e.username)}'s password request`;
+    case "switches":
+      return `turned ${e.what ?? "switches"}`;
     case "purge":
       return `removed everything ${who(e.username)} posted`;
     case "removeAdmin":
@@ -130,7 +138,7 @@ export function sentence(e: LogEntry): string {
 
 /** Which filter a log line belongs under. */
 export function area(action: string): string {
-  if (["ban", "liftBan", "deleteUser", "setPassword", "warn", "resetProfile", "purge"].includes(action)) return "People";
+  if (["ban", "liftBan", "deleteUser", "setPassword", "warn", "resetProfile", "purge", "reply", "closeSupport", "help"].includes(action)) return "People";
   if (["deletePost", "deleteComment", "removeMessage", "pin", "autoHide", "unhide"].includes(action)) return "Content";
   if (action === "resolveReport") return "Reports";
   if (action === "community" || action === "event") return "Communities";

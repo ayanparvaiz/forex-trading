@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useIdleSignOut } from "@/lib/idle";
-import { useOpenReports } from "@/lib/live";
+import { useOpenHelp, useOpenReports } from "@/lib/live";
 import { ROLE_LABEL } from "@/lib/roles";
 import { useSession } from "@/lib/session";
 import { Icons } from "./icons";
@@ -21,6 +21,7 @@ const NAV: { group?: string; items: { href: string; label: string; icon: () => R
       { href: "/reports/", label: "Reports", icon: Icons.flag },
       { href: "/feed/", label: "Feed", icon: Icons.feed },
       { href: "/rooms/", label: "Chat rooms", icon: Icons.chat },
+      { href: "/help/", label: "Help inbox", icon: Icons.inbox, needs: "reply" },
     ],
   },
   {
@@ -69,6 +70,8 @@ function Nav({ onPick }: { onPick?: () => void }) {
   const path = usePathname();
   const openReports = useOpenReports();
   const { can } = useSession();
+  const openHelp = useOpenHelp(can("reply"));
+  const waiting: Record<string, number | null> = { "/reports/": openReports, "/help/": openHelp };
   return (
     <nav className="flex flex-col gap-4">
       {NAV.map(({ group, items: all }, i) => {
@@ -88,9 +91,9 @@ function Nav({ onPick }: { onPick?: () => void }) {
             >
               <Icon />
               <span className="flex-1">{label}</span>
-              {href === "/reports/" && openReports ? (
-                <span className="tabular min-w-5 rounded-full bg-bad px-1.5 text-center text-[11px] leading-5 font-semibold text-white" aria-label={`${openReports} open`}>
-                  {openReports}
+              {waiting[href] ? (
+                <span className="tabular min-w-5 rounded-full bg-bad px-1.5 text-center text-[11px] leading-5 font-semibold text-white" aria-label={`${waiting[href]} waiting`}>
+                  {waiting[href]}
                 </span>
               ) : null}
             </Link>

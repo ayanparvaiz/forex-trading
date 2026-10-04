@@ -37,6 +37,7 @@ async function load() {
     pinned: pinned?.exists() ? ({ id: pinned.id, ...pinned.data() } as PostDoc) : null,
     // As the worker reads it (worker/src/admin-cron.js, AUTO_HIDE_AT).
     autoHideAt: typeof hideAt === "number" ? hideAt : 3,
+    off: (moderation.data()?.off ?? {}) as Record<string, boolean>,
   };
 }
 
@@ -169,6 +170,47 @@ function Banner({ config, onSaved }: { config: AppConfig; onSaved: () => void })
   );
 }
 
+// As the rules name them (firestore.rules, featureOn).
+const SWITCHES = [
+  { id: "globalChat", label: "Global chat", hint: "Messages in Global" },
+  { id: "communityChats", label: "Community chats", hint: "Messages in every community's chat" },
+  { id: "posting", label: "Posting", hint: "New posts and questions, in Global and communities" },
+  { id: "comments", label: "Comments", hint: "New comments on posts" },
+  { id: "privateChats", label: "Private chats", hint: "New messages between two people" },
+] as const;
+
+function Switches({ off, onSaved }: { off: Record<string, boolean>; onSaved: () => void }) {
+  const act = useAction();
+  const flip = (id: string, label: string, turnOff: boolean) =>
+    act(
+      turnOff
+        ? { title: `Turn off ${label.toLowerCase()}?`, body: "Nobody can send new ones until you turn it on again; the app tells them the admins have paused it. Everything already there stays readable.", action: "Turn off", danger: true }
+        : null,
+      () => adminCall("switches", { off: { [id]: turnOff } }),
+      turnOff ? `${label} is off.` : `${label} is on again.`,
+    ).then((ok) => ok && onSaved());
+  const anyOff = SWITCHES.some((s) => off[s.id]);
+  return (
+    <Card title={<span className="flex items-center gap-2">Switches {anyOff ? <Badge tone="warn">Something is off</Badge> : <Badge tone="good">All on</Badge>}</span>}>
+      <p className="text-sm text-muted">For a spam wave or a problem being fixed: stop new messages, posts or comments for a while. The rules enforce it, whatever app version people have.</p>
+      <ul className="mt-4 divide-y divide-line-soft">
+        {SWITCHES.map((sw) => {
+          const on = !off[sw.id];
+          return (
+            <li key={sw.id} className="flex items-center justify-between gap-4 py-3">
+              <span className="min-w-0">
+                <span className="block text-sm font-medium text-ink-strong">{sw.label}</span>
+                <span className="block text-xs text-muted">{sw.hint}</span>
+              </span>
+              <Switch on={on} label={sw.label} onChange={(next) => flip(sw.id, sw.label, !next)} />
+            </li>
+          );
+        })}
+      </ul>
+    </Card>
+  );
+}
+
 function ReportedPosts({ at, onSaved }: { at: number; onSaved: () => void }) {
   const act = useAction();
   const pick = (n: number) =>
@@ -225,6 +267,7 @@ function SettingsPage() {
           <Maintenance config={data.config} onSaved={reload} />
           <Banner config={data.config} onSaved={reload} />
           <ForceUpdate config={data.config} onSaved={reload} />
+          <Switches off={data.off} onSaved={reload} />
           <ReportedPosts at={data.autoHideAt} onSaved={reload} />
           <Pinned post={data.pinned} onSaved={reload} />
         </div>
