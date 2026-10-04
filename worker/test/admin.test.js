@@ -491,3 +491,17 @@ test("a community's event, planned for it in its admin's name, its members told;
   await run(docs, { action: 'event', communityId: 'bulls1', op: 'delete', eventId: result.eventId });
   assert.equal(docs.has(`communities/bulls1/events/${result.eventId}`), false);
 });
+
+test('a message to the admins answered, its writer told on their phone; or put away', async () => {
+  const docs = world();
+  docs.set('support/s1', { uid: 'uAna', username: 'ana', text: 'How do I reset my journal?', status: 'open' });
+  const { result, calls } = await run(docs, { action: 'reply', id: 's1', text: '  Settings → Journal → Start over. ' });
+  const s1 = docs.get('support/s1');
+  assert.deepEqual([s1.reply, s1.status, s1.repliedBy], ['Settings → Journal → Start over.', 'answered', ADMIN]);
+  assert.equal(result.phones, 1);
+  assert.deepEqual(calls.filter((c) => c[0] === 'push')[0].slice(1, 3), ['tokAna', 'The admins replied']);
+  assert.equal(logOf(docs)[0].username, 'ana');
+  await run(docs, { action: 'closeSupport', id: 's1' });
+  assert.equal(docs.get('support/s1').status, 'closed');
+  await assert.rejects(run(docs, { action: 'reply', id: 'gone', text: 'x' }), (e) => e.status === 404);
+});

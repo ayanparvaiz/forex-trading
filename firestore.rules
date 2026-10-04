@@ -1608,6 +1608,25 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // What people write to the admins from the app, and the admins' answer
+    // (written by the worker, worker/src/admin.js). Each person sees their
+    // own; owners and admins see them all.
+    match /support/{id} {
+      allow read: if isSignedIn()
+        && (resource.data.uid == request.auth.uid || isFullAdmin());
+      allow create: if isSignedIn()
+        && request.resource.data.keys().hasOnly(['uid', 'username', 'text', 'createdAt', 'status'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.username
+             == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.username
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 1000
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.status == 'open';
+      allow update, delete: if false;
+    }
+
     // People locked out asking for a new password, with how to reach them
     // (worker/src/help.js). Only owners and admins, who can set one, see them.
     match /helpRequests/{id} {

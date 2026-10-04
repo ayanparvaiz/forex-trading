@@ -105,6 +105,8 @@ const ACTIONS = {
   cancelScheduled: ({ store, body }) => cancelScheduled(store, body),
   event: ({ store, push, body, now }) => communityEvent(store, push, body, now),
   help: ({ store, caller, body, now }) => settleHelp(store, caller, body, now),
+  reply: ({ store, push, caller, body, now }) => reply(store, push, caller, body, now),
+  closeSupport: ({ store, caller, body, now }) => closeSupport(store, caller, body, now),
   blockedWords: ({ store, caller, body, now }) => blockedWords(store, caller, body, now),
   removeAdmin: ({ store, caller, body }) => removeAdmin(store, caller, body),
   deleteUser: ({ store, auth, caller, body }) => deleteUser(store, auth, caller, body),
@@ -172,6 +174,7 @@ async function record(store, caller, body, about, result, now) {
   // The admin's own words: why they banned, what they warned about.
   if (typeof body.reason === 'string' && body.reason.trim()) fields.reason = clip(body.reason, 200);
   if (typeof body.message === 'string') fields.snippet = clip(body.message, 300);
+  if (body.action === 'reply' && typeof body.text === 'string') fields.snippet = clip(body.text, 300);
   if (result && typeof result === 'object') {
     for (const k of ['sent', 'phones']) if (typeof result[k] === 'number') fields[k] = result[k];
     for (const k of ['uid', 'username', 'what']) if (typeof result[k] === 'string' && !fields[k]) fields[k] = result[k];
@@ -451,6 +454,45 @@ async function settleHelp(store, caller, { id, status }, now) {
   if (!request) throw new AdminError(404, 'no such request');
   await store.commit([{ patch: path, fields: { status, handledBy: caller, handledAt: now } }]);
   return { done: true, uid: request.uid, username: request.username, what: status };
+}
+
+const REPLY_TITLE = { bn: 'অ্যাডমিনদের উত্তর', en: 'The admins replied' };
+
+/**
+ * An answer to what someone wrote to the admins (support/{id}, from the
+ * app), kept with it, and sent to their phones; tapping it opens their
+ * messages to the admins.
+ */
+async function reply(store, push, caller, { id, text }, now) {
+  if (!isId(id) || typeof text !== 'string' || !text.trim() || text.length > 1000) throw bad();
+  const path = `support/${id}`;
+  const message = await store.get(path, ['uid', 'username']);
+  if (!message) throw new AdminError(404, 'no such message');
+  await store.commit([{
+    patch: path,
+    fields: { reply: text.trim(), repliedBy: caller, repliedAt: now, status: 'answered' },
+  }]);
+  let phones = 0;
+  if (isUid(message.uid)) {
+    const devices = await devicesOf(store, [message.uid]);
+    ({ sent: phones } = await deliver(store, push, devices, (d) => pushMessage({
+      token: d.token,
+      title: REPLY_TITLE[d.language] ?? REPLY_TITLE.bn,
+      body: text.trim().replace(/\s+/g, ' ').slice(0, 150),
+      data: { type: 'support' },
+    })));
+  }
+  return { done: true, uid: message.uid, username: message.username, phones };
+}
+
+/** A message to the admins put away, answered or not. */
+async function closeSupport(store, caller, { id }, now) {
+  if (!isId(id)) throw bad();
+  const path = `support/${id}`;
+  const message = await store.get(path, ['uid', 'username']);
+  if (!message) throw new AdminError(404, 'no such message');
+  await store.commit([{ patch: path, fields: { status: 'closed', closedBy: caller, closedAt: now } }]);
+  return { done: true, uid: message.uid, username: message.username };
 }
 
 const EVENT_AHEAD_MS = 90 * DAY_MS;

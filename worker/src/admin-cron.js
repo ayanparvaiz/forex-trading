@@ -9,14 +9,48 @@ import { pushMessage } from './fcm.js';
 import { deliver, devicesOf } from './notify.js';
 
 const ALERT_TEXT = {
-  bn: { title: 'নতুন রিপোর্ট', body: (n) => `অ্যাডমিন প্যানেলে ${n}টা নতুন রিপোর্ট অপেক্ষা করছে।` },
-  en: { title: 'New reports', body: (n) => `${n} new report${n === 1 ? ' is' : 's are'} waiting in the admin panel.` },
+  bn: {
+    title: 'অ্যাডমিন প্যানেলে নতুন',
+    parts: { reports: (n) => `${n}টা রিপোর্ট`, support: (n) => `${n}টা মেসেজ`, help: (n) => `${n}টা পাসওয়ার্ডের অনুরোধ` },
+    body: (list) => `${list.join(', ')} অপেক্ষা করছে।`,
+  },
+  en: {
+    title: 'New in the admin panel',
+    parts: {
+      reports: (n) => `${n} report${n === 1 ? '' : 's'}`,
+      support: (n) => `${n} message${n === 1 ? '' : 's'}`,
+      help: (n) => `${n} password request${n === 1 ? '' : 's'}`,
+    },
+    body: (list) => `${list.join(', ')} waiting.`,
+  },
 };
 
+/** What came in since [since]: reports, messages to the admins, password requests. */
+async function newSince(store, since) {
+  const counts = {};
+  let newest = since.getTime();
+  for (const [kind, collection] of [['reports', 'reports'], ['support', 'support'], ['help', 'helpRequests']]) {
+    const rows = await store.find({
+      collection,
+      field: 'createdAt',
+      op: '>=',
+      value: new Date(since.getTime() + 1),
+      limit: 100,
+      fields: ['createdAt', 'status'],
+    });
+    for (const r of rows) {
+      if (r.data.createdAt instanceof Date) newest = Math.max(newest, r.data.createdAt.getTime());
+    }
+    counts[kind] = rows.filter((r) => r.data.status === 'open').length;
+  }
+  return { counts, newest: new Date(newest) };
+}
+
 /**
- * New reports since the last look, to the phones of every admin who wants
- * to hear (admins/{uid}.alerts is not false). The first run only marks
- * where to start from, so nobody is told about old ones.
+ * New reports — and messages to the admins, and password requests — since
+ * the last look, to the phones of every admin who wants to hear
+ * (admins/{uid}.alerts is not false). The first run only marks where to
+ * start from, so nobody is told about old ones.
  */
 export async function reportAlerts(store, push, now = new Date()) {
   const state = await store.get('config/alerts', ['lastReportAt']);
@@ -25,18 +59,10 @@ export async function reportAlerts(store, push, now = new Date()) {
     await store.commit([{ upsert: 'config/alerts', fields: { lastReportAt: now } }]);
     return { sent: 0 };
   }
-  const fresh = await store.find({
-    collection: 'reports',
-    field: 'createdAt',
-    op: '>=',
-    value: new Date(since.getTime() + 1),
-    limit: 100,
-    fields: ['createdAt', 'status'],
-  });
-  if (!fresh.length) return { sent: 0 };
-  const newest = new Date(Math.max(...fresh.map((r) => (r.data.createdAt instanceof Date ? r.data.createdAt.getTime() : 0))));
+  const { counts, newest } = await newSince(store, since);
+  if (newest.getTime() === since.getTime()) return { sent: 0 };
   await store.commit([{ upsert: 'config/alerts', fields: { lastReportAt: newest } }]);
-  const open = fresh.filter((r) => r.data.status === 'open').length;
+  const open = counts.reports + counts.support + counts.help;
   if (!open) return { sent: 0 };
 
   const admins = (await store.find({ collection: 'admins', limit: 50, fields: ['alerts'] }))
@@ -47,9 +73,10 @@ export async function reportAlerts(store, push, now = new Date()) {
   // A handful of phones: this shares its run with other work.
   const { sent } = await deliver(store, push, devices, (d) => {
     const t = ALERT_TEXT[d.language] ?? ALERT_TEXT.bn;
-    return pushMessage({ token: d.token, title: t.title, body: t.body(open), data: { type: 'adminReports' } });
+    const list = Object.entries(counts).filter(([, n]) => n > 0).map(([k, n]) => t.parts[k](n));
+    return pushMessage({ token: d.token, title: t.title, body: t.body(list), data: { type: 'adminReports' } });
   }, 5);
-  return { sent, reports: open };
+  return { sent, ...counts };
 }
 
 /** How many people reporting one post hides it, unless the admins set it. */

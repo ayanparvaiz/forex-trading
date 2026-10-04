@@ -43,8 +43,10 @@ test('new reports reach the admins who want to hear, once', async () => {
   docs.set(...report('r1', 'a', 'p1', later(2)));
   docs.set(...report('r2', 'b', 'p1', later(3)));
   docs.set(...report('r3', 'c', 'p1', later(4), 'dismissed'));
-  assert.deepEqual(await reportAlerts(memoryStore(docs), push, later(15)), { sent: 1, reports: 2 });
-  assert.deepEqual(sent, [['tokOwner', 'New reports', '2 new reports are waiting in the admin panel.']]);
+  docs.set('support/s1', { uid: 'uAna', text: 'hello', createdAt: later(5), status: 'open' });
+  docs.set('helpRequests/pw_uAna', { uid: 'uAna', createdAt: later(6), status: 'open' });
+  assert.deepEqual(await reportAlerts(memoryStore(docs), push, later(15)), { sent: 1, reports: 2, support: 1, help: 1 });
+  assert.deepEqual(sent, [['tokOwner', 'New in the admin panel', '2 reports, 1 message, 1 password request waiting.']]);
 
   // Nothing new: nothing sent.
   assert.deepEqual(await reportAlerts(memoryStore(docs), push, later(30)), { sent: 0 });

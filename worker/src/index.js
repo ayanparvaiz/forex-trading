@@ -407,8 +407,8 @@ async function adminRun(env, token, push) {
       }, by, body, now);
       return sendScheduled(store, send, now);
     },
-    alerts: () => reportAlerts(restStore(project, token, { budget: 6 }), push, now),
-    hidden: () => autoHideReported(restStore(project, token, { budget: 6 }), now),
+    alerts: () => reportAlerts(restStore(project, token, { budget: 8 }), push, now),
+    hidden: () => autoHideReported(restStore(project, token, { budget: 4 }), now, 1),
   };
   for (const [name, job] of Object.entries(jobs)) {
     try {
