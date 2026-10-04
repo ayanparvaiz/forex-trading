@@ -409,3 +409,24 @@ test('blocked words: a clean list, and one pattern that finds any of them anywhe
   await assert.rejects(run(docs, { action: 'blockedWords', words: ['x'] }), (e) => e.status === 400);
   await assert.rejects(run(docs, { action: 'blockedWords', words: Array.from({ length: 101 }, (_, i) => `word${i}`) }), (e) => e.status === 400);
 });
+
+test("a spammer cleaned out: posts, comments, room messages — not their private chats, nor the account", async () => {
+  const docs = world();
+  docs.set('rooms/c_bulls1/messages/m3', { senderUid: 'uBo', text: 'join my vip group', sentAt: 3 });
+  docs.set('rooms/c_bulls1', { ...docs.get('rooms/c_bulls1'), lastMessage: { id: 'm3', senderUid: 'uBo', text: 'join my vip group' } });
+  docs.set('chats/uAna-uBo/messages/d1', { senderUid: 'uBo', text: 'hi' });
+
+  await run(docs, { action: 'purge', uid: 'uBo' });
+  for (const gone of ['posts/p2', 'posts/p3', 'posts/p1/comments/c1', 'rooms/global/messages/m1', 'rooms/c_bulls1/messages/m3']) {
+    assert.equal(docs.has(gone), false, gone);
+  }
+  for (const kept of ['users/uBo', 'posts/p1', 'posts/p1/comments/c2', 'rooms/global/messages/m2', 'chats/uAna-uBo/messages/d1', 'communities/bulls1/members/uBo']) {
+    assert.ok(docs.has(kept), kept);
+  }
+  assert.equal(docs.get('posts/p1').commentCount, 1);
+  assert.equal(docs.get('rooms/c_bulls1').lastMessage, null, 'the preview no longer shows what was removed');
+  assert.equal(docs.get('rooms/global').lastMessage.id, 'm2', 'nor touches one that was not theirs');
+  assert.equal(logOf(docs).at(-1).action, 'purge');
+
+  await assert.rejects(run(docs, { action: 'purge', uid: 'uOther' }), (e) => e.status === 400);
+});

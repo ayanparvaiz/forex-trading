@@ -6,10 +6,10 @@
 // POST /admin  { action, ... }  with the admin's Firebase ID token.
 
 import { deleteCommunity, isCommunityId, removeMember } from './community.js';
-import { eraseAccount } from './erase.js';
+import { eraseAccount, eraseMessagesInRoom, eraseOnOthersPosts } from './erase.js';
 import { pushMessage } from './fcm.js';
 import { MAX_PUSHES, deliver, devicesOf } from './notify.js';
-import { WriteQueue, eraseBelow } from './writes.js';
+import { WriteQueue, eraseBelow, eraseParents } from './writes.js';
 
 const isId = (v) => typeof v === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(v);
 const isUid = (v) => typeof v === 'string' && /^[A-Za-z0-9]{1,128}$/.test(v);
@@ -70,6 +70,7 @@ const ACTIONS = {
   blockedWords: ({ store, caller, body, now }) => blockedWords(store, caller, body, now),
   removeAdmin: ({ store, caller, body }) => removeAdmin(store, caller, body),
   deleteUser: ({ store, auth, caller, body }) => deleteUser(store, auth, caller, body),
+  purge: ({ store, caller, body }) => purge(store, caller, body),
   deletePost: ({ store, body }) => deletePost(store, body),
   deleteComment: ({ store, body }) => deleteComment(store, body),
   removeMessage: ({ store, body }) => removeMessage(store, body),
@@ -375,6 +376,27 @@ async function deleteUser(store, auth, caller, { uid }) {
   await guardTarget(store, caller, uid);
   await eraseAccount(store, uid);
   await auth.remove(uid);
+  return { done: true };
+}
+
+/**
+ * Everything [uid] ever posted, gone, the account left standing — for a
+ * spammer, usually with a ban: their posts with what is on them, their
+ * comments on other people's (and those posts' counts), and their messages
+ * in Global and every community chat (and the previews that showed one).
+ * Private chats are not touched. Long ones take more than one call.
+ */
+async function purge(store, caller, { uid }) {
+  await guardTarget(store, caller, uid);
+  if (!(await store.get(`users/${uid}`, ['username']))) throw new AdminError(404, 'no such account');
+  const writes = new WriteQueue(store);
+  await eraseParents(store, writes, { collection: 'posts', field: 'authorUid', value: uid });
+  await eraseOnOthersPosts(store, writes, uid, { collection: 'comments', field: 'authorUid', counter: 'commentCount' });
+  const communities = await store.find({ collection: 'communities', limit: 500, fields: [] });
+  for (const room of ['global', ...communities.map((c) => `c_${c.path.split('/')[1]}`)]) {
+    await eraseMessagesInRoom(store, writes, uid, room);
+  }
+  await writes.flush();
   return { done: true };
 }
 

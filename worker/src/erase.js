@@ -35,7 +35,7 @@ const GLOBAL = 'global';
  * exists is left not existing — an increment on a missing document would
  * create one.
  */
-async function eraseOnOthersPosts(store, writes, uid, { collection, field, counter }) {
+export async function eraseOnOthersPosts(store, writes, uid, { collection, field, counter }) {
   for (;;) {
     const rows = await store.find({ collection, group: true, field, value: uid, limit: PAGE });
 
@@ -104,16 +104,27 @@ async function eraseFromRooms(store, writes, uid, communityId) {
 }
 
 async function eraseFromRoom(store, writes, uid, id) {
-  const previewFields = ['senderUid', 'senderName', 'text', 'unsent'];
   const room = `rooms/${id}`;
   const info = await store.get(room, ['lastMessage']);
-
   const member = `${room}/members/${uid}`;
   if (info && (await store.get(member))) {
     // Together, so the count can never lose or gain one on a retry.
     await writes.add({ delete: member }, { increment: room, field: 'memberCount', by: -1 });
     await writes.flush();
   }
+  await eraseMessagesInRoom(store, writes, uid, id, info);
+}
+
+/**
+ * Every message [uid] wrote in room [id], and the room's preview when it
+ * showed one of theirs — which then shows the newest message left, or
+ * nothing. Their place in the room stays. [known] is the room's preview
+ * when it has been read already.
+ */
+export async function eraseMessagesInRoom(store, writes, uid, id, known) {
+  const previewFields = ['senderUid', 'senderName', 'text', 'unsent'];
+  const room = `rooms/${id}`;
+  const info = known === undefined ? await store.get(room, ['lastMessage']) : known;
 
   await eraseMatching(store, writes, {
     parent: room,
