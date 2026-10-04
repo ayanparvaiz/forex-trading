@@ -470,3 +470,24 @@ test('a moderator looks after what people post, and nothing more', async () => {
   // Nobody changes what they are themselves.
   await assert.rejects(run(docs, { action: 'addAdmin', username: 'ana', role: 'moderator' }, 'uAna'), (e) => e.status === 400);
 });
+
+test("a community's event, planned for it in its admin's name, its members told; and taken down", async () => {
+  const docs = world();
+  docs.set('users/uBo/devices/tokBo', { uid: 'uBo', language: 'en' });
+  const startsAt = new Date(NOW.getTime() + 2 * 86400000).toISOString();
+  const { result, calls } = await run(docs, {
+    action: 'event', communityId: 'bulls1', op: 'create', title: 'Weekly review', description: 'Bring your journal', startsAt, announce: true,
+  });
+  const ev = docs.get(`communities/bulls1/events/${result.eventId}`);
+  assert.deepEqual([ev.title, ev.createdBy, ev.going, ev.startsAt.toISOString()], ['Weekly review', 'uAna', [], startsAt]);
+  // Its admin made it, so everyone else in it hears.
+  assert.equal(result.phones, 1);
+  assert.equal(calls.filter((c) => c[0] === 'push').map((c) => c[1]).join(), 'tokBo');
+  assert.equal(logOf(docs)[0].title, 'Weekly review');
+
+  for (const bad of [{ startsAt: NOW.toISOString() }, { title: 'x' }, { startsAt: 'later' }]) {
+    await assert.rejects(run(docs, { action: 'event', communityId: 'bulls1', op: 'create', title: 'Weekly review', startsAt, ...bad }), (e) => e.status === 400);
+  }
+  await run(docs, { action: 'event', communityId: 'bulls1', op: 'delete', eventId: result.eventId });
+  assert.equal(docs.has(`communities/bulls1/events/${result.eventId}`), false);
+});

@@ -8,7 +8,7 @@
 import { deleteCommunity, isCommunityId, removeMember } from './community.js';
 import { eraseAccount, eraseMessagesInRoom, eraseOnOthersPosts } from './erase.js';
 import { pushMessage } from './fcm.js';
-import { MAX_PUSHES, deliver, devicesOf } from './notify.js';
+import { MAX_PUSHES, deliver, devicesOf, notify } from './notify.js';
 import { WriteQueue, eraseBelow, eraseParents } from './writes.js';
 
 const isId = (v) => typeof v === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(v);
@@ -103,6 +103,7 @@ const ACTIONS = {
   autoHide: ({ store, caller, body, now }) => setAutoHide(store, caller, body, now),
   schedule: ({ store, caller, body, now }) => schedule(store, caller, body, now),
   cancelScheduled: ({ store, body }) => cancelScheduled(store, body),
+  event: ({ store, push, body, now }) => communityEvent(store, push, body, now),
   blockedWords: ({ store, caller, body, now }) => blockedWords(store, caller, body, now),
   removeAdmin: ({ store, caller, body }) => removeAdmin(store, caller, body),
   deleteUser: ({ store, auth, caller, body }) => deleteUser(store, auth, caller, body),
@@ -163,6 +164,7 @@ async function record(store, caller, body, about, result, now) {
   if (typeof body.banned === 'boolean') fields.banned = body.banned;
   if (typeof body.days === 'number') fields.days = body.days;
   if (body.action === 'broadcast' || body.action === 'schedule') fields.title = clip(body.bn?.title, 80);
+  if (body.action === 'event') fields.title = clip(body.title, 80);
   if (body.action === 'schedule' && typeof body.at === 'string') fields.when = new Date(body.at);
   if (body.action === 'autoHide' && Number.isInteger(body.at)) fields.what = body.at ? `posts hidden after ${body.at} reports` : 'posts never hidden by reports';
   for (const [k, v] of Object.entries(about)) if (v !== undefined && v !== null) fields[k] = v;
@@ -438,6 +440,49 @@ async function cancelScheduled(store, { id }) {
   if (!isId(id)) throw bad();
   await store.commit([{ delete: `scheduled/${id}` }]);
   return { done: true };
+}
+
+const EVENT_AHEAD_MS = 90 * DAY_MS;
+
+/**
+ * A community's event, planned or taken down for it — in its admin's name,
+ * as if they had made it, so it reads the same in the app. With [announce],
+ * its members hear about it as they would from the app.
+ */
+async function communityEvent(store, push, { communityId, op, eventId, title, description = '', startsAt, announce }, now) {
+  if (!isCommunityId(communityId)) throw bad();
+  const c = await store.get(`communities/${communityId}`, ['createdBy', 'name']);
+  if (!c) throw new AdminError(404, 'no such community');
+  if (op === 'delete') {
+    if (!isId(eventId)) throw bad();
+    await store.commit([{ delete: `communities/${communityId}/events/${eventId}` }]);
+    return { done: true };
+  }
+  if (op !== 'create') throw bad();
+  const when = typeof startsAt === 'string' ? new Date(startsAt) : null;
+  if (!when || Number.isNaN(when.getTime()) || when <= now || when.getTime() > now.getTime() + EVENT_AHEAD_MS) {
+    throw bad('pick a time in the next 90 days');
+  }
+  if (typeof title !== 'string' || title.trim().length < 3 || title.length > 80) throw bad('a title needs 3 to 80 letters');
+  if (typeof description !== 'string' || description.length > 300) throw bad();
+  const id = crypto.randomUUID().replaceAll('-', '').slice(0, 20);
+  await store.commit([{
+    create: `communities/${communityId}/events/${id}`,
+    fields: {
+      title: title.trim(),
+      description: description.trim(),
+      startsAt: when,
+      createdBy: c.createdBy,
+      createdAt: now,
+      going: [],
+    },
+  }]);
+  let told = 0;
+  if (announce === true) {
+    const result = await notify(store, push, c.createdBy, { type: 'event', communityId, eventId: id }, now.getTime());
+    told = result?.sent ?? 0;
+  }
+  return { done: true, eventId: id, phones: told };
 }
 
 // --- Admins ----------------------------------------------------------------
