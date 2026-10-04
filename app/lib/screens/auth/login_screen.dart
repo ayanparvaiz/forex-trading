@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 
 import '../../data/auth_repository.dart';
+import '../../data/password_help.dart';
 import '../../data/session_controller.dart';
 import '../../legal/legal_text.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_logo.dart';
 import '../legal_screen.dart';
+import 'forgot_password_sheet.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.help});
+
+  /// Where a forgotten password is asked about; a test gives its own.
+  final PasswordHelp? help;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -131,18 +136,35 @@ class _LoginScreenState extends State<LoginScreen> {
                       color: AppColors.loss,
                     ),
                     Gap.w8,
-                    Text(
-                      _error!,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.loss,
-                        fontWeight: FontWeight.w600,
+                    // Room to wrap: a suspended account's words run long.
+                    Expanded(
+                      child: Text(
+                        _error!,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.loss,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ],
-              Gap.h24,
+              if (widget.help ?? buildPasswordHelp() case final help?)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => showForgotPassword(
+                      context,
+                      help,
+                      username: _username.text.trim(),
+                    ),
+                    child: Text(s.forgotPassword),
+                  ),
+                )
+              else
+                Gap.h12,
+              Gap.h12,
               FilledButton(
                 onPressed: canSubmit ? _submit : null,
                 child: _busy

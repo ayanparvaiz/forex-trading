@@ -1803,4 +1803,30 @@ class Strings {
   String get supportWaiting => _t('উত্তরের অপেক্ষায়', 'Waiting for an answer');
   String get supportAnswered => _t('অ্যাডমিনদের উত্তর', 'The admins answered');
   String get supportClosed => _t('বন্ধ', 'Closed');
+
+  // --- A forgotten password -------------------------------------------------
+
+  String get forgotPassword =>
+      _t('পাসওয়ার্ড ভুলে গেছেন?', 'Forgot your password?');
+  String get forgotExplain => _t(
+    'অ্যাপে পাসওয়ার্ড রিসেটের উপায় নেই, তবে অ্যাডমিনরা নতুন একটা দিতে পারেন। কীভাবে যোগাযোগ করবেন লিখুন — নিশ্চিত হয়ে নিয়ে তাঁরা জানাবেন।',
+    "The app can't reset a password, but the admins can set you a new one. "
+        "Say how to reach you — they'll make sure it's you, then tell you.",
+  );
+  String get howToReachYou => _t(
+    'কীভাবে যোগাযোগ করব? (ফোন, ইমেইল বা ফেসবুক)',
+    'How can they reach you? (phone, email or Facebook)',
+  );
+  String get anythingElse =>
+      _t('আর কিছু বলবেন? (না বললেও চলবে)', 'Anything else? (optional)');
+  String get sendToAdmins => _t('অ্যাডমিনদের পাঠান', 'Send to the admins');
+  String helpRequestSent(String contact) => _t(
+    'পাঠানো হয়েছে। অ্যাডমিনরা $contact-এ যোগাযোগ করবেন। ঢোকার পর সেটিংস থেকে পাসওয়ার্ড বদলে নিন।',
+    'Sent. The admins will reach you at $contact. Once you are back in, '
+        'change the password in Settings.',
+  );
+  String get helpRequestFailed => _t(
+    'পাঠানো যায়নি — ইন্টারনেট দেখে আবার চেষ্টা করুন।',
+    'Could not send — check your connection and try again.',
+  );
 }
