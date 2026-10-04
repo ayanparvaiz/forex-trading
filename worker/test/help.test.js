@@ -33,3 +33,13 @@ test('a request has to make sense', async () => {
     await assert.rejects(passwordHelp(memoryStore(world()), body, NOW), HelpError, JSON.stringify(body));
   }
 });
+
+test('dealt with, the way to reach them is gone', async () => {
+  const { adminAction } = await import('../src/admin.js');
+  const docs = world();
+  docs.set('admins/uAdmin', { addedAt: 1 });
+  await passwordHelp(memoryStore(docs), { username: 'ana', contact: '01711-000000', note: 'new phone' }, NOW);
+  await adminAction(memoryStore(docs), { auth: {}, push: async () => {} }, 'uAdmin', { action: 'help', id: 'pw_uAna', status: 'done' }, NOW);
+  const r = docs.get('helpRequests/pw_uAna');
+  assert.deepEqual([r.status, 'contact' in r, 'note' in r], ['done', false, false]);
+});

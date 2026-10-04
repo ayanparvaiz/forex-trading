@@ -447,13 +447,21 @@ async function cancelScheduled(store, { id }) {
   return { done: true };
 }
 
-/** A request to get back in (help.js), dealt with, or not worth dealing with. */
+/**
+ * A request to get back in (help.js), dealt with, or not worth dealing
+ * with — and the way to reach them, given for this alone, removed (as the
+ * privacy policy says).
+ */
 async function settleHelp(store, caller, { id, status }, now) {
   if (!isId(id) || !['done', 'dismissed'].includes(status)) throw bad();
   const path = `helpRequests/${id}`;
   const request = await store.get(path, ['uid', 'username']);
   if (!request) throw new AdminError(404, 'no such request');
-  await store.commit([{ patch: path, fields: { status, handledBy: caller, handledAt: now } }]);
+  await store.commit([{
+    patch: path,
+    fields: { status, handledBy: caller, handledAt: now },
+    remove: ['contact', 'note'],
+  }]);
   return { done: true, uid: request.uid, username: request.username, what: status };
 }
 

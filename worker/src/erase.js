@@ -4,7 +4,8 @@
 // profile and username, trades and scores, posts, comments and likes,
 // connections, notifications, profile-view records, conversations — for
 // both people in them — messages in the Global room and in community rooms,
-// and community membership. Reports stay, for moderation. A community they
+// what they wrote to the admins and any password request, and community
+// membership. Reports stay, for moderation. A community they
 // started is deleted with them, and everyone in it leaves: a community is
 // never left without its admin.
 //
@@ -237,6 +238,9 @@ export async function eraseAccount(store, uid) {
   for (const field of ['recipientUid', 'actorUid']) {
     await eraseMatching(store, writes, { collection: 'notifications', field, value: uid });
   }
+  // What they wrote to the admins, and any request for a new password.
+  await eraseMatching(store, writes, { collection: 'support', field: 'uid', value: uid });
+  await writes.add({ delete: `helpRequests/pw_${uid}` });
   for (const field of ['viewerUid', 'profileUid']) {
     await eraseMatching(store, writes, { collection: 'profileViews', field, value: uid });
   }

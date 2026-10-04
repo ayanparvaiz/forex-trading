@@ -126,8 +126,9 @@ test('stopped part-way again and again, it still ends in the same place', async 
     rounds++;
     assert.ok(rounds < 20, 'never finished');
     try {
-      // Enough for the fixed queries plus a little progress each time.
-      await eraseAccount(memoryStore(docs, { budget: 24 }), ME);
+      // Enough for the fixed queries (25 for an empty account) plus a
+      // little progress each time.
+      await eraseAccount(memoryStore(docs, { budget: 27 }), ME);
       break;
     } catch (error) {
       if (!(error instanceof TryAgain)) throw error;
@@ -270,4 +271,15 @@ test("out of the events they were going to, and nobody else's", async () => {
   docs.set('communities/bulls1/events/e1', { title: 'Chart review', going: [ME, 'u-ana'] });
   await eraseAccount(memoryStore(docs), ME);
   assert.deepEqual(docs.get('communities/bulls1/events/e1').going, ['u-ana']);
+});
+
+test('what they wrote to the admins, and a password request, go too', async () => {
+  const docs = world();
+  docs.set('support/s1', { uid: ME, text: 'hello admins' });
+  docs.set('support/s2', { uid: 'u-someone-else', text: 'not theirs' });
+  docs.set(`helpRequests/pw_${ME}`, { uid: ME, contact: '01700' });
+  await eraseAccount(memoryStore(docs), ME);
+  assert.equal(docs.has('support/s1'), false);
+  assert.equal(docs.has(`helpRequests/pw_${ME}`), false);
+  assert.ok(docs.has('support/s2'), "someone else's stays");
 });
