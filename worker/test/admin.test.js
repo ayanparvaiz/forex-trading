@@ -68,7 +68,7 @@ const run = (docs, body, caller = ADMIN) => {
 
 test('only admins get anything done', async () => {
   await assert.rejects(run(world(), { action: 'whoami' }, 'uAna'), (e) => e instanceof AdminError && e.status === 403);
-  assert.deepEqual((await run(world(), { action: 'whoami' })).result, { admin: true });
+  assert.deepEqual((await run(world(), { action: 'whoami' })).result, { admin: true, role: 'owner' });
   await assert.rejects(run(world(), { action: 'nonsense' }), (e) => e.status === 400);
 });
 
@@ -273,7 +273,7 @@ test("a name or picture put back to plain", async () => {
 test('admins are made by username, and taken away by anyone but themselves', async () => {
   const docs = world();
   const { result } = await run(docs, { action: 'addAdmin', username: '@Ana' });
-  assert.deepEqual(result, { done: true, uid: 'uAna', username: 'ana' });
+  assert.deepEqual(result, { done: true, uid: 'uAna', username: 'ana', what: 'admin' });
   assert.equal(docs.get('admins/uAna').addedBy, ADMIN);
   // Twice is fine.
   await run(docs, { action: 'addAdmin', username: 'ana' });
@@ -429,4 +429,44 @@ test("a spammer cleaned out: posts, comments, room messages — not their privat
   assert.equal(logOf(docs).at(-1).action, 'purge');
 
   await assert.rejects(run(docs, { action: 'purge', uid: 'uOther' }), (e) => e.status === 400);
+});
+
+test('a moderator looks after what people post, and nothing more', async () => {
+  const docs = world();
+  await run(docs, { action: 'addAdmin', username: 'ana', role: 'moderator' });
+  assert.equal(docs.get('admins/uAna').role, 'moderator');
+  const asMod = (body) => run(docs, body, 'uAna');
+  assert.deepEqual((await asMod({ action: 'whoami' })).result, { admin: true, role: 'moderator' });
+
+  // Allowed.
+  await asMod({ action: 'deleteComment', postId: 'p1', commentId: 'c1' });
+  await asMod({ action: 'resolveReport', reportId: 'r1', status: 'dismissed' });
+  await asMod({ action: 'ban', uid: 'uBo', banned: true, days: 7 });
+  await asMod({ action: 'ban', uid: 'uBo', banned: false });
+
+  // Not theirs to do.
+  for (const body of [
+    { action: 'ban', uid: 'uBo', banned: true },
+    { action: 'ban', uid: 'uBo', banned: true, days: 30 },
+    { action: 'deleteUser', uid: 'uBo' },
+    { action: 'purge', uid: 'uBo' },
+    { action: 'setPassword', uid: 'uBo', password: 'long-enough' },
+    { action: 'community', communityId: 'bulls1', op: 'lock' },
+    { action: 'config', minBuild: 2 },
+    { action: 'blockedWords', words: [] },
+    { action: 'addAdmin', username: 'bob' },
+    { action: 'removeAdmin', uid: 'uOther' },
+    { action: 'broadcast', bn: { title: 'x', body: 'y' }, en: { title: 'x', body: 'y' } },
+  ]) {
+    await assert.rejects(asMod(body), (e) => e.status === 403, JSON.stringify(body));
+  }
+  assert.equal(docs.get('users/uBo').banned, false);
+
+  // Made an admin: all of it.
+  await run(docs, { action: 'addAdmin', username: 'ana', role: 'admin' });
+  assert.equal(docs.get('admins/uAna').role, 'admin');
+  await asMod({ action: 'community', communityId: 'bulls1', op: 'lock' });
+  assert.deepEqual(logOf(docs).filter((e) => e.action === 'addAdmin').map((e) => e.what), ['moderator', 'admin']);
+  // Nobody changes what they are themselves.
+  await assert.rejects(run(docs, { action: 'addAdmin', username: 'ana', role: 'moderator' }, 'uAna'), (e) => e.status === 400);
 });

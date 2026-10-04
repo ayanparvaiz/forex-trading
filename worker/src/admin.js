@@ -32,8 +32,30 @@ export class AdminError extends Error {
 const bad = (why = 'bad request') => new AdminError(400, why);
 
 export async function isAdmin(store, uid) {
-  return isUid(uid) && (await store.get(`admins/${uid}`, ['addedAt'])) != null;
+  return (await roleOf(store, uid)) != null;
 }
+
+/**
+ * What [uid] is in the panel: 'owner' (set up by hand, tool/make_admin.py),
+ * 'admin', 'moderator', or null for nobody.
+ */
+export async function roleOf(store, uid) {
+  if (!isUid(uid)) return null;
+  const entry = await store.get(`admins/${uid}`, ['addedBy', 'role']);
+  if (!entry) return null;
+  if (!entry.addedBy) return 'owner';
+  return entry.role === 'moderator' ? 'moderator' : 'admin';
+}
+
+/**
+ * What a moderator may do: look after what people post and say — remove it,
+ * settle reports, warn, fix a name, and ban for up to a week. The rest —
+ * accounts, communities, announcements, settings, admins — is for admins.
+ */
+const MODERATOR_ACTIONS = new Set([
+  'whoami', 'deletePost', 'deleteComment', 'removeMessage', 'resolveReport', 'warn', 'resetProfile', 'ban',
+]);
+const MODERATOR_BAN_DAYS = [1, 3, 7];
 
 /**
  * Does [body.action] for admin [caller]. [auth] disables and deletes
@@ -43,11 +65,19 @@ export async function isAdmin(store, uid) {
  * TryAgain when a long job needs another call.
  */
 export async function adminAction(store, { auth, push, journal = store }, caller, body, now = new Date()) {
-  if (!(await isAdmin(store, caller))) throw new AdminError(403, 'not an admin');
+  const role = await roleOf(store, caller);
+  if (!role) throw new AdminError(403, 'not an admin');
   const action = body?.action;
   if (typeof action !== 'string' || !Object.hasOwn(ACTIONS, action)) throw bad('unknown action');
+  if (role === 'moderator') {
+    if (!MODERATOR_ACTIONS.has(action)) throw new AdminError(403, 'not for moderators');
+    // A moderator's bans end within a week.
+    if (action === 'ban' && body.banned === true && !MODERATOR_BAN_DAYS.includes(body.days)) {
+      throw new AdminError(403, 'not for moderators');
+    }
+  }
   const run = ACTIONS[action];
-  const job = { store, auth, push, caller, body, now };
+  const job = { store, auth, push, caller, body, now, role };
   if (!RECORDED.has(action)) return run(job);
   // Looked up first: once a post or an account is deleted there is nothing
   // left to say what it was.
@@ -59,7 +89,7 @@ export async function adminAction(store, { auth, push, journal = store }, caller
 }
 
 const ACTIONS = {
-  whoami: () => ({ admin: true }),
+  whoami: ({ role }) => ({ admin: true, role }),
   ban: ({ store, auth, caller, body, now }) => ban(store, auth, caller, body, now),
   setPassword: ({ store, auth, caller, body }) => setPassword(store, auth, caller, body),
   warn: ({ store, push, caller, body }) => warn(store, push, caller, body),
@@ -334,22 +364,32 @@ async function blockedWords(store, caller, { words }, now) {
 
 // --- Admins ----------------------------------------------------------------
 
-/** Makes the account named [username] an admin. */
-async function addAdmin(store, caller, { username }, now) {
+/**
+ * Makes the account named [username] an admin, or a moderator ([role]) —
+ * or changes what they are, if they are one already. An owner stays an
+ * owner.
+ */
+async function addAdmin(store, caller, { username, role = 'admin' }, now) {
   const name = typeof username === 'string' ? username.trim().toLowerCase().replace(/^@/, '') : '';
   if (!isUsername(name)) throw bad('no such username');
+  if (!['admin', 'moderator'].includes(role)) throw bad();
   const claim = await store.get(`usernames/${name}`, ['uid']);
   if (!isUid(claim?.uid)) throw new AdminError(404, 'no such username');
   const profile = await store.get(`users/${claim.uid}`, ['username', 'banned']);
   if (!profile) throw new AdminError(404, 'no such username');
   if (profile.banned) throw bad('lift their ban first');
-  if (!(await isAdmin(store, claim.uid))) {
+  const now_ = await roleOf(store, claim.uid);
+  if (now_ === 'owner') throw bad('an owner, removed only with tool/make_admin.py');
+  if (claim.uid === caller) throw bad('not yourself');
+  if (now_ === null) {
     await store.commit([{
       create: `admins/${claim.uid}`,
-      fields: { username: profile.username ?? name, addedAt: now, addedBy: caller },
+      fields: { username: profile.username ?? name, addedAt: now, addedBy: caller, role },
     }]);
+  } else if (now_ !== role) {
+    await store.commit([{ patch: `admins/${claim.uid}`, fields: { role } }]);
   }
-  return { done: true, uid: claim.uid, username: profile.username ?? name };
+  return { done: true, uid: claim.uid, username: profile.username ?? name, what: role };
 }
 
 /**
