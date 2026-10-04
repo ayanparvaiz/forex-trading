@@ -505,3 +505,22 @@ test('a message to the admins answered, its writer told on their phone; or put a
   assert.equal(docs.get('support/s1').status, 'closed');
   await assert.rejects(run(docs, { action: 'reply', id: 'gone', text: 'x' }), (e) => e.status === 404);
 });
+
+test('parts of the app switched off and on again, one at a time', async () => {
+  const docs = world();
+  const { result } = await run(docs, { action: 'switches', off: { globalChat: true } });
+  assert.deepEqual(docs.get('config/moderation').off, {
+    globalChat: true, communityChats: false, posting: false, comments: false, privateChats: false,
+  });
+  assert.equal(result.what, 'off: Global chat');
+  await run(docs, { action: 'switches', off: { posting: true } });
+  assert.equal(docs.get('config/moderation').off.globalChat, true, 'the others stay as they were');
+  const back = await run(docs, { action: 'switches', off: { globalChat: false, posting: false } });
+  assert.equal(back.result.what, 'everything on');
+  for (const off of [undefined, {}, { chat: true }, { posting: 'yes' }, []]) {
+    await assert.rejects(run(docs, { action: 'switches', off }), (e) => e.status === 400, JSON.stringify(off));
+  }
+  // Moderators don't.
+  await run(docs, { action: 'addAdmin', username: 'ana', role: 'moderator' });
+  await assert.rejects(run(docs, { action: 'switches', off: { posting: true } }, 'uAna'), (e) => e.status === 403);
+});

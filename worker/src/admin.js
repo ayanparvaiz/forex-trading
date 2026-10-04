@@ -108,6 +108,7 @@ const ACTIONS = {
   reply: ({ store, push, caller, body, now }) => reply(store, push, caller, body, now),
   closeSupport: ({ store, caller, body, now }) => closeSupport(store, caller, body, now),
   blockedWords: ({ store, caller, body, now }) => blockedWords(store, caller, body, now),
+  switches: ({ store, caller, body, now }) => switches(store, caller, body, now),
   removeAdmin: ({ store, caller, body }) => removeAdmin(store, caller, body),
   deleteUser: ({ store, auth, caller, body }) => deleteUser(store, auth, caller, body),
   purge: ({ store, caller, body }) => purge(store, caller, body),
@@ -536,6 +537,27 @@ async function communityEvent(store, push, { communityId, op, eventId, title, de
     told = result?.sent ?? 0;
   }
   return { done: true, eventId: id, phones: told };
+}
+
+// What can be switched off, as the rules know them (firestore.rules, featureOn).
+const SWITCHES = ['globalChat', 'communityChats', 'posting', 'comments', 'privateChats'];
+const SWITCH_NAMES = {
+  globalChat: 'Global chat', communityChats: 'community chats', posting: 'posting', comments: 'comments', privateChats: 'private chats',
+};
+
+/**
+ * Parts of the app switched off for a while — a spam wave, a problem being
+ * fixed — and on again. [off] names each one, true for off.
+ */
+async function switches(store, caller, { off }, now) {
+  if (!off || typeof off !== 'object' || Array.isArray(off)) throw bad();
+  const keys = Object.keys(off);
+  if (!keys.length || keys.some((k) => !SWITCHES.includes(k) || typeof off[k] !== 'boolean')) throw bad();
+  const current = (await store.get('config/moderation', ['off']))?.off ?? {};
+  const next = Object.fromEntries(SWITCHES.map((k) => [k, k in off ? off[k] : current[k] === true]));
+  await store.commit([{ upsert: 'config/moderation', fields: { off: next, updatedAt: now, updatedBy: caller } }]);
+  const offNow = SWITCHES.filter((k) => next[k]).map((k) => SWITCH_NAMES[k]);
+  return { done: true, what: offNow.length ? `off: ${offNow.join(', ')}` : 'everything on' };
 }
 
 // --- Admins ----------------------------------------------------------------

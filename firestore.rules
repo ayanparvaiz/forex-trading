@@ -25,6 +25,16 @@ service cloud.firestore {
     // config/moderation, written by the worker): one pattern, matched against
     // the whole text in lower case. With no list, nothing is blocked.
     // Private chats are not checked.
+    // Whether the admins have this part of the app on (admin panel → App
+    // settings → Switches; config/moderation.off, written by the worker).
+    // On unless switched off: 'globalChat', 'communityChats', 'posting',
+    // 'comments', 'privateChats'. Sending is what stops; reading, unsending
+    // and deleting go on.
+    function featureOn(name) {
+      let path = /databases/$(database)/documents/config/moderation;
+      return !exists(path) || get(path).data.get('off', {}).get(name, false) != true;
+    }
+
     function wordsOk(text) {
       let path = /databases/$(database)/documents/config/moderation;
       return !exists(path)
@@ -437,6 +447,7 @@ service cloud.firestore {
         && postKind() in ['trade', 'rank', 'question']
         && (postKind() != 'rank' || rankShapeOk())
         && postWordsOk()
+        && featureOn('posting')
         // A question: its words, and no answer picked before anyone answers.
         && (postKind() != 'question' || request.resource.data.lesson.size() <= 500)
         && !('answerId' in request.resource.data);
@@ -526,6 +537,7 @@ service cloud.firestore {
           && request.resource.data.body.size() > 0
           && request.resource.data.body.size() <= 1000
           && wordsOk(request.resource.data.body)
+          && featureOn('comments')
           // Born with no likes, and a reply only to a real comment.
           && !('likedBy' in request.resource.data)
           && (!('replyTo' in request.resource.data)
@@ -921,6 +933,7 @@ service cloud.firestore {
               || request.resource.data.forwarded == true)
           && request.resource.data.senderUid == request.auth.uid
           && messageBodyOk(request.resource.data)
+          && featureOn('privateChats')
           // Polls are for rooms, where there are people to ask.
           && request.resource.data.get('attachment', {}).get('type', '') != 'poll'
           && request.resource.data.sentAt == request.time
@@ -1172,6 +1185,7 @@ service cloud.firestore {
                == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.displayName
           && messageBodyOk(request.resource.data)
           && wordsOk(request.resource.data.get('text', ''))
+          && featureOn(roomId == 'global' ? 'globalChat' : 'communityChats')
           && request.resource.data.sentAt == request.time
           && request.resource.data.unsent == false
           && (!('replyTo' in request.resource.data)
