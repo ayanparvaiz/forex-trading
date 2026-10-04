@@ -47,6 +47,7 @@ import { referenceRates } from './rates.js';
 import { AdminError, adminAction, identityToolkit, liftExpiredBans } from './admin.js';
 import { autoHideReported, reportAlerts, sendScheduled } from './admin-cron.js';
 import { takeSnapshot } from './snapshot.js';
+import { HelpError, passwordHelp } from './help.js';
 
 // The quarter-hourly trigger in wrangler.toml, for event reminders. The
 // other, daily, is the morning one.
@@ -153,6 +154,8 @@ async function serve(request, env, ctx) {
 
   if (url.pathname === '/health') return json({ ok: true });
   if (url.pathname === '/rates' && request.method === 'GET') return rates(ctx);
+  // For someone who cannot sign in, so before the token check.
+  if (url.pathname === '/help' && request.method === 'POST') return helpRoute(env, request);
   const route = routes[url.pathname];
   if (!route) return json({ error: 'not found' }, 404);
   if (request.method !== 'POST') return json({ error: 'method not allowed' }, 405);
@@ -358,6 +361,26 @@ async function recompute(uid, env) {
     if (error.message === 'no such user') return json({ error: 'no profile' }, 404);
     console.error('recompute failed for', uid, error);
     return json({ error: 'could not update scores' }, 500);
+  }
+}
+
+/** A locked-out person asking the admins for a new password (help.js). */
+async function helpRoute(env, request) {
+  const text = await request.text();
+  if (text.length > 2000) return json({ error: 'bad request' }, 400);
+  let body;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    return json({ error: 'bad request' }, 400);
+  }
+  try {
+    const token = await serviceAccountToken(env);
+    return json(await passwordHelp(restStore(env.FIREBASE_PROJECT_ID, token, { budget: 4 }), body));
+  } catch (error) {
+    if (error instanceof HelpError) return json({ error: 'bad request' }, 400);
+    console.error('help request failed:', error);
+    return json({ error: 'could not send that' }, 500);
   }
 }
 

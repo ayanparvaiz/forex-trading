@@ -32,6 +32,13 @@ service cloud.firestore {
         || !text.lower().matches(get(path).data.pattern);
     }
 
+    // An owner or an admin — not a moderator, who looks after posts and
+    // messages and has no need of people's contact details.
+    function isFullAdmin() {
+      return isAdmin()
+        && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.get('role', 'admin') != 'moderator';
+    }
+
     function isAdmin() {
       return isSignedIn()
         && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
@@ -1598,6 +1605,13 @@ service cloud.firestore {
     // anyone has signed in.
     match /config/{id} {
       allow read: if true;
+      allow write: if false;
+    }
+
+    // People locked out asking for a new password, with how to reach them
+    // (worker/src/help.js). Only owners and admins, who can set one, see them.
+    match /helpRequests/{id} {
+      allow read: if isFullAdmin();
       allow write: if false;
     }
 

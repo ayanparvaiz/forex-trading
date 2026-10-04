@@ -104,6 +104,7 @@ const ACTIONS = {
   schedule: ({ store, caller, body, now }) => schedule(store, caller, body, now),
   cancelScheduled: ({ store, body }) => cancelScheduled(store, body),
   event: ({ store, push, body, now }) => communityEvent(store, push, body, now),
+  help: ({ store, caller, body, now }) => settleHelp(store, caller, body, now),
   blockedWords: ({ store, caller, body, now }) => blockedWords(store, caller, body, now),
   removeAdmin: ({ store, caller, body }) => removeAdmin(store, caller, body),
   deleteUser: ({ store, auth, caller, body }) => deleteUser(store, auth, caller, body),
@@ -440,6 +441,16 @@ async function cancelScheduled(store, { id }) {
   if (!isId(id)) throw bad();
   await store.commit([{ delete: `scheduled/${id}` }]);
   return { done: true };
+}
+
+/** A request to get back in (help.js), dealt with, or not worth dealing with. */
+async function settleHelp(store, caller, { id, status }, now) {
+  if (!isId(id) || !['done', 'dismissed'].includes(status)) throw bad();
+  const path = `helpRequests/${id}`;
+  const request = await store.get(path, ['uid', 'username']);
+  if (!request) throw new AdminError(404, 'no such request');
+  await store.commit([{ patch: path, fields: { status, handledBy: caller, handledAt: now } }]);
+  return { done: true, uid: request.uid, username: request.username, what: status };
 }
 
 const EVENT_AHEAD_MS = 90 * DAY_MS;

@@ -295,6 +295,7 @@ export function restStore(projectId, token, { budget = 40 } = {}) {
      *                                    the document must still exist
      *   { upsert: path, fields }         these fields set, the document made
      *                                    if it is not there
+     *   { put: path, fields }            the whole document, made or replaced
      */
     async commit(writes) {
       const rest = writes.map((w) => {
@@ -349,6 +350,14 @@ export function restStore(projectId, token, { budget = 40 } = {}) {
             },
             updateMask: { fieldPaths: [...Object.keys(w.fields ?? {}), ...remove] },
             currentDocument: { exists: true },
+          };
+        }
+        if (w.put) {
+          return {
+            update: {
+              name: full(w.put),
+              fields: Object.fromEntries(Object.entries(w.fields).map(([k, v]) => [k, encodeValue(v)])),
+            },
           };
         }
         if (w.upsert) {
