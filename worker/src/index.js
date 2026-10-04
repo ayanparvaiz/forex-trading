@@ -45,6 +45,7 @@ import { sendPush } from './fcm.js';
 import { dailyReminder, eventReminders, forgetOldAnnouncements, notify } from './notify.js';
 import { referenceRates } from './rates.js';
 import { AdminError, adminAction, identityToolkit, liftExpiredBans } from './admin.js';
+import { autoHideReported, reportAlerts, sendScheduled } from './admin-cron.js';
 
 // The quarter-hourly trigger in wrangler.toml, for event reminders. The
 // other, daily, is the morning one.
@@ -54,8 +55,10 @@ const EVENT_CRON = '*/15 * * * *';
 const STREAK_CRON = '0 14 * * *';
 
 // Between the event reminders, so each run keeps the free plan's requests to
-// itself: bans an admin gave for some days, lifted when the days are up.
-const BANS_CRON = '5,20,35,50 * * * *';
+// itself: the admins' work (admin-cron.js) — bans whose days are up lifted,
+// announcements scheduled for now sent, new reports told to the admins'
+// phones, and a post enough people reported hidden until someone looks.
+const ADMIN_CRON = '5,20,35,50 * * * *';
 
 // How often one account may trigger a recompute.
 //
@@ -193,11 +196,8 @@ export default {
           await eventReminders(restStore(env.FIREBASE_PROJECT_ID, token, { budget: 15 }), push);
           return;
         }
-        if (event.cron === BANS_CRON) {
-          await liftExpiredBans(
-            restStore(env.FIREBASE_PROJECT_ID, token, { budget: 12 }),
-            identityToolkit(env.FIREBASE_PROJECT_ID, token),
-          );
+        if (event.cron === ADMIN_CRON) {
+          await adminRun(env, token, push);
           return;
         }
         if (event.cron === STREAK_CRON) {
@@ -355,6 +355,41 @@ async function recompute(uid, env) {
     if (error.message === 'no such user') return json({ error: 'no profile' }, 404);
     console.error('recompute failed for', uid, error);
     return json({ error: 'could not update scores' }, 500);
+  }
+}
+
+/**
+ * The quarter-hourly work for the admins. Each job has its own budget and
+ * its own failure: one that runs out or breaks leaves the others to finish,
+ * and carries on next time. Together they stay inside the free plan's fifty
+ * requests a run.
+ */
+async function adminRun(env, token, push) {
+  const project = env.FIREBASE_PROJECT_ID;
+  const auth = identityToolkit(project, token);
+  const now = new Date();
+  const jobs = {
+    bans: () => liftExpiredBans(restStore(project, token, { budget: 3 }), auth, now),
+    scheduled: () => {
+      const store = restStore(project, token, { budget: 14 });
+      // As the admin who scheduled it, so it is checked, kept and logged as
+      // if they had pressed Send.
+      const send = (by, body) => adminAction(store, {
+        auth,
+        push,
+        journal: restStore(project, token, { budget: 2 }),
+      }, by, body, now);
+      return sendScheduled(store, send, now);
+    },
+    alerts: () => reportAlerts(restStore(project, token, { budget: 6 }), push, now),
+    hidden: () => autoHideReported(restStore(project, token, { budget: 6 }), now),
+  };
+  for (const [name, job] of Object.entries(jobs)) {
+    try {
+      await job();
+    } catch (error) {
+      console.error(`admin job ${name} failed:`, error.message);
+    }
   }
 }
 

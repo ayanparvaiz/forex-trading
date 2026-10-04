@@ -123,14 +123,14 @@ export async function devicesOf(store, uids) {
 }
 
 /**
- * Sends one push per phone, built by [build], up to [MAX_PUSHES]. Phones
- * FCM no longer knows are forgotten.
+ * Sends one push per phone, built by [build], up to [most]. Phones FCM no
+ * longer knows are forgotten.
  */
-export async function deliver(store, push, devices, build) {
+export async function deliver(store, push, devices, build, most = MAX_PUSHES) {
   let sent = 0;
   let failed = 0;
   const gone = [];
-  for (const device of devices.slice(0, MAX_PUSHES)) {
+  for (const device of devices.slice(0, most)) {
     try {
       if ((await push(build(device))) === 'gone') gone.push({ delete: device.path });
       else sent++;

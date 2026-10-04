@@ -54,6 +54,7 @@ export async function roleOf(store, uid) {
  */
 const MODERATOR_ACTIONS = new Set([
   'whoami', 'deletePost', 'deleteComment', 'removeMessage', 'resolveReport', 'warn', 'resetProfile', 'ban',
+  'alerts', 'unhide',
 ]);
 const MODERATOR_BAN_DAYS = [1, 3, 7];
 
@@ -97,6 +98,11 @@ const ACTIONS = {
   addAdmin: ({ store, caller, body, now }) => addAdmin(store, caller, body, now),
   config: ({ store, caller, body, now }) => setConfig(store, caller, body, now),
   pin: ({ store, caller, body, now }) => pin(store, caller, body, now),
+  alerts: ({ store, caller, body }) => alerts(store, caller, body),
+  unhide: ({ store, body }) => unhide(store, body),
+  autoHide: ({ store, caller, body, now }) => setAutoHide(store, caller, body, now),
+  schedule: ({ store, caller, body, now }) => schedule(store, caller, body, now),
+  cancelScheduled: ({ store, body }) => cancelScheduled(store, body),
   blockedWords: ({ store, caller, body, now }) => blockedWords(store, caller, body, now),
   removeAdmin: ({ store, caller, body }) => removeAdmin(store, caller, body),
   deleteUser: ({ store, auth, caller, body }) => deleteUser(store, auth, caller, body),
@@ -156,7 +162,9 @@ async function record(store, caller, body, about, result, now) {
   }
   if (typeof body.banned === 'boolean') fields.banned = body.banned;
   if (typeof body.days === 'number') fields.days = body.days;
-  if (body.action === 'broadcast') fields.title = clip(body.bn?.title, 80);
+  if (body.action === 'broadcast' || body.action === 'schedule') fields.title = clip(body.bn?.title, 80);
+  if (body.action === 'schedule' && typeof body.at === 'string') fields.when = new Date(body.at);
+  if (body.action === 'autoHide' && Number.isInteger(body.at)) fields.what = body.at ? `posts hidden after ${body.at} reports` : 'posts never hidden by reports';
   for (const [k, v] of Object.entries(about)) if (v !== undefined && v !== null) fields[k] = v;
   // The admin's own words: why they banned, what they warned about.
   if (typeof body.reason === 'string' && body.reason.trim()) fields.reason = clip(body.reason, 200);
@@ -205,7 +213,7 @@ async function ban(store, auth, caller, { uid, banned, days, reason }, now) {
  * Lifts the bans whose time is up — a few each run, so a run stays inside
  * the free plan's requests; any left over go on the next.
  */
-export async function liftExpiredBans(store, auth, now = new Date(), most = 5) {
+export async function liftExpiredBans(store, auth, now = new Date(), most = 2) {
   const due = await store.find({
     collection: 'users',
     field: 'bannedUntil',
@@ -360,6 +368,76 @@ async function blockedWords(store, caller, { words }, now) {
     fields: { words: clean, pattern, updatedAt: now, updatedBy: caller },
   }]);
   return { done: true, what: `${clean.length} blocked word${clean.length === 1 ? '' : 's'}` };
+}
+
+/** Whether [caller] hears about new reports on their phone. */
+async function alerts(store, caller, { on }) {
+  if (typeof on !== 'boolean') throw bad();
+  await store.commit([{ patch: `admins/${caller}`, fields: { alerts: on } }]);
+  return { done: true, what: on ? 'report alerts on' : 'report alerts off' };
+}
+
+/**
+ * A post hidden because enough people reported it (admin-cron.js,
+ * autoHideReported), back on the feeds with the time it had.
+ */
+async function unhide(store, { postId }) {
+  if (!isId(postId)) throw bad();
+  const path = `posts/${postId}`;
+  const post = await store.get(path, ['hiddenByReports', 'hiddenExpiresAt']);
+  if (!post) throw new AdminError(404, 'no such post');
+  if (post.hiddenByReports !== true) return { done: true };
+  await store.commit([{
+    patch: path,
+    fields: { expiresAt: post.hiddenExpiresAt instanceof Date ? post.hiddenExpiresAt : new Date() },
+    remove: ['hiddenByReports', 'hiddenExpiresAt'],
+  }]);
+  return { done: true };
+}
+
+/** How many different people reporting a post hides it; 0 never does. */
+async function setAutoHide(store, caller, { at }, now) {
+  if (![0, 2, 3, 5, 10].includes(at)) throw bad();
+  await store.commit([{ upsert: 'config/moderation', fields: { autoHideAt: at, updatedAt: now, updatedBy: caller } }]);
+  return { done: true, what: at ? `posts hidden after ${at} reports` : 'posts never hidden by reports' };
+}
+
+const SCHEDULE_AHEAD_MS = 60 * DAY_MS;
+
+/**
+ * An announcement to go out at [at] — sent by the worker's quarter-hourly
+ * run (admin-cron.js, sendScheduled), so within a quarter of an hour of it.
+ */
+async function schedule(store, caller, { bn, en, communityId, at }, now) {
+  const when = typeof at === 'string' ? new Date(at) : null;
+  if (!when || Number.isNaN(when.getTime())) throw bad();
+  if (when.getTime() <= now.getTime() || when.getTime() > now.getTime() + SCHEDULE_AHEAD_MS) {
+    throw bad('pick a time in the next 60 days');
+  }
+  const ok = (m) => m && typeof m.title === 'string' && typeof m.body === 'string'
+    && m.title.trim() && m.body.trim() && m.title.length <= 80 && m.body.length <= 300;
+  if (!ok(bn) || !ok(en)) throw bad();
+  if (communityId !== undefined && !isCommunityId(communityId)) throw bad();
+  if (communityId && !(await store.get(`communities/${communityId}`, ['name']))) throw new AdminError(404, 'no such community');
+  const id = crypto.randomUUID();
+  await store.commit([{
+    create: `scheduled/${id}`,
+    fields: {
+      bn: { title: bn.title.trim(), body: bn.body.trim() },
+      en: { title: en.title.trim(), body: en.body.trim() },
+      ...(communityId ? { communityId } : {}),
+      at: when,
+      by: caller,
+      createdAt: now,
+    },
+  }]);
+  return { done: true, id };
+}
+
+async function cancelScheduled(store, { id }) {
+  if (!isId(id)) throw bad();
+  await store.commit([{ delete: `scheduled/${id}` }]);
+  return { done: true };
 }
 
 // --- Admins ----------------------------------------------------------------
@@ -624,12 +702,12 @@ async function transferCommunity(store, cid, c, to) {
  * line in each language reaches all of them. Kept under announcements/, for
  * the panel to show what went out and who sent it.
  */
-async function broadcast(store, push, caller, { bn, en, communityId, from = 0 }, now) {
+async function broadcast(store, push, caller, { bn, en, communityId, from = 0, round = MAX_PUSHES }, now) {
   const ok = (m) => m && typeof m.title === 'string' && typeof m.body === 'string'
     && m.title.trim() && m.body.trim() && m.title.length <= 80 && m.body.length <= 300;
   if (!ok(bn) || !ok(en)) throw bad();
   if (communityId !== undefined && !isCommunityId(communityId)) throw bad();
-  if (!Number.isInteger(from) || from < 0) throw bad();
+  if (!Number.isInteger(from) || from < 0 || !Number.isInteger(round) || round < 1 || round > MAX_PUSHES) throw bad();
   const sent = {
     bn: { title: bn.title.trim(), body: bn.body.trim() },
     en: { title: en.title.trim(), body: en.body.trim() },
@@ -640,7 +718,7 @@ async function broadcast(store, push, caller, { bn, en, communityId, from = 0 },
     fields: { ...sent, sentBy: caller, sentAt: now, ...(communityId ? { communityId } : {}) },
   }]);
 
-  if (communityId) return toCommunity(store, push, communityId, sent, from, keep);
+  if (communityId) return toCommunity(store, push, communityId, sent, from, round, keep);
 
   for (const language of ['bn', 'en']) {
     await push(pushMessage({
@@ -658,7 +736,7 @@ async function broadcast(store, push, caller, { bn, en, communityId, from = 0 },
  * tapping it opens the community's chat. A big community takes more than
  * one call: {done: false, next} says where the next one starts.
  */
-async function toCommunity(store, push, cid, sent, from, keep) {
+async function toCommunity(store, push, cid, sent, from, round, keep) {
   if (!(await store.get(`communities/${cid}`, ['name']))) throw new AdminError(404, 'no such community');
   const uids = (await store.find({ parent: `rooms/c_${cid}`, collection: 'members', limit: 300 }))
     .map((r) => r.path.split('/').pop());
@@ -668,8 +746,8 @@ async function toCommunity(store, push, cid, sent, from, keep) {
     token: d.token,
     ...(sent[d.language] ?? sent.bn),
     data: { type: 'room', roomId: `c_${cid}` },
-  }));
-  const next = from + MAX_PUSHES;
+  }), round);
+  const next = from + round;
   return next < devices.length
     ? { done: false, next, sent: reached }
     : { done: true, sent: reached, phones: devices.length };
