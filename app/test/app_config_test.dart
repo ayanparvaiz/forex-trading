@@ -91,15 +91,26 @@ void main() {
     });
 
     test('blocked words are found in any case, anywhere, in either script', () {
-      final w = BlockedWords.fromJson({
+      final w = Moderation.fromJson({
         'words': ['t.me/', 'vip signal', 'টেলিগ্রাম'],
       });
       expect(w.firstIn('Join our VIP SIGNAL group'), 'vip signal');
       expect(w.firstIn('more at\nT.ME/abc'), 't.me/');
       expect(w.firstIn('আমাদের টেলিগ্রামে আসুন'), 'টেলিগ্রাম');
       expect(w.firstIn('EUR/USD long, stop below 1.0850'), isNull);
-      expect(BlockedWords.none.firstIn('anything'), isNull);
-      expect(BlockedWords.fromJson(null).words, isEmpty);
+      expect(Moderation.none.firstIn('anything'), isNull);
+      expect(Moderation.fromJson(null).words, isEmpty);
+    });
+
+    test('what the admins switched off, and only that', () {
+      final m = Moderation.fromJson({
+        'off': {'globalChat': true, 'posting': false, 'comments': true},
+      });
+      expect(m.paused(AppFeature.globalChat), isTrue);
+      expect(m.paused(AppFeature.comments), isTrue);
+      expect(m.paused(AppFeature.posting), isFalse);
+      expect(m.paused(AppFeature.privateChats), isFalse);
+      expect(Moderation.none.paused(AppFeature.posting), isFalse);
     });
   });
 
@@ -114,7 +125,7 @@ void main() {
 
   group('on screen', () {
     late StreamController<AppConfig> config;
-    late StreamController<BlockedWords> words;
+    late StreamController<Moderation> words;
 
     Future<void> pump(
       WidgetTester tester,
@@ -136,13 +147,13 @@ void main() {
       final session = SessionController(auth);
       await session.restore();
       config = StreamController<AppConfig>();
-      words = StreamController<BlockedWords>();
+      words = StreamController<Moderation>();
       await tester.pumpWidget(
         SessionScope(
           controller: session,
           child: AppConfigHost(
             app: config.stream,
-            blocked: words.stream,
+            moderation: words.stream,
             child: MaterialApp(
               theme: buildAppTheme(),
               builder: (context, inner) =>
@@ -232,7 +243,7 @@ void main() {
     testWidgets('a question with a blocked word is not asked; the app says '
         'which word', (tester) async {
       await pump(tester, const Scaffold(body: QuestionSheet()));
-      words.add(const BlockedWords(['t.me/']));
+      words.add(const Moderation(['t.me/']));
       await tester.pump();
       await tester.enterText(
         find.byType(TextField),
@@ -248,6 +259,19 @@ void main() {
         find.text('Which group is best? t.me/freesignals'),
         findsOneWidget,
       );
+    });
+
+    testWidgets('while the admins have posting paused, a question waits, and '
+        'the app says so', (tester) async {
+      await pump(tester, const Scaffold(body: QuestionSheet()));
+      words.add(const Moderation([], off: {'posting'}));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'What is a good stop?');
+      await tester.pump();
+      await tester.tap(find.widgetWithText(FilledButton, 'Ask a question'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('paused new posts'), findsOneWidget);
+      expect(find.text('What is a good stop?'), findsOneWidget);
     });
   });
 }

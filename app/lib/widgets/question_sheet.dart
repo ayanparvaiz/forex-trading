@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/session_controller.dart';
 import '../models/trader.dart';
+import '../models/app_config.dart';
 import 'app_config_host.dart';
 import '../theme/app_theme.dart';
 
@@ -111,7 +112,11 @@ class _QuestionSheetState extends State<QuestionSheet> {
                 onPressed: _ready
                     ? () {
                         final question = _text.text.trim();
-                        if (wordsAllowed(context, question)) {
+                        if (sendAllowed(
+                          context,
+                          question,
+                          feature: AppFeature.posting,
+                        )) {
                           Navigator.of(context).pop(question);
                         }
                       }

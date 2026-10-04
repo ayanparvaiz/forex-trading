@@ -107,26 +107,54 @@ class AppBanner {
   }
 }
 
-/// The words and links nobody may post (admin panel → Blocked words; the
-/// worker writes config/moderation). The rules refuse them; this is so the
-/// app can say why before trying.
-class BlockedWords {
-  const BlockedWords(this.words);
+/// What can be switched off for a while (admin panel → App settings →
+/// Switches), named as the rules name it (firestore.rules, featureOn).
+enum AppFeature {
+  globalChat('globalChat'),
+  communityChats('communityChats'),
+  posting('posting'),
+  comments('comments'),
+  privateChats('privateChats');
 
-  static const none = BlockedWords([]);
+  const AppFeature(this.key);
+  final String key;
+}
+
+/// What the admins hold back (config/moderation, written by the worker):
+/// the words and links nobody may post (admin panel → Blocked words), and
+/// the parts of the app paused for now. The rules refuse both; this is so
+/// the app can say why before trying.
+class Moderation {
+  const Moderation(this.words, {this.off = const {}});
+
+  static const none = Moderation([]);
 
   /// In lower case, as the worker keeps them.
   final List<String> words;
 
-  factory BlockedWords.fromJson(Map<String, dynamic>? json) {
+  /// What is switched off, by [AppFeature.key].
+  final Set<String> off;
+
+  factory Moderation.fromJson(Map<String, dynamic>? json) {
     final words = json?['words'];
-    return words is List
-        ? BlockedWords([
-            for (final w in words)
-              if (w is String && w.isNotEmpty) w.toLowerCase(),
-          ])
-        : none;
+    final off = json?['off'];
+    return Moderation(
+      words is List
+          ? [
+              for (final w in words)
+                if (w is String && w.isNotEmpty) w.toLowerCase(),
+            ]
+          : const [],
+      off: off is Map
+          ? {
+              for (final e in off.entries)
+                if (e.value == true && e.key is String) e.key as String,
+            }
+          : const {},
+    );
   }
+
+  bool paused(AppFeature feature) => off.contains(feature.key);
 
   /// The first listed word in [text] — in any case, anywhere, as the rules
   /// look — or null when there is none.

@@ -134,7 +134,7 @@ class _ForexTradingAppState extends State<ForexTradingApp> {
         store: _store,
         child: AppConfigHost(
           app: _config?.watchApp(),
-          blocked: _config?.watchBlocked(),
+          moderation: _config?.watchModeration(),
           child: MaterialApp(
             title: 'Forex Social',
             debugShowCheckedModeBanner: false,

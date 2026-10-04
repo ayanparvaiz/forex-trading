@@ -10,6 +10,7 @@ import '../models/post_comment.dart';
 import '../theme/app_theme.dart';
 import '../widgets/avatar_image.dart';
 import '../widgets/common.dart';
+import '../models/app_config.dart';
 import '../widgets/app_config_host.dart';
 import '../widgets/report_sheet.dart';
 import 'profile_screen.dart';
@@ -105,7 +106,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
     final me = session.profile;
     final uid = session.uid;
     if (body.isEmpty || me == null || uid == null) return;
-    if (!wordsAllowed(context, body)) return;
+    if (!sendAllowed(context, body, feature: AppFeature.comments)) return;
 
     final answering = _replyingTo;
     setState(() {

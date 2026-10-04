@@ -1767,6 +1767,18 @@ class Strings {
   String get pinnedByAdmins =>
       _t('অ্যাডমিনদের পিন করা', 'Pinned by the admins');
   String get cantSendThis => _t('এটা পাঠানো যাবে না', "This can't be sent");
+  String pausedBody(String what) => _t(
+    'অ্যাডমিনরা এখন $what বন্ধ রেখেছেন। একটু পরে আবার চেষ্টা করুন।',
+    'The admins have paused $what for now. Try again a little later.',
+  );
+  String featureName(String key) => switch (key) {
+    'globalChat' => _t('গ্লোবাল চ্যাট', 'the Global chat'),
+    'communityChats' => _t('কমিউনিটি চ্যাট', 'community chats'),
+    'posting' => _t('নতুন পোস্ট', 'new posts'),
+    'comments' => _t('কমেন্ট', 'comments'),
+    'privateChats' => _t('মেসেজ পাঠানো', 'private messages'),
+    _ => _t('এটা', 'this'),
+  };
   String blockedWord(String word) => _t(
     '“$word” এখানে লেখা যায় না — স্ক্যাম আর স্প্যাম ঠেকাতে অ্যাডমিনরা এটা বন্ধ রেখেছেন।',
     '“$word” isn\'t allowed here — the admins have blocked it to keep out '

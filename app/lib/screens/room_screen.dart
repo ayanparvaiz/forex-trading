@@ -10,6 +10,7 @@ import '../data/room_repository.dart';
 import '../data/safety_repository.dart';
 import '../data/session_controller.dart';
 import '../data/starred_messages.dart';
+import '../models/app_config.dart';
 import '../models/chat.dart';
 import '../models/community.dart';
 import '../models/user_profile.dart';
@@ -502,6 +503,9 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
               controller: _conversation,
               stars: _stars,
               canSend: canSend,
+              feature: widget.roomId == 'global'
+                  ? AppFeature.globalChat
+                  : AppFeature.communityChats,
               checksWords: true,
               nameOf: (uid, m) {
                 if (uid == _me) return s.you;

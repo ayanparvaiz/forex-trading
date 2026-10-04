@@ -17,6 +17,7 @@ import '../theme/app_theme.dart';
 import 'chat_bits.dart';
 import 'community_badge.dart';
 import 'forward_sheet.dart';
+import '../models/app_config.dart';
 import 'app_config_host.dart';
 import 'poll_card.dart';
 import 'shared_cards.dart';
@@ -120,11 +121,16 @@ class ConversationView extends StatefulWidget {
     this.onOpenSender,
     this.controller,
     this.stars,
+    this.feature,
     this.checksWords = false,
   });
 
   final MessageSource source;
   final String me;
+
+  /// What sending here is, for the admins' switches; null for nothing they
+  /// switch.
+  final AppFeature? feature;
 
   /// Whether the admins' blocked words apply: in Global and the community
   /// chats, not between two people.
@@ -332,7 +338,14 @@ class _ConversationViewState extends State<ConversationView> {
   void _send() {
     final text = _input.text.trim();
     if (text.isEmpty) return;
-    if (widget.checksWords && !wordsAllowed(context, text)) return;
+    if (!sendAllowed(
+      context,
+      text,
+      feature: widget.feature,
+      words: widget.checksWords,
+    )) {
+      return;
+    }
 
     final messenger = ScaffoldMessenger.of(context);
     final s = context.s;

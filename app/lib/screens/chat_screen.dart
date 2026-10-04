@@ -9,6 +9,7 @@ import '../data/push_notifier.dart';
 import '../data/safety_repository.dart';
 import '../data/session_controller.dart';
 import '../data/starred_messages.dart';
+import '../models/app_config.dart';
 import '../models/chat.dart';
 import '../theme/app_theme.dart';
 import '../widgets/chat_bits.dart';
@@ -579,6 +580,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               controller: _conversation,
               stars: _stars,
               canSend: _connected == true && !blockedByMe,
+              feature: AppFeature.privateChats,
               nameOf: (uid, _) => uid == _me ? s.you : _partnerName,
               emptyText: s.sayHi,
               bottom: note,

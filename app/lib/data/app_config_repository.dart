@@ -19,11 +19,11 @@ class AppConfigRepository {
       // Offline or refused: the app as it is, never stuck behind a gate.
       .handleError((Object e) => debugPrint('app config: $e'));
 
-  Stream<BlockedWords> watchBlocked() => _db
+  Stream<Moderation> watchModeration() => _db
       .doc('config/moderation')
       .snapshots()
-      .map((s) => BlockedWords.fromJson(s.data()))
-      .handleError((Object e) => debugPrint('blocked words: $e'));
+      .map((s) => Moderation.fromJson(s.data()))
+      .handleError((Object e) => debugPrint('moderation: $e'));
 }
 
 /// On Firestore; nothing to follow without it.
