@@ -38,12 +38,16 @@ export function BanDialog({ user, onClose, onDone }: Props) {
   const { busy, run, toast } = useWork();
   const [days, setDays] = useState(7);
   const [reason, setReason] = useState("");
+  const [clean, setClean] = useState(false);
   const submit = async () => {
-    const done = await run(() =>
-      adminCall("ban", { uid: user.id, banned: true, ...(days ? { days } : {}), ...(reason.trim() ? { reason: reason.trim() } : {}) }),
-    );
+    const done = await run(async () => {
+      await adminCall("ban", { uid: user.id, banned: true, ...(days ? { days } : {}), ...(reason.trim() ? { reason: reason.trim() } : {}) });
+      if (clean) await adminCall("purge", { uid: user.id });
+      return true;
+    });
     if (!done) return;
-    toast(days ? `@${user.username} is banned for ${days} day${days === 1 ? "" : "s"}.` : `@${user.username} is banned.`);
+    const banned = days ? `@${user.username} is banned for ${days} day${days === 1 ? "" : "s"}` : `@${user.username} is banned`;
+    toast(clean ? `${banned}, and everything they posted is gone.` : `${banned}.`);
     onDone();
   };
   return (
@@ -57,7 +61,10 @@ export function BanDialog({ user, onClose, onDone }: Props) {
         </>
       }
     >
-      <p>They are signed out on every phone and can&apos;t sign in until the ban ends. Their posts and messages stay.</p>
+      <p>
+        They are signed out on every phone and can&apos;t sign in until the ban ends.{" "}
+        {clean ? "Everything they posted goes too." : "Their posts and messages stay."}
+      </p>
       <div className="mt-4 flex flex-col gap-4">
         <div>
           <div className="mb-1.5 text-xs font-medium text-muted">For how long</div>
@@ -80,6 +87,13 @@ export function BanDialog({ user, onClose, onDone }: Props) {
         <Field label="Why (only admins see this)" count={reason.length} max={200}>
           <textarea className={cx(inputClass, "h-20 resize-y py-2.5")} value={reason} onChange={(e) => setReason(e.target.value)} />
         </Field>
+        <label className="flex items-start gap-3 rounded-xl bg-sunken p-3 text-ink">
+          <input type="checkbox" className="mt-0.5 size-4 accent-primary" checked={clean} onChange={(e) => setClean(e.target.checked)} />
+          <span>
+            <span className="block font-medium">Also remove everything they posted</span>
+            <span className="block text-xs text-muted">Their posts, comments, and messages in Global and community chats — for spam. Private chats stay. This can&apos;t be undone.</span>
+          </span>
+        </label>
       </div>
     </Dialog>
   );

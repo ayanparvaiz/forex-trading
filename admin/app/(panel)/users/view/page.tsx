@@ -58,6 +58,18 @@ function UserView() {
     ).then((done) => done && reload());
   const dialogProps = { user: u, onClose: () => setDialog(null), onDone: () => { setDialog(null); reload(); } };
 
+  const purge = () =>
+    act(
+      {
+        title: `Remove everything @${u.username} posted?`,
+        body: "Their posts with everything on them, their comments on other people's posts, and their messages in Global and every community chat. Private chats stay, and so does the account. This can't be undone.",
+        action: "Remove everything",
+        danger: true,
+      },
+      () => adminCall("purge", { uid: u.id }),
+      `Everything @${u.username} posted is gone.`,
+    ).then((done) => done && reload());
+
   const remove = () =>
     act(
       { title: `Delete @${u.username}'s account?`, body: "Their profile, trades, posts, comments, likes, messages and memberships are erased, then their sign-in. This cannot be undone.", action: "Delete account", danger: true },
@@ -105,6 +117,7 @@ function UserView() {
                 <Button onClick={() => setDialog("password")}>Reset password</Button>
                 <Button onClick={() => setDialog("reset")}>Fix name or picture</Button>
                 {u.banned ? <Button onClick={lift}>Lift ban</Button> : <Button variant="danger" onClick={() => setDialog("ban")}>Ban</Button>}
+                <Button variant="danger" onClick={purge}>Remove all they posted</Button>
                 <Button variant="danger" onClick={remove}>Delete account</Button>
               </>
             }
