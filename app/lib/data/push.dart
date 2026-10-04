@@ -32,6 +32,8 @@ sealed class PushRoute {
         text('username')!,
       ),
       'post' when text('postId') != null => OpenPostRoute(text('postId')!),
+      // The admins answered what you wrote to them.
+      'support' => const OpenSupportRoute(),
       _ => null,
     };
   }
@@ -62,6 +64,10 @@ class OpenProfileRoute extends PushRoute {
 class OpenPostRoute extends PushRoute {
   const OpenPostRoute(this.postId);
   final String postId;
+}
+
+class OpenSupportRoute extends PushRoute {
+  const OpenSupportRoute();
 }
 
 /// Push notifications on this phone.

@@ -50,4 +50,8 @@ void main() {
     expect(notifyEndpoint.path, '/notify');
     expect(notifyEndpoint.host, contains('workers.dev'));
   });
+
+  test("the admins' answer opens your messages to them", () {
+    expect(PushRoute.fromData({'type': 'support'}), isA<OpenSupportRoute>());
+  });
 }

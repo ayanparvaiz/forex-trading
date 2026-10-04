@@ -1784,4 +1784,23 @@ class Strings {
     '“$word” isn\'t allowed here — the admins have blocked it to keep out '
         'scams and spam.',
   );
+
+  // --- Writing to the admins -----------------------------------------------
+
+  String get writeToAdmins => _t('অ্যাডমিনদের লিখুন', 'Write to the admins');
+  String get supportIntro => _t(
+    'অ্যাপ, আপনার অ্যাকাউন্ট বা চোখে পড়া কিছু নিয়ে অ্যাডমিনদের জানান। উত্তর এলে নোটিফিকেশন পাবেন।',
+    'About the app, your account, or something you saw — tell the admins. '
+        "You'll get a notification when they answer.",
+  );
+  String get supportHint =>
+      _t('কী জানাতে চান?', 'What would you like to tell them?');
+  String get supportSent => _t(
+    'পাঠানো হয়েছে। অ্যাডমিনরা দেখে উত্তর দেবেন।',
+    'Sent. The admins will read it and answer.',
+  );
+  String get supportEmpty => _t('এখনো কিছু লেখেননি।', 'Nothing written yet.');
+  String get supportWaiting => _t('উত্তরের অপেক্ষায়', 'Waiting for an answer');
+  String get supportAnswered => _t('অ্যাডমিনদের উত্তর', 'The admins answered');
+  String get supportClosed => _t('বন্ধ', 'Closed');
 }

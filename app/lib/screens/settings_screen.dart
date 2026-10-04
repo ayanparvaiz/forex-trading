@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../data/support_repository.dart';
 import '../data/chat_inbox.dart';
 import '../data/communities_repository.dart';
 import '../data/push.dart';
@@ -20,6 +21,7 @@ import 'delete_account_screen.dart';
 import 'edit_name_screen.dart';
 import 'legal_screen.dart';
 import 'saved_posts_screen.dart';
+import 'support_screen.dart';
 import 'starred_messages_screen.dart';
 
 Future<void> openSettings(BuildContext context) => Navigator.of(
@@ -159,6 +161,12 @@ class SettingsScreen extends StatelessWidget {
                 SettingsSection(
                   title: s.sectionAbout,
                   children: [
+                    if (buildSupport() != null)
+                      SettingsTile(
+                        icon: Icons.support_agent_outlined,
+                        title: s.writeToAdmins,
+                        onTap: () => openSupport(context),
+                      ),
                     SettingsTile(
                       icon: Icons.privacy_tip_outlined,
                       title: privacyPolicy(session.language).title,

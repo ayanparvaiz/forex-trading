@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../data/firestore_community_repository.dart';
 import '../data/push.dart';
 import '../data/session_controller.dart';
+import '../screens/support_screen.dart';
 import '../screens/chat_screen.dart';
 import '../screens/post_screen.dart';
 import '../screens/profile_screen.dart';
@@ -139,6 +140,8 @@ class _PushHostState extends State<PushHost> {
         );
       case OpenPostRoute(:final postId):
         openPost(nav, postId);
+      case OpenSupportRoute():
+        openSupport(nav);
     }
   }
 
