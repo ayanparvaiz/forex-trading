@@ -4,11 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useOpenReports } from "@/lib/live";
+import { ROLE_LABEL } from "@/lib/roles";
 import { useSession } from "@/lib/session";
 import { Icons } from "./icons";
 import { cx } from "./ui";
 
-const NAV: { group?: string; items: { href: string; label: string; icon: () => React.ReactElement }[] }[] = [
+// [needs]: the worker action a page is for; moderators don't see pages
+// whose action is not theirs.
+const NAV: { group?: string; items: { href: string; label: string; icon: () => React.ReactElement; needs?: string }[] }[] = [
   { items: [{ href: "/", label: "Dashboard", icon: Icons.dashboard }] },
   {
     group: "Moderation",
@@ -29,15 +32,15 @@ const NAV: { group?: string; items: { href: string; label: string; icon: () => R
   {
     group: "App",
     items: [
-      { href: "/announcements/", label: "Announcements", icon: Icons.megaphone },
-      { href: "/settings/", label: "App settings", icon: Icons.settings },
-      { href: "/blocked-words/", label: "Blocked words", icon: Icons.block },
+      { href: "/announcements/", label: "Announcements", icon: Icons.megaphone, needs: "broadcast" },
+      { href: "/settings/", label: "App settings", icon: Icons.settings, needs: "config" },
+      { href: "/blocked-words/", label: "Blocked words", icon: Icons.block, needs: "blockedWords" },
     ],
   },
   {
     group: "Admin",
     items: [
-      { href: "/admins/", label: "Admins", icon: Icons.shield },
+      { href: "/admins/", label: "Admins", icon: Icons.shield, needs: "addAdmin" },
       { href: "/activity/", label: "Activity", icon: Icons.history },
     ],
   },
@@ -63,9 +66,12 @@ function Mark() {
 function Nav({ onPick }: { onPick?: () => void }) {
   const path = usePathname();
   const openReports = useOpenReports();
+  const { can } = useSession();
   return (
     <nav className="flex flex-col gap-4">
-      {NAV.map(({ group, items }, i) => (
+      {NAV.map(({ group, items: all }, i) => {
+        const items = all.filter((item) => !item.needs || can(item.needs));
+        return items.length === 0 ? null : (
         <div key={group ?? i} className="flex flex-col gap-0.5">
           {group && <div className="px-3 pb-1 text-[11px] font-medium tracking-[0.08em] text-faint uppercase">{group}</div>}
           {items.map(({ href, label, icon: Icon }) => (
@@ -88,19 +94,20 @@ function Nav({ onPick }: { onPick?: () => void }) {
             </Link>
           ))}
         </div>
-      ))}
+        );
+      })}
     </nav>
   );
 }
 
 function Account() {
-  const { user, signOut } = useSession();
+  const { user, role, signOut } = useSession();
   const name = user?.email?.split("@")[0] ?? "";
   return (
     <div className="flex items-center justify-between gap-2 border-t border-line-soft pt-4">
       <div className="min-w-0">
         <div className="truncate text-sm font-medium text-ink">@{name}</div>
-        <div className="text-xs text-muted">Admin</div>
+        <div className="text-xs text-muted">{role ? ROLE_LABEL[role] : ""}</div>
       </div>
       <button onClick={signOut} className="rounded-lg p-2 text-muted hover:bg-sunken hover:text-ink" title="Sign out" aria-label="Sign out">
         <Icons.out />

@@ -3,9 +3,10 @@
 import { doc, getDoc } from "firebase/firestore";
 import { useState } from "react";
 import { useFeedback } from "@/components/feedback";
-import { Button, Card, ErrorNote, Loading, PageHeader, cx, inputClass } from "@/components/ui";
+import { Button, Card, ErrorNote, Loading, PageHeader, cx, inputClass, AdminsOnly } from "@/components/ui";
 import { adminCall } from "@/lib/admin-api";
 import { db } from "@/lib/firebase";
+import { useSession } from "@/lib/session";
 import { useLoad } from "@/lib/use-load";
 
 // As the worker takes them (worker/src/admin.js, blockedWords).
@@ -100,13 +101,25 @@ function Editor({ saved, onSaved }: { saved: string[]; onSaved: () => void }) {
   );
 }
 
-export default function BlockedWordsPage() {
+function BlockedWordsPage() {
   const { data, error, loading, reload } = useLoad(load);
   return (
     <>
       <PageHeader title="Blocked words" subtitle="Words and links nobody can post — scam groups, paid signals, abuse." />
       <ErrorNote error={error} />
       {loading && !data ? <Loading /> : data ? <Editor key={data.join("\n")} saved={data} onSaved={reload} /> : null}
+    </>
+  );
+}
+
+export default function Page() {
+  const { can } = useSession();
+  return can("blockedWords") ? (
+    <BlockedWordsPage />
+  ) : (
+    <>
+      <PageHeader title="Blocked words" />
+      <AdminsOnly />
     </>
   );
 }

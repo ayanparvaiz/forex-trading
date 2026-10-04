@@ -11,6 +11,7 @@ import { allUsers } from "@/lib/data";
 import { db } from "@/lib/firebase";
 import { dateLabel, dateTime, timeAgo, toDate } from "@/lib/format";
 import { rows, type CommunityDoc, type When } from "@/lib/types";
+import { useSession } from "@/lib/session";
 import { useLoad } from "@/lib/use-load";
 import { EditDialog } from "./edit-dialog";
 
@@ -40,6 +41,7 @@ function CommunityView() {
   const act = useAction();
   const { data, error, loading, reload } = useLoad(() => load(id), id);
   const [editing, setEditing] = useState(false);
+  const { can } = useSession();
 
   if (loading && !data) return <Loading />;
   if (error) return <ErrorNote error={error} />;
@@ -96,9 +98,13 @@ function CommunityView() {
             actions={
               <>
                 <Link href={`/rooms/?room=c_${c.id}`}><Button>Open its chat</Button></Link>
-                <Button onClick={() => setEditing(true)}>Edit</Button>
-                {c.locked ? <Button onClick={() => lock(false)}>Unlock</Button> : <Button onClick={() => lock(true)}>Lock</Button>}
-                <Button variant="danger" onClick={destroy}>Delete community</Button>
+                {can("community") && (
+                  <>
+                    <Button onClick={() => setEditing(true)}>Edit</Button>
+                    {c.locked ? <Button onClick={() => lock(false)}>Unlock</Button> : <Button onClick={() => lock(true)}>Lock</Button>}
+                    <Button variant="danger" onClick={destroy}>Delete community</Button>
+                  </>
+                )}
               </>
             }
           />
@@ -134,7 +140,7 @@ function CommunityView() {
                     </td>
                     <td className={`${td} whitespace-nowrap text-muted`}>{dateLabel(m.joinedAt)}</td>
                     <td className={`${td} text-right`}>
-                      {m.role !== "admin" && (
+                      {m.role !== "admin" && can("community") && (
                         <span className="flex justify-end gap-1">
                           <Button size="sm" variant="ghost" onClick={() => transfer(m)}>Make admin</Button>
                           <Button size="sm" variant="ghost" onClick={() => remove(m)}>Remove</Button>

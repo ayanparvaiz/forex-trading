@@ -94,7 +94,9 @@ export function sentence(e: LogEntry): string {
     case "resetProfile":
       return `reset ${who(e.username)}'s ${e.what ?? "profile"}`;
     case "addAdmin":
-      return `made ${who(e.username)} an admin`;
+      return `made ${who(e.username)} ${e.what === "moderator" ? "a moderator" : "an admin"}`;
+    case "purge":
+      return `removed everything ${who(e.username)} posted`;
     case "removeAdmin":
       return `took ${who(e.username)}'s admin access away`;
     case "config":
@@ -110,7 +112,7 @@ export function sentence(e: LogEntry): string {
 
 /** Which filter a log line belongs under. */
 export function area(action: string): string {
-  if (["ban", "liftBan", "deleteUser", "setPassword", "warn", "resetProfile"].includes(action)) return "People";
+  if (["ban", "liftBan", "deleteUser", "setPassword", "warn", "resetProfile", "purge"].includes(action)) return "People";
   if (["deletePost", "deleteComment", "removeMessage", "pin"].includes(action)) return "Content";
   if (action === "resolveReport") return "Reports";
   if (action === "community") return "Communities";

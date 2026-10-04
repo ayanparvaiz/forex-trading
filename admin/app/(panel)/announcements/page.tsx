@@ -3,12 +3,13 @@
 import { collection, getDocs, limit, orderBy, query } from "firebase/firestore";
 import { useState } from "react";
 import { useAction } from "@/components/feedback";
-import { Button, Card, Empty, ErrorNote, Loading, PageHeader, cx, inputClass } from "@/components/ui";
+import { Button, Card, Empty, ErrorNote, Loading, PageHeader, cx, inputClass, AdminsOnly } from "@/components/ui";
 import { adminCall } from "@/lib/admin-api";
 import { allCommunities, allUsers } from "@/lib/data";
 import { db } from "@/lib/firebase";
 import { dateTime, timeAgo } from "@/lib/format";
 import { rows, type When } from "@/lib/types";
+import { useSession } from "@/lib/session";
 import { useLoad } from "@/lib/use-load";
 
 // As the worker allows them (worker/src/admin.js).
@@ -60,7 +61,7 @@ function Preview({ line, title, body }: { line: Line; title: string; body: strin
   );
 }
 
-export default function AnnouncementsPage() {
+function AnnouncementsPage() {
   const act = useAction();
   const { data, error, loading, reload } = useLoad(load);
   const [draft, setDraft] = useState<{ bn: Line; en: Line }>(EMPTY);
@@ -163,6 +164,18 @@ export default function AnnouncementsPage() {
           )}
         </Card>
       </div>
+    </>
+  );
+}
+
+export default function Page() {
+  const { can } = useSession();
+  return can("broadcast") ? (
+    <AnnouncementsPage />
+  ) : (
+    <>
+      <PageHeader title="Announcements" />
+      <AdminsOnly />
     </>
   );
 }

@@ -5,6 +5,8 @@ import { Dialog, Field } from "@/components/dialog";
 import { useFeedback } from "@/components/feedback";
 import { Button, cx, inputClass } from "@/components/ui";
 import { adminCall } from "@/lib/admin-api";
+import { MODERATOR_BAN_DAYS } from "@/lib/roles";
+import { useSession } from "@/lib/session";
 import type { UserDoc } from "@/lib/types";
 
 type Props = { user: UserDoc; onClose: () => void; onDone: () => void };
@@ -39,6 +41,9 @@ export function BanDialog({ user, onClose, onDone }: Props) {
   const [days, setDays] = useState(7);
   const [reason, setReason] = useState("");
   const [clean, setClean] = useState(false);
+  const { can, role } = useSession();
+  // A moderator's bans end within a week.
+  const durations = role === "moderator" ? DURATIONS.filter((d) => MODERATOR_BAN_DAYS.includes(d.days)) : DURATIONS;
   const submit = async () => {
     const done = await run(async () => {
       await adminCall("ban", { uid: user.id, banned: true, ...(days ? { days } : {}), ...(reason.trim() ? { reason: reason.trim() } : {}) });
@@ -69,7 +74,7 @@ export function BanDialog({ user, onClose, onDone }: Props) {
         <div>
           <div className="mb-1.5 text-xs font-medium text-muted">For how long</div>
           <div className="flex flex-wrap gap-1.5">
-            {DURATIONS.map((d) => (
+            {durations.map((d) => (
               <button
                 key={d.days}
                 type="button"
@@ -87,6 +92,7 @@ export function BanDialog({ user, onClose, onDone }: Props) {
         <Field label="Why (only admins see this)" count={reason.length} max={200}>
           <textarea className={cx(inputClass, "h-20 resize-y py-2.5")} value={reason} onChange={(e) => setReason(e.target.value)} />
         </Field>
+        {can("purge") && (
         <label className="flex items-start gap-3 rounded-xl bg-sunken p-3 text-ink">
           <input type="checkbox" className="mt-0.5 size-4 accent-primary" checked={clean} onChange={(e) => setClean(e.target.checked)} />
           <span>
@@ -94,6 +100,7 @@ export function BanDialog({ user, onClose, onDone }: Props) {
             <span className="block text-xs text-muted">Their posts, comments, and messages in Global and community chats — for spam. Private chats stay. This can&apos;t be undone.</span>
           </span>
         </label>
+        )}
       </div>
     </Dialog>
   );

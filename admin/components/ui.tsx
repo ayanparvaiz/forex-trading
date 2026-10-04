@@ -203,3 +203,12 @@ export function ExportButton({ onClick, disabled }: { onClick: () => void; disab
     </Button>
   );
 }
+
+/** In place of a page or a part of one that is for admins only. */
+export function AdminsOnly() {
+  return (
+    <Card>
+      <Empty title="For admins only" hint="Moderators look after posts, comments, messages and reports. An admin can do this." />
+    </Card>
+  );
+}

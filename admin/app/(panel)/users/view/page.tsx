@@ -13,6 +13,7 @@ import { db } from "@/lib/firebase";
 import { dateLabel, dateTime, rText, timeAgo, toDate } from "@/lib/format";
 import { ACHIEVEMENTS, KINDS, REPORT_REASONS } from "@/lib/labels";
 import { rows, type CommunityDoc, type PostDoc, type ReportDoc, type UserDoc } from "@/lib/types";
+import { useSession } from "@/lib/session";
 import { useLoad } from "@/lib/use-load";
 import { BanDialog, PasswordDialog, ResetDialog, WarnDialog } from "./people-dialogs";
 
@@ -44,6 +45,7 @@ function UserView() {
   const act = useAction();
   const { data, error, loading, reload } = useLoad(() => load(uid), uid);
   const [dialog, setDialog] = useState<null | "ban" | "password" | "warn" | "reset">(null);
+  const { can } = useSession();
 
   if (loading && !data) return <Loading />;
   if (error) return <ErrorNote error={error} />;
@@ -114,11 +116,11 @@ function UserView() {
             actions={
               <>
                 <Button onClick={() => setDialog("warn")}>Warn</Button>
-                <Button onClick={() => setDialog("password")}>Reset password</Button>
+                {can("setPassword") && <Button onClick={() => setDialog("password")}>Reset password</Button>}
                 <Button onClick={() => setDialog("reset")}>Fix name or picture</Button>
                 {u.banned ? <Button onClick={lift}>Lift ban</Button> : <Button variant="danger" onClick={() => setDialog("ban")}>Ban</Button>}
-                <Button variant="danger" onClick={purge}>Remove all they posted</Button>
-                <Button variant="danger" onClick={remove}>Delete account</Button>
+                {can("purge") && <Button variant="danger" onClick={purge}>Remove all they posted</Button>}
+                {can("deleteUser") && <Button variant="danger" onClick={remove}>Delete account</Button>}
               </>
             }
           />
@@ -185,7 +187,7 @@ function UserView() {
                   <Link href={`/communities/view/?id=${community.id}`} className="block truncate text-sm font-medium text-ink-strong hover:underline">{community.name}</Link>
                   <div className="text-xs text-muted">{community.createdBy === u.id ? "Its admin" : "Member"}</div>
                 </div>
-                {community.createdBy !== u.id && <Button size="sm" variant="ghost" onClick={leave}>Remove</Button>}
+                {community.createdBy !== u.id && can("community") && <Button size="sm" variant="ghost" onClick={leave}>Remove</Button>}
               </div>
             ) : (
               <p className="text-sm text-muted">Not in a community.</p>

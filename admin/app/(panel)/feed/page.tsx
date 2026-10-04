@@ -10,6 +10,7 @@ import { allUsers, communityNames } from "@/lib/data";
 import { db } from "@/lib/firebase";
 import { rText, timeAgo, toDate } from "@/lib/format";
 import { rows, type CommentDoc, type PostDoc } from "@/lib/types";
+import { useSession } from "@/lib/session";
 import { useLoad } from "@/lib/use-load";
 
 async function load() {
@@ -101,6 +102,7 @@ export default function FeedPage() {
       "Post deleted.",
     ).then((ok) => ok && reload());
 
+  const { can } = useSession();
   const pin = (p: PostDoc | null) =>
     act(
       p
@@ -178,7 +180,7 @@ export default function FeedPage() {
                       </button>
                       <span className="tabular">seen by {p.reach ?? 0}</span>
                       <span className="ml-auto flex gap-2">
-                        {p.community === "global" &&
+                        {p.community === "global" && can("pin") &&
                           (data?.pinned === p.id ? (
                             <Button size="sm" onClick={() => pin(null)}>Unpin</Button>
                           ) : (

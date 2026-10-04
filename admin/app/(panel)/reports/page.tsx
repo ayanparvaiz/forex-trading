@@ -12,6 +12,7 @@ import { db } from "@/lib/firebase";
 import { dateTime, timeAgo, toDate } from "@/lib/format";
 import { KINDS, REPORT_REASONS } from "@/lib/labels";
 import { rows, type ReportDoc } from "@/lib/types";
+import { useSession } from "@/lib/session";
 import { useLoad } from "@/lib/use-load";
 
 const TABS = [
@@ -76,14 +77,23 @@ export default function ReportsPage() {
       "Message removed, report resolved.",
     ).then((ok) => ok && reload());
 
+  // A moderator's ban is for a week; an admin's until lifted. The person's
+  // own page has every length.
+  const { role } = useSession();
+  const week = role === "moderator";
   const ban = (r: ReportDoc) =>
     act(
-      { title: `Ban @${r.targetUsername}?`, body: "They are signed out everywhere and cannot sign in until you lift the ban.", action: "Ban", danger: true },
+      {
+        title: `Ban @${r.targetUsername}${week ? " for 7 days" : ""}?`,
+        body: week ? "They are signed out everywhere and cannot sign in for a week." : "They are signed out everywhere and cannot sign in until you lift the ban.",
+        action: "Ban",
+        danger: true,
+      },
       async () => {
-        await adminCall("ban", { uid: r.targetUid, banned: true });
+        await adminCall("ban", { uid: r.targetUid, banned: true, ...(week ? { days: 7 } : {}) });
         await andResolve(r);
       },
-      `@${r.targetUsername} is banned, report resolved.`,
+      `@${r.targetUsername} is banned${week ? " for 7 days" : ""}, report resolved.`,
     ).then((ok) => ok && reload());
 
   return (

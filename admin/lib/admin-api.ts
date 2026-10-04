@@ -35,6 +35,8 @@ function describe(error: unknown, status: number): string {
   switch (error) {
     case "not an admin":
       return "This account is not an admin.";
+    case "not for moderators":
+      return "That is for admins; moderators can't do it.";
     case "not yourself":
       return "You can't do that to your own account.";
     case "not another admin":

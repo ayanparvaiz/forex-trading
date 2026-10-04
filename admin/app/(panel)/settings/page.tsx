@@ -5,11 +5,12 @@ import Link from "next/link";
 import { useState } from "react";
 import { Field } from "@/components/dialog";
 import { useAction } from "@/components/feedback";
-import { Badge, Button, Card, ErrorNote, Loading, PageHeader, cx, inputClass } from "@/components/ui";
+import { Badge, Button, Card, ErrorNote, Loading, PageHeader, cx, inputClass, AdminsOnly } from "@/components/ui";
 import { adminCall } from "@/lib/admin-api";
 import { db } from "@/lib/firebase";
 import { timeAgo } from "@/lib/format";
 import type { PostDoc, When } from "@/lib/types";
+import { useSession } from "@/lib/session";
 import { useLoad } from "@/lib/use-load";
 
 type Line = { title: string; body: string };
@@ -181,7 +182,7 @@ function Pinned({ post, onSaved }: { post: PostDoc | null; onSaved: () => void }
   );
 }
 
-export default function SettingsPage() {
+function SettingsPage() {
   const { data, error, loading, reload } = useLoad(load);
   return (
     <>
@@ -198,6 +199,18 @@ export default function SettingsPage() {
           <Pinned post={data.pinned} onSaved={reload} />
         </div>
       ) : null}
+    </>
+  );
+}
+
+export default function Page() {
+  const { can } = useSession();
+  return can("config") ? (
+    <SettingsPage />
+  ) : (
+    <>
+      <PageHeader title="App settings" />
+      <AdminsOnly />
     </>
   );
 }
