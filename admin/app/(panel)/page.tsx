@@ -3,6 +3,7 @@
 import { collection, getCountFromServer, getDocs, limit, orderBy, query, Timestamp, where } from "firebase/firestore";
 import Link from "next/link";
 import { bucket, DailyBars, lastDays } from "@/components/bars";
+import { Growth, type Snapshot } from "@/components/growth";
 import { Avatar, Badge, Card, Empty, ErrorNote, Loading, PageHeader, Stat } from "@/components/ui";
 import { db } from "@/lib/firebase";
 import { count, timeAgo, toDate } from "@/lib/format";
@@ -23,7 +24,8 @@ async function load() {
     activeSince(7 * 86_400_000),
     activeSince(30 * 86_400_000),
   ]);
-  const [users, livePosts, openReports, communities, globalMessages, userDocs, postDocs, reportDocs] = await Promise.all([
+  const ninetyDaysAgo = new Date(Date.now() - 91 * 86400000).toISOString().slice(0, 10);
+  const [users, livePosts, openReports, communities, globalMessages, userDocs, postDocs, reportDocs, stats] = await Promise.all([
     n(collection(db, "users")),
     n(query(collection(db, "posts"), where("expiresAt", ">", now))),
     n(query(collection(db, "reports"), where("status", "==", "open"))),
@@ -32,6 +34,7 @@ async function load() {
     getDocs(query(collection(db, "users"), limit(1000))),
     getDocs(query(collection(db, "posts"), where("postedAt", ">=", since), orderBy("postedAt", "desc"), limit(1000))),
     getDocs(query(collection(db, "reports"), where("status", "==", "open"), limit(5))),
+    getDocs(query(collection(db, "stats"), where("date", ">=", ninetyDaysAgo), limit(120))),
   ]);
   const days = lastDays(14);
   const people = rows<UserDoc>(userDocs);
@@ -51,6 +54,8 @@ async function load() {
     posts: bucket(postDocs.docs.map((d) => toDate(d.data().postedAt)), days),
     newest,
     reports: rows<ReportDoc>(reportDocs),
+    joined: people.map((p) => toDate(p.createdAt)),
+    snapshots: stats.docs.map((d) => d.data() as Snapshot),
   };
 }
 
@@ -91,6 +96,8 @@ export default function Dashboard() {
               ))}
             </div>
           </Card>
+
+          <Growth joined={data.joined} snapshots={data.snapshots} />
 
           <div className="grid gap-6 lg:grid-cols-2">
             <Card title="New accounts"><DailyBars days={data.signups} label="Last 14 days" /></Card>
