@@ -46,6 +46,7 @@ import { dailyReminder, eventReminders, forgetOldAnnouncements, notify } from '.
 import { referenceRates } from './rates.js';
 import { AdminError, adminAction, identityToolkit, liftExpiredBans } from './admin.js';
 import { autoHideReported, reportAlerts, sendScheduled } from './admin-cron.js';
+import { takeSnapshot } from './snapshot.js';
 
 // The quarter-hourly trigger in wrangler.toml, for event reminders. The
 // other, daily, is the morning one.
@@ -208,6 +209,8 @@ export default {
         await forgetOldAnnouncements(restStore(env.FIREBASE_PROJECT_ID, token, { budget: 5 }));
         // On the first mornings of a month: last month's champion.
         await crownChampion(restStore(env.FIREBASE_PROJECT_ID, token, { budget: 6 }));
+        // The day's numbers, for the admin panel's growth chart.
+        await takeSnapshot(restStore(env.FIREBASE_PROJECT_ID, token, { budget: 8 }));
       })().catch((e) => console.error(`scheduled job ${event.cron} failed:`, e)),
     );
   },

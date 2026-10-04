@@ -229,6 +229,26 @@ export function restStore(projectId, token, { budget = 40 } = {}) {
       });
     },
 
+    /**
+     * How many documents in [collection] match — and with [sum], the total
+     * of that field over them — counted by Firestore without reading them.
+     */
+    async aggregate({ collection, field, op = '==', value, sum }) {
+      const structuredQuery = {
+        from: [{ collectionId: collection }],
+        ...(field
+          ? { where: { fieldFilter: { field: { fieldPath: field }, op: OPS[op], value: encodeValue(value) } } }
+          : {}),
+      };
+      const aggregations = [{ alias: 'n', count: {} }];
+      if (sum) aggregations.push({ alias: 's', sum: { field: { fieldPath: sum } } });
+      const rows = await call(`${api}:runAggregationQuery`, {
+        structuredAggregationQuery: { structuredQuery, aggregations },
+      });
+      const fields = decodeFields(rows[0]?.result?.aggregateFields ?? {});
+      return { count: Number(fields.n ?? 0), sum: Number(fields.s ?? 0) };
+    },
+
     /** The document in [parent]/[collection] with the highest [field], or null. */
     async newest(parent, collection, field, fields = []) {
       const rows = await runQuery(parent, {

@@ -1601,6 +1601,14 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Each day's numbers — accounts, who used the app, posts, trades —
+    // counted by the worker every morning (worker/src/snapshot.js). For the
+    // admin panel's growth chart.
+    match /stats/{day} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     // Announcements waiting for their time, sent by the worker's quarter-hour
     // run (worker/src/admin-cron.js). For the admin panel only.
     match /scheduled/{id} {

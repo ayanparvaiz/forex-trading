@@ -53,6 +53,16 @@ export function memoryStore(docs, { budget = Infinity } = {}) {
         .slice(0, limit)
         .map((p) => ({ path: p, data: pick(docs.get(p), fields) }));
     },
+    async aggregate({ collection, field, op = '==', value, sum }) {
+      spend();
+      const rows = sorted()
+        .filter((p) => p.split('/').length === 2 && p.startsWith(`${collection}/`))
+        .filter((p) => !field || matches(docs.get(p)[field], op, value));
+      return {
+        count: rows.length,
+        sum: sum ? rows.reduce((t, p) => t + (typeof docs.get(p)[sum] === 'number' ? docs.get(p)[sum] : 0), 0) : 0,
+      };
+    },
     async newest(parent, collection, field) {
       spend();
       const depth = parent.split('/').length + 2;
