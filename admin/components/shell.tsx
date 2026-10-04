@@ -42,6 +42,7 @@ const NAV: { group?: string; items: { href: string; label: string; icon: () => R
     items: [
       { href: "/admins/", label: "Admins", icon: Icons.shield, needs: "addAdmin" },
       { href: "/activity/", label: "Activity", icon: Icons.history },
+      { href: "/backup/", label: "Backup", icon: Icons.download, needs: "backup" },
     ],
   },
 ];
