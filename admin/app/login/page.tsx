@@ -4,6 +4,7 @@ import { FirebaseError } from "firebase/app";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button, inputClass } from "@/components/ui";
+import { useSignedOutIdle } from "@/lib/idle";
 import { useSession } from "@/lib/session";
 
 function reason(e: unknown) {
@@ -23,6 +24,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [idle, forgetIdle] = useSignedOutIdle();
 
   useEffect(() => {
     if (access === "admin" || access === "not-admin") router.replace("/");
@@ -34,6 +36,7 @@ export default function LoginPage() {
     setError(null);
     try {
       await signIn(username, password);
+      forgetIdle();
     } catch (err) {
       setError(reason(err));
       setBusy(false);
@@ -47,6 +50,9 @@ export default function LoginPage() {
         <img src="/icon.png" alt="" width={44} height={44} className="rounded-xl" />
         <h1 className="mt-5 text-xl font-semibold text-ink-strong">Sign in to the admin panel</h1>
         <p className="mt-1 text-sm text-muted">Use your Forex Social username and password.</p>
+        {idle && (
+          <p className="mt-4 rounded-lg bg-sunken px-3 py-2 text-sm text-ink">You were signed out after 30 minutes without activity.</p>
+        )}
         <label className="mt-6 block text-sm font-medium text-ink" htmlFor="username">Username</label>
         <input id="username" className={`${inputClass} mt-1.5`} autoComplete="username" autoCapitalize="none"
           value={username} onChange={(e) => setUsername(e.target.value)} placeholder="ayan" required />

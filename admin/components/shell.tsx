@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { useIdleSignOut } from "@/lib/idle";
 import { useOpenReports } from "@/lib/live";
 import { ROLE_LABEL } from "@/lib/roles";
 import { useSession } from "@/lib/session";
@@ -120,6 +121,9 @@ function Account() {
 /** The sidebar on wide screens; a top bar and a drawer on a phone. */
 export function Shell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const { signOut } = useSession();
+  // Half an hour with nothing done, and the panel closes itself.
+  useIdleSignOut(signOut);
   return (
     <div className="min-h-dvh lg:pl-64">
       <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col gap-6 border-r border-line bg-surface px-4 py-5 lg:flex">
