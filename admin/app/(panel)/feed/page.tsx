@@ -92,7 +92,8 @@ export default function FeedPage() {
     return data.posts
       .filter((p) => where === "all" || p.community === where)
       .filter((p) => kind === "all" || (p.kind ?? "trade") === kind)
-      .filter((p) => !liveOnly || (toDate(p.expiresAt)?.getTime() ?? 0) > now);
+      // Hidden for reports counts as showing: it is waiting for an admin.
+      .filter((p) => !liveOnly || p.hiddenByReports || (toDate(p.expiresAt)?.getTime() ?? 0) > now);
   }, [data, where, kind, liveOnly]);
 
   const remove = (p: PostDoc) =>
@@ -103,6 +104,8 @@ export default function FeedPage() {
     ).then((ok) => ok && reload());
 
   const { can } = useSession();
+  const unhide = (p: PostDoc) =>
+    act(null, () => adminCall("unhide", { postId: p.id }), "The post is back on the feeds.").then((ok) => ok && reload());
   const pin = (p: PostDoc | null) =>
     act(
       p
@@ -170,6 +173,7 @@ export default function FeedPage() {
                       )}
                       {p.kind === "question" && <Badge tone={p.answerId ? "good" : "warn"}>{p.answerId ? "Answered" : "Open"}</Badge>}
                       {data?.pinned === p.id && <Badge tone="good">📌 Pinned to Global</Badge>}
+                      {p.hiddenByReports && <Badge tone="bad">Hidden: reported by several people</Badge>}
                     </div>
                     {p.reason && <p className="mt-3 text-sm break-words text-muted">Why: {p.reason}</p>}
                     <p className="mt-2 text-[15px] leading-relaxed break-words text-ink">{p.lesson}</p>
@@ -186,6 +190,7 @@ export default function FeedPage() {
                           ) : (
                             <Button size="sm" onClick={() => pin(p)}>Pin to Global</Button>
                           ))}
+                        {p.hiddenByReports && <Button size="sm" onClick={() => unhide(p)}>Show again</Button>}
                         <Button size="sm" variant="danger" onClick={() => remove(p)}>Delete post</Button>
                       </span>
                     </div>

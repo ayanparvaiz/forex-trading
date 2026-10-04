@@ -28,6 +28,7 @@ export type LogEntry = {
   snippet?: string;
   title?: string;
   sent?: number;
+  reports?: number;
   phones?: number;
   what?: string;
 };
@@ -95,6 +96,19 @@ export function sentence(e: LogEntry): string {
       return `reset ${who(e.username)}'s ${e.what ?? "profile"}`;
     case "addAdmin":
       return `made ${who(e.username)} ${e.what === "moderator" ? "a moderator" : "an admin"}`;
+    case "autoHide":
+      // The worker hiding a post, or an admin setting when it should.
+      return e.postId
+        ? `took a post by ${who(e.author)} off the feeds: reported by ${e.reports ?? "several"} people`
+        : `set ${e.what ?? "when reports hide a post"}`;
+    case "unhide":
+      return `put a post back on the feeds`;
+    case "schedule":
+      return `scheduled “${e.title ?? ""}”${e.communityName ? ` for ${e.communityName}` : ""}`;
+    case "cancelScheduled":
+      return "cancelled a scheduled announcement";
+    case "alerts":
+      return `turned ${e.what ?? "report alerts"}`;
     case "purge":
       return `removed everything ${who(e.username)} posted`;
     case "removeAdmin":
@@ -113,10 +127,10 @@ export function sentence(e: LogEntry): string {
 /** Which filter a log line belongs under. */
 export function area(action: string): string {
   if (["ban", "liftBan", "deleteUser", "setPassword", "warn", "resetProfile", "purge"].includes(action)) return "People";
-  if (["deletePost", "deleteComment", "removeMessage", "pin"].includes(action)) return "Content";
+  if (["deletePost", "deleteComment", "removeMessage", "pin", "autoHide", "unhide"].includes(action)) return "Content";
   if (action === "resolveReport") return "Reports";
   if (action === "community") return "Communities";
-  if (action === "broadcast") return "Announcements";
+  if (["broadcast", "schedule", "cancelScheduled"].includes(action)) return "Announcements";
   return "Admins & settings";
 }
 export const AREAS = ["People", "Content", "Reports", "Communities", "Announcements", "Admins & settings"];

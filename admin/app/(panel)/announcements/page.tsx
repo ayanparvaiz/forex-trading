@@ -18,15 +18,18 @@ const BODY_MAX = 300;
 
 type Line = { title: string; body: string };
 type Announcement = { id: string; bn: Line; en: Line; sentBy: string; sentAt?: When; communityId?: string };
+type Scheduled = { id: string; bn: Line; en: Line; by: string; at?: When; communityId?: string };
 
 async function load() {
-  const [sent, users, communities] = await Promise.all([
+  const [sent, users, communities, waiting] = await Promise.all([
     getDocs(query(collection(db, "announcements"), orderBy("sentAt", "desc"), limit(50))),
     allUsers(),
     allCommunities(),
+    getDocs(query(collection(db, "scheduled"), orderBy("at"), limit(50))),
   ]);
   return {
     sent: rows<Announcement>(sent),
+    waiting: rows<Scheduled>(waiting),
     names: new Map(users.map((u) => [u.id, u.username])),
     communities: communities.sort((a, b) => a.name.localeCompare(b.name)),
   };
@@ -66,6 +69,9 @@ function AnnouncementsPage() {
   const { data, error, loading, reload } = useLoad(load);
   const [draft, setDraft] = useState<{ bn: Line; en: Line }>(EMPTY);
   const [to, setTo] = useState("");
+  // When: now, or at a time picked here (local time, as the input gives it).
+  const [mode, setMode] = useState<"now" | "later">("now");
+  const [at, setAt] = useState("");
   const community = data?.communities.find((c) => c.id === to);
   const communityName = (id?: string) => data?.communities.find((c) => c.id === id)?.name ?? "a community";
 
@@ -73,6 +79,31 @@ function AnnouncementsPage() {
   const ready = fine(draft.bn) && fine(draft.en);
   const set = (lang: "bn" | "en", field: keyof Line, value: string) =>
     setDraft((d) => ({ ...d, [lang]: { ...d[lang], [field]: value } }));
+
+  const scheduled = () => {
+    const when = new Date(at);
+    const label = when.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    return act(
+      {
+        title: `Schedule for ${label}?`,
+        body: `It goes to ${community ? `the members of ${community.name}` : "everyone"} within a quarter of an hour of that time. You can cancel it until then.`,
+        action: "Schedule",
+      },
+      () => adminCall("schedule", { ...draft, ...(community ? { communityId: community.id } : {}), at: when.toISOString() }),
+      `Scheduled for ${label}.`,
+    ).then((ok) => {
+      if (!ok) return;
+      setDraft(EMPTY);
+      reload();
+    });
+  };
+
+  const cancel = (w: Scheduled) =>
+    act(
+      { title: "Cancel this announcement?", body: `“${w.en.title}” won't be sent.`, action: "Cancel it", danger: true },
+      () => adminCall("cancelScheduled", { id: w.id }),
+      "Cancelled.",
+    ).then((ok) => ok && reload());
 
   const send = () =>
     act(
@@ -107,6 +138,22 @@ function AnnouncementsPage() {
               {(data?.communities ?? []).map((c) => <option key={c.id} value={c.id}>{c.name} · {c.memberCount ?? 0} members</option>)}
             </select>
           </label>
+          <div className="mb-6 flex flex-wrap items-end gap-3">
+            <div className="flex gap-1.5">
+              {([["now", "Send now"], ["later", "Schedule"]] as const).map(([m, label]) => (
+                <button key={m} type="button" onClick={() => setMode(m)}
+                  className={cx("h-9 rounded-lg px-3.5 text-[13px] font-medium", mode === m ? "bg-primary text-white" : "bg-surface text-muted ring-1 ring-line hover:text-ink")}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            {mode === "later" && (
+              <label className="flex flex-col gap-1.5">
+                <span className="text-xs font-medium text-muted">When (your time)</span>
+                <input type="datetime-local" className={cx(inputClass, "w-60")} value={at} onChange={(e) => setAt(e.target.value)} />
+              </label>
+            )}
+          </div>
           <div className="grid gap-6 md:grid-cols-2">
             {LANGUAGES.map((l) => (
               <div key={l.id} className="flex min-w-0 flex-col gap-3">
@@ -136,11 +183,34 @@ function AnnouncementsPage() {
               {(draft.bn.title || draft.bn.body || draft.en.title || draft.en.body) && (
                 <Button variant="ghost" onClick={() => setDraft(EMPTY)}>Clear</Button>
               )}
-              <Button variant="primary" disabled={!ready} onClick={send}>{community ? "Send to the community" : "Send to everyone"}</Button>
+              {mode === "now" ? (
+                <Button variant="primary" disabled={!ready} onClick={send}>{community ? "Send to the community" : "Send to everyone"}</Button>
+              ) : (
+                <Button variant="primary" disabled={!ready || !at} onClick={scheduled}>Schedule</Button>
+              )}
             </div>
           </div>
         </Card>
 
+        <div className="flex h-fit flex-col gap-6">
+        {(data?.waiting.length ?? 0) > 0 && (
+          <Card title={`Scheduled · ${data?.waiting.length}`} flush>
+            <ul className="divide-y divide-line-soft">
+              {data?.waiting.map((w) => (
+                <li key={w.id} className="flex items-start gap-3 px-5 py-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium text-ink-strong">{w.en.title}</div>
+                    <div className="truncate text-sm text-muted">{w.bn.title}</div>
+                    <div className="mt-1.5 text-xs text-faint">
+                      {dateTime(w.at)} · to {w.communityId ? communityName(w.communityId) : "everyone"} · by @{data.names.get(w.by) ?? "an admin"}
+                    </div>
+                  </div>
+                  <Button size="sm" variant="ghost" onClick={() => cancel(w)}>Cancel</Button>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
         <Card title="Sent before" className="h-fit" flush>
           <ErrorNote error={error} />
           {loading && !data ? (
@@ -163,6 +233,7 @@ function AnnouncementsPage() {
             </ul>
           )}
         </Card>
+        </div>
       </div>
     </>
   );

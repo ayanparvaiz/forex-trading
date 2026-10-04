@@ -46,6 +46,8 @@ export type PostDoc = {
   commentCount?: number;
   reach?: number;
   answerId?: string | null;
+  /** Off the feeds since enough people reported it (worker/src/admin-cron.js). */
+  hiddenByReports?: boolean;
   postedAt?: When;
   expiresAt?: When;
 };

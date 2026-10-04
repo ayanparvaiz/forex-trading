@@ -28,10 +28,16 @@ type AppConfig = {
 const CURRENT_BUILD = Number(process.env.NEXT_PUBLIC_APP_BUILD ?? 0);
 
 async function load() {
-  const snap = await getDoc(doc(db, "config", "app"));
+  const [snap, moderation] = await Promise.all([getDoc(doc(db, "config", "app")), getDoc(doc(db, "config", "moderation"))]);
   const config = (snap.data() ?? {}) as AppConfig;
   const pinned = config.pinnedPostId ? await getDoc(doc(db, "posts", config.pinnedPostId)) : null;
-  return { config, pinned: pinned?.exists() ? ({ id: pinned.id, ...pinned.data() } as PostDoc) : null };
+  const hideAt = moderation.data()?.autoHideAt;
+  return {
+    config,
+    pinned: pinned?.exists() ? ({ id: pinned.id, ...pinned.data() } as PostDoc) : null,
+    // As the worker reads it (worker/src/admin-cron.js, AUTO_HIDE_AT).
+    autoHideAt: typeof hideAt === "number" ? hideAt : 3,
+  };
 }
 
 function Switch({ on, onChange, label }: { on: boolean; onChange: (on: boolean) => void; label: string }) {
@@ -163,6 +169,29 @@ function Banner({ config, onSaved }: { config: AppConfig; onSaved: () => void })
   );
 }
 
+function ReportedPosts({ at, onSaved }: { at: number; onSaved: () => void }) {
+  const act = useAction();
+  const pick = (n: number) =>
+    act(null, () => adminCall("autoHide", { at: n }), n ? `Posts now leave the feeds after ${n} reports.` : "Reports no longer hide posts.").then(
+      (ok) => ok && onSaved(),
+    );
+  return (
+    <Card title="Reported posts">
+      <p className="text-sm text-muted">
+        A post reported by this many different people leaves the feeds until an admin looks — Show again, or delete it, from Reports or the feed. Checked every quarter hour.
+      </p>
+      <div className="mt-4 flex flex-wrap gap-1.5">
+        {[0, 2, 3, 5, 10].map((n) => (
+          <button key={n} type="button" onClick={() => n !== at && pick(n)}
+            className={cx("h-9 rounded-lg px-3 text-[13px] font-medium", at === n ? "bg-primary text-white" : "bg-surface text-muted ring-1 ring-line hover:text-ink")}>
+            {n === 0 ? "Never" : `${n} people`}
+          </button>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 function Pinned({ post, onSaved }: { post: PostDoc | null; onSaved: () => void }) {
   const act = useAction();
   return (
@@ -196,6 +225,7 @@ function SettingsPage() {
           <Maintenance config={data.config} onSaved={reload} />
           <Banner config={data.config} onSaved={reload} />
           <ForceUpdate config={data.config} onSaved={reload} />
+          <ReportedPosts at={data.autoHideAt} onSaved={reload} />
           <Pinned post={data.pinned} onSaved={reload} />
         </div>
       ) : null}

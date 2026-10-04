@@ -1,8 +1,9 @@
 "use client";
 
-import { collection, getDocs, limit, query, where } from "firebase/firestore";
+import { collection, getDocs, limit, query, where, doc, getDoc } from "firebase/firestore";
 import Link from "next/link";
 import { useState } from "react";
+import { AlertsToggle } from "@/components/alerts-toggle";
 import { useAction } from "@/components/feedback";
 import { Badge, Button, Card, cx, Empty, ErrorNote, ExportButton, Loading, PageHeader } from "@/components/ui";
 import { csvDate, downloadCsv } from "@/lib/csv";
@@ -33,7 +34,11 @@ async function load(status: Status) {
   const reports = rows<ReportDoc>(snap).sort(
     (a, b) => (toDate(b.createdAt)?.getTime() ?? 0) - (toDate(a.createdAt)?.getTime() ?? 0),
   );
-  return { reports, names };
+  // Which reported posts are off the feeds for it.
+  const postIds = [...new Set(reports.filter((r) => r.status === "open" && r.kind === "post" && r.postId).map((r) => r.postId!))];
+  const posts = await Promise.all(postIds.map((id) => getDoc(doc(db, "posts", id))));
+  const hidden = new Set(posts.filter((p) => p.data()?.hiddenByReports === true).map((p) => p.id));
+  return { reports, names, hidden };
 }
 
 export default function ReportsPage() {
@@ -81,6 +86,13 @@ export default function ReportsPage() {
   // own page has every length.
   const { role } = useSession();
   const week = role === "moderator";
+  const unhide = (r: ReportDoc) =>
+    act(
+      { title: "Put the post back on the feeds?", body: "Everyone sees it again, for the rest of its week. Dismiss the report too if it was fine.", action: "Show again" },
+      () => adminCall("unhide", { postId: r.postId }),
+      "The post is back on the feeds.",
+    ).then((ok) => ok && reload());
+
   const ban = (r: ReportDoc) =>
     act(
       {
@@ -102,6 +114,8 @@ export default function ReportsPage() {
         title="Reports"
         subtitle="What people flagged in the app, newest first."
         actions={
+          <>
+          <AlertsToggle />
           <ExportButton
             disabled={!data?.reports.length}
             onClick={() =>
@@ -116,6 +130,7 @@ export default function ReportsPage() {
               )
             }
           />
+          </>
         }
       />
       <div className="mb-4 flex gap-1.5">
@@ -144,6 +159,7 @@ export default function ReportsPage() {
               <div className="flex flex-wrap items-center gap-2">
                 <Badge tone={r.status === "open" ? "warn" : r.status === "resolved" ? "good" : "neutral"}>{r.status}</Badge>
                 <Badge tone="dark">{REPORT_REASONS[r.reason] ?? r.reason}</Badge>
+                {r.postId && data.hidden.has(r.postId) && <Badge tone="bad">Hidden from the feeds</Badge>}
                 <span className="text-sm text-muted">
                   {KINDS[r.kind] ?? r.kind} by{" "}
                   <Link className="font-medium text-ink hover:underline" href={`/users/view/?uid=${r.targetUid}`}>@{r.targetUsername}</Link>
@@ -166,6 +182,7 @@ export default function ReportsPage() {
                 {r.status === "open" ? (
                   <>
                     {r.kind === "post" && r.postId && <Button size="sm" variant="danger" onClick={() => deletePost(r)}>Delete post</Button>}
+                    {r.kind === "post" && r.postId && data.hidden.has(r.postId) && <Button size="sm" onClick={() => unhide(r)}>Show again</Button>}
                     {r.kind === "comment" && r.postId && r.commentId && <Button size="sm" variant="danger" onClick={() => deleteComment(r)}>Delete comment</Button>}
                     {r.kind === "message" && isRoom(r.chatId) && r.messageId && <Button size="sm" variant="danger" onClick={() => removeMessage(r)}>Remove message</Button>}
                     <Button size="sm" variant="danger" onClick={() => ban(r)}>Ban @{r.targetUsername}</Button>
